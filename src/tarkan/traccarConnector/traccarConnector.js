@@ -59,29 +59,34 @@ connector.prototype.closeWS = function(){
 connector.prototype.on = function(label,fnc){
     Emitter.addListener(label,fnc);
 }
-
-connector.prototype.login = function(email,password){
-    return new Promise((resolve,reject)=> {
-        if(email==='' || password===''){
-            reject('FILL_ALL_FIELDS')
-        }else {
-
+connector.prototype.login = function(email, password) {
+    return new Promise((resolve, reject) => {
+        if (email === '' || password === '') {
+            reject('FILL_ALL_FIELDS');
+        } else {
             const params = new URLSearchParams();
             params.append('email', email);
             params.append('password', password);
             params.append('undefined', 'false');
 
-            this.axios.post('/session', params).then(({data})=>{
+            this.axios.post('/session', params).then(({ data }) => {
                 resolve(data);
-            }).catch((r)=>{
+            }).catch((r) => {
+                const err = r.response.data.split("-")[0].trim().replaceAll(" ", "_").toUpperCase();
+                console.log(err);
 
-                const err = r.response.data.split("-")[0].trim().replaceAll(" ","_").toUpperCase();
-
-                reject(err);
+                if (err === 'USER_IS_DISABLED') {
+                    reject('block');
+                } else if (err === 'HTTP_401_UNAUTHORIZED') {
+                    reject('INVALID_LOGIN_DATA');
+                } else {
+                    reject(err);
+                }
             });
         }
     });
-}
+};
+
 
 
 connector.prototype.loginToken = function(token){

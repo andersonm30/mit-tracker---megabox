@@ -322,6 +322,13 @@ const parseLog = (log)=>{
       return parseObject(log,0)+' tentativa de excluir o dispositivo "'+log.old[0].name+'" falhou'
     }
   }
+  else if (log.code === 303) {
+    if (log.status === 200) {
+      return 'Servidor reiniciado com sucesso.';
+    } else {
+      return 'Tentativa de reiniciar o servidor falhou.';
+    }
+  }
 
   else if(log.code === 405){
     if(log.status===200){

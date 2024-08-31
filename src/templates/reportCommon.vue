@@ -44,7 +44,7 @@
             <el-input v-model="formData.date[0]" type="datetime-local" @change="onChange"></el-input>
             </div>
             <div class="form-group">  
-            <label for="theInputDateTime">Data Hora Inicial</label>
+            <label for="theInputDateTime">Data Hora Final</label>
             <el-input v-model="formData.date[1]" type="datetime-local" @change="onChange"></el-input>
         </div>
 

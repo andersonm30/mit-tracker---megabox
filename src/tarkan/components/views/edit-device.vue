@@ -78,9 +78,6 @@
 
           <el-form-item :label="KT('user.name')" >
             <el-input v-model="formData.attributes['tarkan.name']"></el-input>
-          </el-form-item>          
-          <el-form-item :label="KT('user.endereco')" >
-            <el-input v-model="formData.attributes['tarkan.endereco']"></el-input>
           </el-form-item>
           <el-form-item :label="KT('user.phone')" >
             <el-input v-model="formData.contact"></el-input>
@@ -88,32 +85,44 @@
           <el-form-item :label="KT('user.email')" >
             <el-input v-model="formData.attributes['tarkan.email']"></el-input>
           </el-form-item>
-          <el-form-item :label="KT('user.idade')" >
-            <el-input v-model="formData.attributes['tarkan.idade']"></el-input>
-          </el-form-item>
-          <el-form-item :label="KT('user.sexo')" >
-            <el-input v-model="formData.attributes['tarkan.sexo']"></el-input>
-          </el-form-item>
-       
-
       </el-tab-pane>
 
-      <!-- <el-tab-pane :label="KT('device.details')" name="second">
+      <el-tab-pane :label="KT('device.details')" name="second-tree">
 
 
-          <el-form-item :label="KT('device.model')" >
+        <el-form-item :label="KT('device.model')" >
             <el-input v-model="formData.model"></el-input>
           </el-form-item>
+        <el-form-item :label="KT('device.cor')" >
+          <el-input v-model="formData.attributes['placa']"></el-input>
+        </el-form-item>
+        <el-form-item :label="KT('device.cor')" >
+          <el-input v-model="formData.attributes['motor']"></el-input>
+        </el-form-item>
+        <el-form-item :label="KT('device.datafabricacao')">
+          <el-date-picker v-model="formData.attributes['dataFabricacao']" :disabled="isSupAdmin || (formData.id===store.state.auth.id && !store.getters.advancedPermissions(0))"></el-date-picker>
+        </el-form-item>
+        <el-form-item :label="KT('device.numeroVim')" >
+          <el-input v-model="formData.attributes['numeroVim']"></el-input>
+        </el-form-item>   
+        <el-form-item :label="KT('device.numerochassi')" >
+          <el-input v-model="formData.attributes['numerochassi']"></el-input>
+        </el-form-item>
         <el-form-item :label="KT('device.plate')" >
           <el-input v-model="formData.attributes['placa']"></el-input>
         </el-form-item>
-
+        <el-form-item :label="KT('device.unidadecombustivel')" >
+          <el-input v-model="formData.attributes['unidadecombustivel']"></el-input>
+        </el-form-item>
+        <el-form-item :label="KT('device.precocombustivel')" >
+          <el-input v-model="formData.attributes['precocombustivel']"></el-input>
+        </el-form-item>
 
         <el-form-item :label="KT('device.odometer')" >
           <el-input v-model="odometerData"></el-input>
         </el-form-item>
 
-          <div class="el-form-item display: none">
+          <div class="el-form-item">
             <label class="el-form-item__label">{{KT('device.icon')}}</label>
             <div class="el-form-item__content" style="display: flex;border: silver 1px solid;border-radius: 3px;flex-wrap: wrap;margin-right: -10px;overflow: auto;max-height: 350px;">
 
@@ -134,7 +143,7 @@
           </div>
 
         /* IFTRUE_myFlag */
-          <div style="display: flex; display: none">
+          <div style="display: flex;">
             <div style="flex: 1;margin-right: 30px;">
           <label class="el-form-item__label" style="margin-bottom: -15px !important;font-weight: bold;display: flex;justify-content: space-between">
             {{KT('device.color1')}}
@@ -142,9 +151,9 @@
               <el-switch v-model="useCustomColor1"  active-text="Personalizar"></el-switch>
             </div>
           </label>
-          <div v-if="useCustomColor1" style="display: flex;flex-direction: column;padding: 10px; display: none">
+          <div v-if="useCustomColor1" style="display: flex;flex-direction: column;padding: 10px;">
 
-            <div class="el-form-item" style="flex: 1;margin-right: 5px;display: none">
+            <div class="el-form-item" style="flex: 1;margin-right: 5px;">
               <label class="el-form-item__label" style="margin-bottom: -15px !important">{{KT('device.hue')}}</label>
               <div class="el-form-item__content" >
 
@@ -153,7 +162,7 @@
             </div>
 
 
-            <div class="el-form-item" style="flex: 1;margin-right: 5px;display: none ">
+            <div class="el-form-item" style="flex: 1;margin-right: 5px;">
               <label class="el-form-item__label" style="margin-bottom: -15px !important">{{KT('device.saturate')}}</label>
               <div class="el-form-item__content" >
 
@@ -223,10 +232,29 @@
 
         /* FITRUE_myFlag */
 
-      </el-tab-pane> -->
+      </el-tab-pane>
 
-
-      <el-tab-pane :label="KT('attribute.attributes')" name="attributes">
+      <el-tab-pane :label="$t('device.instalacao')" name="second-fourth"> 
+        <el-form-item :label="$t('device.empresainstalacao')">
+          <el-input v-model="formData.attributes['empresainstalacao']" :disabled="isSupAdmin || (formData.id===store.state.auth.id && !store.getters.advancedPermissions(0))"></el-input>
+        </el-form-item>
+        <el-form-item :label="$t('device.instalador')">
+          <el-input v-model="formData.attributes['instalador']" :disabled="isSupAdmin || (formData.id===store.state.auth.id && !store.getters.advancedPermissions(0))"></el-input>
+        </el-form-item>
+        <el-form-item :label="$t('device.telefoneinstalador')">
+          <el-input v-model="formData.attributes['telefoneinstalador']" :disabled="isSupAdmin || (formData.id===store.state.auth.id && !store.getters.advancedPermissions(0))"></el-input>
+        </el-form-item>
+        <el-form-item :label="$t('device.emailinstalador')">
+          <el-input v-model="formData.attributes['emailinstalador']" :disabled="isSupAdmin || (formData.id===store.state.auth.id && !store.getters.advancedPermissions(0))"></el-input>
+        </el-form-item>
+        <el-form-item :label="$t('device.dataDatainstalacao')">
+          <el-date-picker v-model="formData.attributes['dataDatainstalacao']" :disabled="isSupAdmin || (formData.id===store.state.auth.id && !store.getters.advancedPermissions(0))"></el-date-picker>
+        </el-form-item>
+        <el-form-item :label="$t('device.observacao')">
+          <el-input v-model="formData.attributes['observacao']" :disabled="isSupAdmin || (formData.id===store.state.auth.id && !store.getters.advancedPermissions(0))"></el-input>
+        </el-form-item>
+</el-tab-pane>
+<el-tab-pane :label="KT('attribute.attributes')" name="attributes">
         <tab-attributes v-model="formData.attributes" :type="'device'"></tab-attributes>
       </el-tab-pane>
     </el-tabs>
@@ -252,11 +280,7 @@ import 'element-plus/es/components/message/style/css'
 import 'element-plus/es/components/checkbox/style/css'
 import 'element-plus/es/components/slider/style/css'
 
-import {ElDialog,ElMessage,ElMessageBox,ElNotification,ElTabs,ElTabPane,ElForm,ElSwitch,ElFormItem,ElSelect,ElOption,ElButton,ElInput} from "element-plus";
-// import {ElDialog,ElSlider,ElMessage,ElMessageBox,ElNotification,ElTabs,ElTabPane,ElForm,ElSwitch,ElFormItem,ElSelect,ElOption,ElButton,ElInput} from "element-plus";
-
-
-import TabAttributes from "./tab-attributes";
+import {ElDialog,ElDatePicker, ElSlider,ElMessage,ElMessageBox,ElNotification,ElTabs,ElTabPane,ElForm,ElSwitch,ElFormItem,ElSelect,ElOption,ElButton,ElInput} from "element-plus";
 
 import {ref, defineExpose, reactive} from 'vue';
 import {useStore} from 'vuex'
@@ -267,7 +291,7 @@ const store = useStore();
 
 
 
-// import DvCar from "./dv-car";
+import DvCar from "./dv-car";
 import KT from "../../func/kt";
 
 const show = ref(false);
@@ -295,13 +319,13 @@ const rules = reactive({
   ],
   });
 
-// const showTip = (evt,text)=>{
-//   window.$showTip(evt,text);
-// }
+const showTip = (evt,text)=>{
+  window.$showTip(evt,text);
+}
 
-// const hideTip = (evt,text)=>{
-//   window.$hideTip(evt,text);
-// }
+const hideTip = (evt,text)=>{
+  window.$hideTip(evt,text);
+}
 
 
 const hue = ref(0);
@@ -312,57 +336,8 @@ const hue2 = ref(0);
 const saturation2 = ref(100);
 const brightnes2 = ref( 100);
 
-// const useCustomColor1 = ref(false);
-// const useCustomColor2 = ref(false);
-
-// const availableColors = ref([
-//   {hue: 13,saturation: 0,brightness: 0.3},
-//   {hue: 13,saturation: 0,brightness: 0.6},
-//   {hue: 13,saturation: 0,brightness: 1.8},
-
-//   {hue: 13,saturation: 1,brightness: 1},
-//   {hue: 13,saturation: 2,brightness: 1},
-//   {hue: 13,saturation: 2,brightness: 0.6},
-//   {hue: 155,saturation: 1,brightness: 1},
-//   {hue: 155,saturation: 2,brightness: 1},
-//   {hue: 155,saturation: 2,brightness: 0.6},
-//   {hue: -14,saturation: 1,brightness: 1},
-//   {hue: -14,saturation: 2,brightness: 1},
-//   {hue: -14,saturation: 2,brightness: 0.6},
-
-//   {hue: -95,saturation: 1,brightness: 1},
-//   {hue: -95,saturation: 2,brightness: 1},
-//   {hue: -95,saturation: 2,brightness: 0.6},
-
-
-//   {hue: -165,saturation: 1,brightness: 1},
-//   {hue: -165,saturation: 2,brightness: 1},
-//   {hue: -165,saturation: 2,brightness: 0.6},
-
-
-//   {hue: 43,saturation: 1,brightness: 1},
-//   {hue: 43,saturation: 2,brightness: 1},
-//   {hue: 43,saturation: 2,brightness: 0.6},
-
-
-//   {hue: 105,saturation: 1,brightness: 1},
-//   {hue: 105,saturation: 2,brightness: 1},
-//   {hue: 105,saturation: 2,brightness: 0.6},
-// ]);
-
-
-// const setColor1 = (c)=>{
-//   hue.value = c.hue;
-//   saturation.value = c.saturation * 100;
-//   brightnes.value = c.brightness * 100;
-// }
-
-// const setColor2 = (c)=>{
-//   hue2.value = c.hue;
-//   saturation2.value = c.saturation * 100;
-//   brightnes2.value = c.brightness * 100;
-// }
-
+const useCustomColor1 = ref(false);
+const useCustomColor2 = ref(false);
 
 
 const defaultDeviceData = {
@@ -382,38 +357,83 @@ const defaultDeviceData = {
   }
 }
 
+const availableColors = ref([
+  {hue: 13,saturation: 0,brightness: 0.3},
+  {hue: 13,saturation: 0,brightness: 0.6},
+  {hue: 13,saturation: 0,brightness: 1.8},
+
+  {hue: 13,saturation: 1,brightness: 1},
+  {hue: 13,saturation: 2,brightness: 1},
+  {hue: 13,saturation: 2,brightness: 0.6},
+  {hue: 155,saturation: 1,brightness: 1},
+  {hue: 155,saturation: 2,brightness: 1},
+  {hue: 155,saturation: 2,brightness: 0.6},
+  {hue: -14,saturation: 1,brightness: 1},
+  {hue: -14,saturation: 2,brightness: 1},
+  {hue: -14,saturation: 2,brightness: 0.6},
+
+  {hue: -95,saturation: 1,brightness: 1},
+  {hue: -95,saturation: 2,brightness: 1},
+  {hue: -95,saturation: 2,brightness: 0.6},
+
+
+  {hue: -165,saturation: 1,brightness: 1},
+  {hue: -165,saturation: 2,brightness: 1},
+  {hue: -165,saturation: 2,brightness: 0.6},
+
+
+  {hue: 43,saturation: 1,brightness: 1},
+  {hue: 43,saturation: 2,brightness: 1},
+  {hue: 43,saturation: 2,brightness: 0.6},
+
+
+  {hue: 105,saturation: 1,brightness: 1},
+  {hue: 105,saturation: 2,brightness: 1},
+  {hue: 105,saturation: 2,brightness: 0.6},
+]);
+
+
+const setColor1 = (c)=>{
+  hue.value = c.hue;
+  saturation.value = c.saturation * 100;
+  brightnes.value = c.brightness * 100;
+}
+
+const setColor2 = (c)=>{
+  hue2.value = c.hue;
+  saturation2.value = c.saturation * 100;
+  brightnes2.value = c.brightness * 100;
+}
 
 // eslint-disable-next-line no-undef
 const formData = ref(defaultDeviceData);
-// eslint-disable-next-line no-undef
+
+const availableCars = ref([
+  {key: 'default',img: 'default',color1: true,color2: false},
+  {key: 'arrow',img: 'arrow',color1: true,color2: false},
+  {key: 'animal',img: 'pet',color1: true,color2: false},
+  {key: 'person',img: 'person',color1: true,color2: false},
+  {key: 'bicycle',img: 'bicycle',color1: true,color2: false},
+  {key: 'motorcycle',img: 'motorcycle',color1: true,color2: false},
+  {key: 'scooter',img: 'scooter',color1: true,color2: false},
+  {key: 'car',img:'carroPasseio',color1: true,color2: false},
+  {key: 'pickup',img:'carroUtilitario',color1: true,color2: false},
+  {key: 'van',img: 'vanUtilitario',color1: true,color2: false},
+  {key: 'truck',img: 'caminhaoBau',color1: true,color2: true},
+  {key: 'truck1',img: 'truckCavalo',color1: true,color2: false},
+  {key: 'truck2',img: 'truckBau',color1: true,color2: true},
+  {key: 'bus',img: 'bus',color1: true,color2: false},
+  {key: 'crane',img: 'crane',color1: true,color2: false},
 
 
-// const availableCars = ref([
-//   {key: 'default',img: 'default',color1: true,color2: false},
-//   {key: 'arrow',img: 'arrow',color1: true,color2: false},
-//   {key: 'animal',img: 'pet',color1: true,color2: false},
-//   {key: 'person',img: 'person',color1: true,color2: false},
-//   {key: 'bicycle',img: 'bicycle',color1: true,color2: false},
-//   {key: 'motorcycle',img: 'motorcycle',color1: true,color2: false},
-//   {key: 'scooter',img: 'scooter',color1: true,color2: false},
-//   {key: 'car',img:'carroPasseio',color1: true,color2: false},
-//   {key: 'pickup',img:'carroUtilitario',color1: true,color2: false},
-//   {key: 'van',img: 'vanUtilitario',color1: true,color2: false},
-//   {key: 'truck',img: 'caminhaoBau',color1: true,color2: true},
-//   {key: 'truck1',img: 'truckCavalo',color1: true,color2: false},
-//   {key: 'truck2',img: 'truckBau',color1: true,color2: true},
-//   {key: 'bus',img: 'bus',color1: true,color2: false},
-//   {key: 'crane',img: 'crane',color1: true,color2: false},
+  {key: 'offroad',img: 'offroad',color1: true,color2: false},
+  {key: 'tractor',img: 'tractor',color1: true,color2: false},
 
-
-//   {key: 'offroad',img: 'offroad',color1: true,color2: false},
-//   {key: 'tractor',img: 'tractor',color1: true,color2: false},
-
-//   {key: 'plane',img: 'plane',color1: true,color2: false},
-//   {key: 'helicopter',img: 'helicopter',color1: true,color2: false},
-//   {key: 'boat',img: 'boat',color1: true,color2: false},
-//   {key: 'ship',img: 'ship',color1: true,color2: false},
-// ]);
+  {key: 'plane',img: 'plane',color1: true,color2: false},
+  {key: 'helicopter',img: 'helicopter',color1: true,color2: false},
+  {key: 'boat',img: 'boat',color1: true,color2: false},
+  {key: 'ship',img: 'ship',color1: true,color2: false},
+]);
 
 
 

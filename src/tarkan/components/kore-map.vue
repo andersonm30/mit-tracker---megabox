@@ -19,7 +19,7 @@
       <el-button type="danger" v-if="store.state.devices.showRoutes" @click="closeRoutes()" style="margin-right: 5px;"><i class="fas fa-times"></i></el-button>
 
 
-      <el-button v-if="store.state.server.isPlus && ((store.state.server.serverInfo.attributes['tarkan.enableAdvancedPerms'] && store.getters.advancedPermissions(24))) || (!store.state.server.serverInfo.attributes['tarkan.enableAdvancedPerms'] && !store.state.auth.attributes['isShared'] && !store.getters['isReadonly'])" @click="editSharesRef.showShares()" style="margin-right: 5px;"><i class="fas fa-share-alt"></i></el-button>
+      <el-button v-if="store.state.server.isPlus && ((store.state.server.serverInfo.attributes['tarkan.enableAdvancedPerms'] && store.getters.advancedPermissions(24))) || (!store.state.server.serverInfo.attributes['tarkan.enableAdvancedPerms'] && !store.state.auth.attributes['isShared'] && !store.getters['isReadonly'])" @click="editSharesRef. ()" style="margin-right: 5px;"><i class="fas fa-share-alt"></i></el-button>
 
       <el-dropdown v-if="!store.state.auth.attributes['isShared']" size="large" style="margin-right: 5px;" max-height="50%" :hide-timeout="300" :hide-on-click="false" trigger="click">
         <el-button><i class="fas fa-eye"></i></el-button>
@@ -342,9 +342,9 @@ const changeMap = (id)=>{
     case 4:
       map = 'googleSN';
       break;
-    case 5:
-      map = 'mapbox';
-      break;
+    // case 5:
+    //   map = 'mapbox';
+    //   break;
   }
 
   store.dispatch("setMap",map);
@@ -365,16 +365,16 @@ const selectedMap = computed(()=>{
   const map = userMap || serverMap;
 
   switch(map){
-    case "mapbox":
-      return 5;
+    // case "mapbox":
+    //   return 5;
     case "googleSN":
-      return 4;
+      return 1;
     case "googleTR":
       return 3;
     case "googleST":
       return 2;
     case "openstreet":
-      return 1;
+      return 4;
   }
 
 
@@ -387,14 +387,15 @@ const showGeofences = ref(true);
 const availableMaps = ref([
 
   /* IFTRUE_myFlag */
-  {id: 1, name: 'MapBox',url: 'https://api.mapbox.com/styles/v1/mapbox/streets-v11/tiles/{z}/{x}/{y}?access_token=pk.eyJ1IjoiYW5nZWxvZmFyaWFzIiwiYSI6ImNsNTFiczBreTAwb2wzam45MW9yNXhuMGYifQ.gvxk36N9LnrU72igP4ME0A'},
+  // {id: 1, name: 'MapBox',url: 'https://api.mapbox.com/styles/v1/mapbox/streets-v11/tiles/{z}/{x}/{y}?access_token=pk.eyJ1IjoiYW5nZWxvZmFyaWFzIiwiYSI6ImNsNTFiczBreTAwb2wzam45MW9yNXhuMGYifQ.gvxk36N9LnrU72igP4ME0A'},
   /* FITRUE_myFlag */
-  {id: 5, name: 'OpenStreetMap',url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'},
-
+  {id: 1, name: 'Google Maps',subdomains: ['mt0','mt1','mt2','mt3'],url: 'https://{s}.google.com/vt/lyrs=m@221097413&x={x}&y={y}&z={z}&hl=pt-BR'},
+  
   /* IFTRUE_myFlag */
   {id: 2, name: 'Google Maps Sat',subdomains: ['mt0','mt1','mt2','mt3'],url: 'https://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}&hl=pt-BR'},
   {id: 3, name: 'Google Maps Trafego',subdomains: ['mt0','mt1','mt2','mt3'],url: 'https://{s}.google.com/vt/lyrs=m@221097413,traffic&x={x}&y={y}&z={z}&hl=pt-BR'},
-  {id: 4, name: 'Google Maps',subdomains: ['mt0','mt1','mt2','mt3'],url: 'https://{s}.google.com/vt/lyrs=m@221097413&x={x}&y={y}&z={z}&hl=pt-BR'},
+  {id: 5, name: 'OpenStreetMap',url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'},
+  // {id: 4, name: 'Google Maps',subdomains: ['mt0','mt1','mt2','mt3'],url: 'https://{s}.google.com/vt/lyrs=m@221097413&x={x}&y={y}&z={z}&hl=pt-BR'},
 
   /* FITRUE_myFlag */
 ]);
@@ -467,33 +468,32 @@ const markerClick = (e) =>{
   flyToDevice(device);
 }
 
+
 const updateRoute = (points,show=true) =>{
 
-  if(points.length) {
-    store.commit("devices/setRoute", true);
-  }
-
-
-  routePoints.value = points;
-  showRoutePoints.value = show;
-
-  if(points.length>0) {
-    let tmp = [];
-    for(var p in points){
-      tmp.push([points[p][0],points[p][1]]);
-    }
-
-    setTimeout(() => {
-
-      // eslint-disable-next-line no-undef
-      const bds = L.latLngBounds(tmp);
-      //map.value.leafletObject.flyTo([points[0][0],points[0][1]], 12, {animate: true, duration: 1.5});
-      map.value.leafletObject.fitBounds(bds);
-    }, 300);
-  }
+if(points.length) {
+  store.commit("devices/setRoute", true);
 }
 
 
+routePoints.value = points;
+showRoutePoints.value = show;
+
+if(points.length>0) {
+  let tmp = [];
+  for(var p in points){
+    tmp.push([points[p][0],points[p][1]]);
+  }
+
+  setTimeout(() => {
+
+    // eslint-disable-next-line no-undef
+    const bds = L.latLngBounds(tmp);
+    //map.value.leafletObject.flyTo([points[0][0],points[0][1]], 12, {animate: true, duration: 1.5});
+    map.value.leafletObject.fitBounds(bds);
+  }, 300);
+}
+}
 
 const setMapCenter = (pos)=>{
   map.value.leafletObject.panTo(pos);

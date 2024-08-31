@@ -99,10 +99,10 @@
           <el-input v-model="formData.zoom" :disabled="isSupAdmin"></el-input>
         </el-form-item>
 
-
+<!-- 
         <el-form-item :label="$t('user.twelveHourFormat')" >
           <el-input v-model="formData.twelveHourFormat" :disabled="isSupAdmin"></el-input>
-        </el-form-item>
+        </el-form-item> -->
 
 
         <el-form-item :label="$t('user.coordinateFormat')" >
@@ -1227,7 +1227,7 @@ const defaultUserData = {
     "longitude": "",
     "zoom": "",
     "password": "",
-    "twelveHourFormat": false,
+    // "twelveHourFormat": false,
     "coordinateFormat": "",
     "disabled": false,
     "expirationTime": "",
@@ -1445,55 +1445,51 @@ const placeTelegram = () => {
 }
 
 
-const doSave = ()=>{
-
-  if(isSupAdmin.value){
-    ElMessage.error(KT('user.error.isSuperior'));
-    return false;
-  }
-
-
-
-  if(store.state.server.isPlus && !formData.value.administrator && store.state.server.serverInfo.attributes['tarkan.enableAdvancedPerms']){
-
-    const perms = permData.value.join("");
-    const permsHex1 = parseInt(perms.substring(0,32),2).toString(16).padStart(8,'0');
-    const permsHex2 = parseInt(perms.substring(32,64),2).toString(16).padStart(8,'0');
-    const permsHex3 = parseInt(perms.substring(64,96),2).toString(16).padStart(8,'0');
-    const permsHex4 = parseInt(perms.substring(96,128),2).toString(16).padStart(8,'0');
-
-    const permsHex = (permsHex1+''+permsHex2+''+permsHex3+''+permsHex4).toUpperCase();
-
-    formData.value.attributes['tarkan.advancedPerms'] = permsHex;
-
-
-    formData.value.readonly = false;
-    formData.value.deviceReadonly = false;
-    formData.value.limitCommands = false;
-
-  }
-
-  formRef.value.validate((valid)=> {
-    if(valid) {
-
-
-
-      store.dispatch("users/save", formData.value).then(() => {
-        show.value = false;
-      }).catch((r) => {
-
-        const err = r.response.data.split("-")[0].trim().replaceAll(" ", "_").toUpperCase();
-
-
-        ElMessageBox.alert(KT('user.error.' + err), KT('user.error.save'), {
-          confirmButtonText: 'OK'
-        })
-      })
-    }else{
-      ElMessage.error(KT('user.error.checkForm'));
+const doSave = () => {
+    if (isSupAdmin.value) {
+        ElMessage.error(KT('user.error.isSuperior'));
+        return false;
     }
-  });
-}
+
+    if (store.state.server.isPlus && !formData.value.administrator && store.state.server.serverInfo.attributes['tarkan.enableAdvancedPerms']) {
+        const perms = permData.value.join("");
+        const permsHex1 = parseInt(perms.substring(0, 32), 2).toString(16).padStart(8, '0');
+        const permsHex2 = parseInt(perms.substring(32, 64), 2).toString(16).padStart(8, '0');
+        const permsHex3 = parseInt(perms.substring(64, 96), 2).toString(16).padStart(8, '0');
+        const permsHex4 = parseInt(perms.substring(96, 128), 2).toString(16).padStart(8, '0');
+
+        const permsHex = (permsHex1 + '' + permsHex2 + '' + permsHex3 + '' + permsHex4).toUpperCase();
+
+        formData.value.attributes['tarkan.advancedPerms'] = permsHex;
+
+        formData.value.readonly = false;
+        formData.value.deviceReadonly = false;
+        formData.value.limitCommands = false;
+    }
+
+    formRef.value.validate((valid) => {
+        if (valid) {
+            store.dispatch("users/save", formData.value).then(() => {
+                show.value = false;
+            }).catch((r) => {
+                const err = r.response.data.split("-")[0].trim().replaceAll(" ", "_").toUpperCase();
+                
+                if (err.startsWith("DUPLICATE_ENTRY") && err.includes("FOR_KEY_'EMAIL'")) {
+                    ElMessageBox.alert(KT('user.error.USER_DUPLICATE'), {
+                        confirmButtonText: 'OK'
+                    });
+                } else {
+                    ElMessageBox.alert(KT('user.error.' + err), KT('user.error.save'), {
+                        confirmButtonText: 'OK'
+                    });
+                }
+            });
+        } else {
+            ElMessage.error(KT('user.error.checkForm'));
+        }
+    });
+};
+
 
 const testNotification = ()=>{
   window.$traccar.testNotification();

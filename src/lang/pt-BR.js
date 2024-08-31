@@ -4,6 +4,7 @@ const messages = {
         ALL_TASK_READY: 'Todas as tarefas foram concluidas com sucesso.',
         FILL_ALL_FIELDS: 'Por favor, preencha todos os campos.',
         INVALID_LOGIN_DATA: 'Desculpe, parece que você digitou dados incorretos.',
+        block: 'Usuario bloqueado, entre em contato com o administrador.',
         NO_DATA_TEXT: 'Sem dados disponíveis',
         EDIT_GEOGENCE_CIRCLE: 'Para Editar Geocerca de Circulo, Por favor editar a área novamente',
         NO_MATCH_TEXT: 'Não encontrado.',
@@ -282,7 +283,7 @@ const messages = {
             }
         },
         login: {
-            username: 'Nome de Usuário',
+            username: 'Usuário/E-mail',
             password: 'Senha',
             your_email: 'Seu usuário',
             your_password: 'Sua senha',
@@ -312,7 +313,7 @@ const messages = {
             title: 'Gerênciar Usuários',
             name: 'Nome',
             phone: 'Telefone',
-            email: 'E-Mail',
+            email: 'Usuário/E-mail',
             admin: 'Administrador',
             disabled: 'Desativado',
             form: {
@@ -348,6 +349,7 @@ const messages = {
                 superior: 'Você não pode editar um administrador superior a você.',
                 select: 'Selecione um usuário para editar.',
                 USER_NOT_AUTHED: 'Atualize a sua página',
+                USER_DUPLICATE: 'Usuário já cadastrado',
             },
             advanced:{
                 reseller: 'Revendedor',
@@ -431,7 +433,7 @@ const messages = {
             trail: 'Mostrar Rastro',
             untrail: 'Ocultar Rastro',
             zoom: 'Aproximar',
-            details: 'Detalhes do Usuário',
+            details: 'Detalhes do Veiculo',
             lock: 'Bloquear',
             unlock: 'Desbloquear',
             send_command: 'Enviar comando',
@@ -480,11 +482,25 @@ const messages = {
             spentFuel: 'Combustível Gasto',
             duration: 'Duração',
             batteryLevel: 'Nível de Bateria',
+            cor: 'Cor',
+            datafabricacao: 'Data de Fabricação',
+            numeroVim: 'Número do VIM',
+            numerochassi: 'Número chassi',
+            unidadecombustivel: 'Unidade de Combustível',
+            precocombustivel: 'Preço do Combustível',
+            instalacao: 'Instalação',
+            empresainstalacao: 'Empresa de Instalação',
+            instalador: 'Instalador',
+            telefoneinstalador: 'Telefone do Instalador',
+            emailinstalador: 'E-Mail do Instalador',
+            observacao: 'Observação',
+            dataDatainstalacao: 'Data de Instalação',
             form:{
                 nameEmpty: 'Por favor insira um nome para o dispositivo',
                 uniqueIdEmpty: 'Por favor insira o identificador único do dispositivo',
             },
             streetview: 'StreetView',
+
         },
         attribute:{
             title: 'Gerênciar Atributos',

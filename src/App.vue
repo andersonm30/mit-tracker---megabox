@@ -1130,10 +1130,6 @@ body.rtl #app div #content #menu ul li.active a .el-icon{
     display: none !important;
   }
 
-  #logo{
-
-  }
-
   #btnmenu{
     display: block;
   }
