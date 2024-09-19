@@ -47,7 +47,6 @@ const defaultServerData = {
   "latitude":0.0,
   "longitude":0.0,
   "zoom":0,
-  "twelveHourFormat":false,
   "forceSettings":false,
   "coordinateFormat":"",
   "limitCommands":false,

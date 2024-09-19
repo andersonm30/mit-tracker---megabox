@@ -391,7 +391,11 @@ const messages = {
             export: 'Exportar',
             show: 'Mostrar',
             reportsHistory: 'Rotas',
-            showMarkers: 'Mostrar Marcadores'
+            showMarkers: 'Mostrar Marcadores',
+            showMapadeCalor: 'Mostrar Mapa de Calor',
+            showPercurso : 'Mostrar Percurso',
+            pdf: 'PDF',
+            excel: 'Excel',
         },
         device:{
             category: 'Categoria',
@@ -485,6 +489,7 @@ const messages = {
             cor: 'Cor',
             datafabricacao: 'Data de Fabricação',
             numeroVim: 'Número do VIM',
+            anomodelo: 'Fabricação/Modelo',
             numerochassi: 'Número chassi',
             unidadecombustivel: 'Unidade de Combustível',
             precocombustivel: 'Preço do Combustível',

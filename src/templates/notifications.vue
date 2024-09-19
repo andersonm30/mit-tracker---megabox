@@ -10,8 +10,15 @@
           <div v-else-if="event.geofenceId!=0" :set="geofence = store.getters['geofences/getGeofenceById'](event.geofenceId)">
 
             {{KT('notification.messages.' + event.type+((geofence)?'Name':''),geofence)}}
+            <div style="position: absolute; right: 7px; bottom: 3px; color: #505050; font-size: 11px;">
+            {{ new Date(event.eventTime).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }) }}
           </div>
+          </div>
+          
           <div v-else>{{KT('notification.messages.' + event.type,event.attributes)}}</div>
+          <div style="position: absolute; right: 7px; bottom: 3px; color: #505050; font-size: 11px;">
+            {{ new Date(event.eventTime).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }) }}
+          </div>
           <div style="position: absolute; right: 7px; bottom: 3px; color: #505050; font-size: 11px;">
     {{ new Date(event.eventTime).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }) }}
 </div>

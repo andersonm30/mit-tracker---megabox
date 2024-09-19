@@ -81,16 +81,6 @@
         </el-form-item>
 
 
-        <el-form-item :label="KT('server.twelveHourFormat')" >
-          <el-switch
-              v-model="formData.twelveHourFormat"
-              :inactive-text="KT('no')"
-              :active-text="KT('yes')"
-          >
-          </el-switch>
-        </el-form-item>
-
-
         <el-form-item :label="KT('server.coordinateFormat')" >
           <el-input v-model="formData.coordinateFormat" ></el-input>
         </el-form-item>
@@ -323,7 +313,7 @@ const showServer = ()=>{
 
   // eslint-disable-next-line no-undef
   for(let k of Object.keys(defaultServerData)){
-    if(k==='attributes' && server[k] === []){
+    if(k==='attributes' && server[k].length === 0){
       formData.value['attributes'] = {};
     }else {
       formData.value[k] = server[k];

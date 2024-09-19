@@ -2,13 +2,12 @@
   <el-dialog :lock-scroll="true" width="400px" v-model="show">
 
     <template v-slot:title>
-      <div  style="border-bottom: #e0e0e0 1px solid;padding: 20px;">
-        <div class="modal-title" >{{title}}</div>
+      <div style="border-bottom: #e0e0e0 1px solid;padding: 20px;">
+        <div class="modal-title">{{title}}</div>
       </div>
     </template>
     <template v-slot:footer>
-      <div  style="border-top: #e0e0e0 1px solid;padding: 20px;display: flex;justify-content: space-between;">
-
+      <div style="border-top: #e0e0e0 1px solid;padding: 20px;display: flex;justify-content: space-between;">
         <el-button type="danger" plain @click="doCancel()">Cancelar</el-button>
         <el-button type="primary" @click="doSave()">Salvar</el-button>
       </div>
@@ -17,56 +16,56 @@
     <el-tabs v-model="tab">
       <el-tab-pane label="Dados da Conta" name="first">
         <el-form label-width="120px" label-position="top">
-          <el-form-item label="Nome" >
-            <el-input v-model="formData.name" ></el-input>
+          <el-form-item label="Nome">
+            <el-input v-model="formData.name"></el-input>
           </el-form-item>
 
-          <el-form-item label="Dispositivo" >
-            <el-select v-model="formData.deviceId" :value-key="'id'" filterable :placeholder="KT('device.device')" :size="'large'"  :no-match-text="KT('NO_MATCH_TEXT')" :no-data-text="KT('NO_DATA_TEXT')">
-
+          <el-form-item label="Dispositivo">
+            <el-select
+              v-model="formData.deviceId"
+              :value-key="'id'"
+              filterable
+              :placeholder="KT('device.device')"
+              :size="'large'"
+              :no-match-text="KT('NO_MATCH_TEXT')"
+              :no-data-text="KT('NO_DATA_TEXT')"
+            >
               <el-option
-                  v-for="item in store.state.devices.deviceList"
-                  :key="item.id"
-                  :label="item.name"
-                  :value="item.id"
-              >
-              </el-option>
+                v-for="item in store.state.devices.deviceList"
+                :key="item.id"
+                :label="item.name"
+                :value="item.id"
+              ></el-option>
             </el-select>
           </el-form-item>
 
-          <el-form-item v-if="store.getters['advancedPermissions'](10)" label="Permitir Bloquear" >
-          <el-switch
+          <!-- Corrigido para permissões avançadas -->
+          <el-form-item v-if="store.getters " label="Permitir Bloquear">
+            <el-switch
               v-model="formData.limitCommands"
               inactive-text="Não"
               active-text="Sim"
-
               :active-value="false"
               :inactive-value="true"
-          >
-          </el-switch>
+            ></el-switch>
           </el-form-item>
 
-            <el-form-item label="Duração" >
-              <el-date-picker
-                  size="large"
-                  v-model="formData.expirationTime"
-                  type="datetime"
-                  placeholder="Select date and time"
-                  :shortcuts="shortcuts"
-                  format="DD/MM/YYYY HH:mm"
-              >
-              </el-date-picker>
-            </el-form-item>
-
-
-
+          <el-form-item label="Duração">
+            <el-date-picker
+              size="large"
+              v-model="formData.expirationTime"
+              type="datetime"
+              placeholder="Select date and time"
+              :shortcuts="shortcuts"
+              format="DD/MM/YYYY HH:mm"
+            ></el-date-picker>
+          </el-form-item>
         </el-form>
-
-
       </el-tab-pane>
     </el-tabs>
   </el-dialog>
 </template>
+
 
 
 <script setup>
@@ -155,8 +154,7 @@ const defaultUserData = {
     "deviceId": 0,
     "expirationTime": "",      
     "limitCommands": true,
-    "token":null
-
+    "attributes": {},
   }
 
 
@@ -218,21 +216,27 @@ const doCancel = ()=>{
 
 
 
-const doSave = ()=>{
+const doSave = () => {    
+ 
+  // Verifica se formData.value.attributes está definido, caso contrário inicializa como um objeto vazio
+  if (!formData.value.attributes) {
+    formData.value.attributes = {};
+  }
 
-  if(formData.value.deviceId==='' || formData.value.deviceId<1) {
+  if (!formData.value.limitCommands) {    
+    formData.value.attributes['tarkan.advancedPerms'] = '00F00000000000000000000000000000';
+  } else {
+    // Se limitCommands for true, removemos a permissão avançada
+    delete formData.value.attributes['tarkan.advancedPerms'];
+  }
+
+  if (!formData.value.deviceId || formData.value.deviceId < 1) {
     ElMessage.error('Você precisa selecionar um dispositivo.');
-  }else if(formData.value.expirationTime===''){
+  } else if (!formData.value.expirationTime) {
     ElMessage.error('Você precisa selecionar uma data de expiração.');
-  }else{
-    store.dispatch("shares/save", formData.value).then((r) => {
-
-      const host = window.location.protocol+'//'+window.location.host+'/share/';      
-        
-
-      const link = host+r.token;    
-
-      console.log(r.token);
+  } else {
+    store.dispatch("shares/save", formData.value).then((r) => {   
+      const link = `${window.location.protocol}//${window.location.host}/share/${r.token}`;
 
       if (navigator.share) {
         navigator.share({
@@ -243,24 +247,21 @@ const doSave = ()=>{
           console.log('Thanks for sharing!');
         }).catch(console.error);
       } else {
-        const elm = document.createElement("input");
-        elm.value = link;
-        document.body.appendChild(elm);
-        elm.select();
-        document.execCommand("copy");
-        document.body.removeChild(elm);
+        // Usando a API moderna para copiar o link
+        navigator.clipboard.writeText(link).then(() => {
+          ElMessage.success('Link copiado para a área de transferência');
+        }).catch(err => {
+          ElMessage.error('Falha ao copiar o link: ' + err);
+        });
 
-        ElMessage.success('Copiado para área de transferência');
-
-        setTimeout(()=>{
+        setTimeout(() => {
           show.value = false;
-        },2000)
+        }, 2000);
       }
-
-
-  })
+    });
   }
-}
+};
+
 
 
 </script>

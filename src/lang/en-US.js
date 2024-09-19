@@ -1,6 +1,6 @@
 
 const messages = {
-        version: '1.7.0',
+        version: '2.0.0',
         errors: {
             USER_DEVICE_LIMIT_REACHED: 'User device limit reached',
             ACCOUNT_IS_READONLY: 'Account is ReadyOnly',

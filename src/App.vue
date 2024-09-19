@@ -98,7 +98,7 @@
           <li :class="{active: isActive || isExactActive,'exact-active': isExactActive}">
             <a :href="href" @click="navigate">
               <el-icon>
-                <i class="fas fa-user"></i>
+                <i class="fas fa-car"></i>
               </el-icon>
               <span class="text" >{{$t('menu.user')}}</span>
             </a>
@@ -217,6 +217,13 @@
 
     /* IFTRUE_myFlag */
     <street-view v-if="store.state.devices.streetview" ></street-view>
+    <iframe-calor v-if="store.state.devices.toggleCalor" ></iframe-calor>
+    <iframe-percurso v-if="store.state.devices.showPercurso" ></iframe-percurso>
+    <iframe-pontos v-if="store.state.devices.showPontos" ></iframe-pontos>
+    
+    
+    
+
 
     /* FITRUE_myFlag */
     <kore-map></kore-map>
@@ -253,6 +260,12 @@ import router from "./routes";
 /* IFTRUE_myFlag */
 const StreetView = defineAsyncComponent(()=> import("./tarkan/components/street-view") );
 /* FITRUE_myFlag */
+import IframePercurso from "./tarkan/components/iframe-percurso"
+
+import IframePontos from "./tarkan/components/iframe-pontos"
+
+import IframeCalor from "./tarkan/components/iframe-calor"
+
 
 const KoreMap = defineAsyncComponent(()=> import("./tarkan/components/kore-map") );
 
@@ -1213,13 +1226,17 @@ body.rtl #app div #content #menu ul li.active a .el-icon{
   }
 }
 
-.el-form-item{
+.el-form-item {
   margin-bottom: 5px !important;
+  padding: 0px !important;
 }
 
-.el-form-item__label{
-  line-height: 30px !important;
+.el-form-item__label {
+  height: 20px !important; /* Ajusta a altura da label */
+  padding: 2px 0px 0px 0px !important; /* Define padding top como 2px e remove padding bottom */
+  line-height: 20px !important; /* Mantém o alinhamento do texto verticalmente */
 }
+
 
 
 

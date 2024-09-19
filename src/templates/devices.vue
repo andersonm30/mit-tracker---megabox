@@ -1,28 +1,38 @@
 <template>
+  <div style="display: flex; justify-content: space-between; align-content: center; margin-bottom: 20px;">
+    <el-input
+      v-model="query"
+      :placeholder="KT('device.search')"
+      style="--el-input-border-radius: 5px; margin-right: 5px;"
+    ></el-input>
 
+    <!-- Botão de adicionar -->
+    <el-button
+      @mouseleave="hideTip"
+      @mouseenter.stop="showTip($event,KT('device.add'))"
+      :disabled="!store.getters['checkDeviceLimit']"
+      v-if="store.getters.advancedPermissions(13) && (store.state.auth.deviceLimit === -1 || store.state.auth.deviceLimit > 0)"
+      type="primary"
+      @click="(store.getters['checkDeviceLimit'])?editDeviceRef.newDevice():deviceLimitExceded()"
+      style="margin-right: 10px;"
+    >
+      <i class="fas fa-plus"></i>
+    </el-button>
 
-  <div style="display: flex;justify-content: space-between;align-content: space-between;">
-  <div style="width: 30%;"></div>
-
-    <el-input v-model="query" :placeholder="KT('device.search')" style="--el-input-border-radius: 5px;margin-right: 5px;"></el-input>
-
-      <el-button
-
-          v-if="store.getters.advancedPermissions(49)"
-          @mouseleave="hideTip" @mouseenter.stop="showTip($event,KT('group.add'))"
-          type="primary"
-          @click="editGroupRef.newGroup()"
-          plain>
-                  <i class="fas fa-folder-plus"></i>
+    <!-- Botão de filtro -->
+    <el-dropdown @command="filterDevices" style="margin-right: auto;">
+      <el-button type="primary">
+        Filtrar <i class="el-icon-arrow-down el-icon--right"></i>
       </el-button>
-
-      <el-button
-          @mouseleave="hideTip" @mouseenter.stop="showTip($event,KT('device.add'))"
-          :disabled="!store.getters['checkDeviceLimit']"
-          v-if="store.getters.advancedPermissions(13) && (store.state.auth.deviceLimit===-1 || store.state.auth.deviceLimit>0)"
-          type="primary" @click="(store.getters['checkDeviceLimit'])?editDeviceRef.newDevice():deviceLimitExceded()"><i class="fas fa-plus"></i></el-button>
-
-
+      <template v-slot:dropdown>
+        <el-dropdown-menu>
+          <el-dropdown-item command="ativo">Ativos</el-dropdown-item>
+          <el-dropdown-item command="estoque">Estoque</el-dropdown-item>
+          <el-dropdown-item command="desativado">Desativados</el-dropdown-item>
+          <el-dropdown-item command="todos">Todos</el-dropdown-item>
+        </el-dropdown-menu>
+      </template>
+    </el-dropdown>
   </div>
 
   <div style="border: silver 1px solid; border-radius: 5px;margin-top: 20px;height: calc(100vh - 200px);">
@@ -220,8 +230,13 @@ import 'element-plus/es/components/input/style/css'
 import 'element-plus/es/components/message/style/css'
 import 'element-plus/es/components/message-box/style/css'
 import 'element-plus/es/components/notification/style/css'
+import 'element-plus/es/components/dropdown/style/css'
+import 'element-plus/es/components/dropdown-menu/style/css'
+import 'element-plus/es/components/dropdown-item/style/css'
 
-import {ElButton,ElInput} from "element-plus";
+
+import { ElButton, ElInput, ElDropdown, ElDropdownMenu, ElDropdownItem } from "element-plus";
+
 
 import {ref,computed,inject,onMounted,watch} from 'vue';
 import {useStore} from "vuex"
@@ -237,7 +252,7 @@ const filteredDevices = ref([]);
 
 const query = ref(window.localStorage.getItem('query') || '');
 const editDeviceRef = inject('edit-device');
-const editGroupRef = inject('edit-group');
+// const editGroupRef = inject('edit-group');
 
 const now = ref(0);
 
@@ -378,98 +393,102 @@ const getLastUpdated = (t,tt)=>{
 }
 
 
-const recalcDevices = ()=>{
+const filterDevices = (situacao) => {
+  if (situacao === 'todos') {
+    filteredDevices.value = recalcDevices(); // Chama recalcDevices sem filtro
+  } else {
+    filteredDevices.value = recalcDevices(situacao.toLowerCase()); // Garante que o filtro seja case insensitive
+  }
+};
+
+
+
+const recalcDevices = (situacao = null) => {
   console.log("Gargalo 3");
+  console.log("Situação recebida para filtragem:", situacao); // Log da situação recebida
 
-  window.localStorage.setItem('query',query.value);
+  window.localStorage.setItem('query', query.value);
 
-  const r = query.value.toLowerCase().matchAll(/(.*?):(?<sinal>\+|-|=)(?<tempo>\d*) (?<filtro>dias|minutos|horas|segundos)/gi)
+  const r = query.value.toLowerCase().matchAll(/(.*?):(?<sinal>\+|-|=)(?<tempo>\d*) (?<filtro>dias|minutos|horas|segundos)/gi);
   const s = r.next();
 
   let groupList = [];
 
-  store.state.groups.groupList.forEach((g)=>{
-      if(String(g.name).toLowerCase().match(query.value.toLowerCase())){
-        groupList.push(g.id);
-      }
+  store.state.groups.groupList.forEach((g) => {
+    if (String(g.name).toLowerCase().match(query.value.toLowerCase())) {
+      groupList.push(g.id);
+    }
   });
-
-  console.log(groupList);
 
   let tmp = [];
 
   store.getters['devices/getOrderedDevices'].forEach((dk) => {
-
     const d = store.getters['devices/getDevice'](dk);
     let visible = false;
 
     d.icon.remove();
 
-    if(s.value){
+    // Verifica se o campo 'situacao' existe e é válido antes de tentar acessá-lo
+    const deviceSituacao = d.attributes['situacao'] ? d.attributes['situacao'].toLowerCase() : null;
 
-      if(s.value.groups.filtro==='dias'){
-        const df = parseInt(s.value.groups.tempo)*86400;
-        const diff = Math.round((new Date().getTime() - new Date(d.lastUpdate).getTime())/1000);
+    // Log do valor atual do campo 'situacao' do dispositivo e a comparação
+    console.log(`Comparando ${deviceSituacao} com ${situacao}`);
 
-
-        console.log(df);
-        console.log(diff);
-
-        if(s.value.groups.sinal==='+' && diff>=df){
-          d.icon.addToMap();
-
-          visible = true;
-
-        }else if(s.value.groups.sinal==='-' && diff<=df){
-          d.icon.addToMap();
-          visible = true;
-        }else if(s.value.groups.sinal==='='){
-
-
-          console.log("NO")
-        }
-      }
-    }
-
-
-    for(let k of Object.keys(d)){
-      if(k==='status' && String(d[k]).toLowerCase().replace('unknown','desconhecido').match(query.value.toLowerCase())){
-
-        d.icon.addToMap();
-        visible = true;
-      }else if(String(d[k]).toLowerCase().match(query.value.toLowerCase())){
-
-        d.icon.addToMap();
-        visible = true;
-      }
-    }
-
-
-
-    for(let k of Object.keys(d.attributes)){
-
-
-
-      if(d.attributes[k] && d.attributes[k].toString().toLowerCase().match(query.value.toLowerCase())){
-        d.icon.addToMap();
-        visible = true;
-      }
-    }
-
-    if(!visible && d.groupId!==0 && groupList.includes(d.groupId)){
+    // Verifica se há uma situação específica para filtrar
+    if (situacao && deviceSituacao === situacao) {
+      console.log("Dispositivo filtrado (situação combinada):", d);
       d.icon.addToMap();
       visible = true;
+    } else if (!situacao) {
+      console.log("Nenhuma situação específica, aplicando filtro padrão.");
+      // Lógica de filtro atual baseada em query
+      if (s.value) {
+        if (s.value.groups.filtro === 'dias') {
+          const df = parseInt(s.value.groups.tempo) * 86400;
+          const diff = Math.round((new Date().getTime() - new Date(d.lastUpdate).getTime()) / 1000);
+
+          if (s.value.groups.sinal === '+' && diff >= df) {
+            d.icon.addToMap();
+            visible = true;
+          } else if (s.value.groups.sinal === '-' && diff <= df) {
+            d.icon.addToMap();
+            visible = true;
+          }
+        }
+      }
+
+      for (let k of Object.keys(d)) {
+        if (k === 'status' && String(d[k]).toLowerCase().replace('unknown', 'desconhecido').match(query.value.toLowerCase())) {
+          d.icon.addToMap();
+          visible = true;
+        } else if (String(d[k]).toLowerCase().match(query.value.toLowerCase())) {
+          d.icon.addToMap();
+          visible = true;
+        }
+      }
+
+      for (let k of Object.keys(d.attributes)) {
+        if (d.attributes[k] && d.attributes[k].toString().toLowerCase().match(query.value.toLowerCase())) {
+          d.icon.addToMap();
+          visible = true;
+        }
+      }
+
+      if (!visible && d.groupId !== 0 && groupList.includes(d.groupId)) {
+        d.icon.addToMap();
+        visible = true;
+      }
     }
 
-
-    if(visible){
+    if (visible) {
       tmp.push(d);
     }
-
   });
 
+  console.log("Dispositivos filtrados:", tmp); // Verifica a lista final filtrada
   return tmp;
-}
+};
+
 
 
 

@@ -29,7 +29,12 @@
    </div>
 
     <div style="display: flex;justify-content: flex-end;margin-top: 3px;">
-      <el-button type="info" @click="loadRoute(false,true)">{{$t('report.export')}}</el-button>
+      <el-button type="info" @click="loadRoute(false, true,false)">
+  <i class="fas fa-file-pdf"></i> {{$t('report.pdf')}}
+</el-button>
+<el-button type="info" @click="loadRoute(false, false,true)">
+  <i class="fas fa-file-excel"></i> {{$t('report.excel')}}
+</el-button>
       <el-button
           @mouseleave="hideTip" @mouseenter.stop="showTip($event,$t('device.routes'))"
           type="primary" @click="loadRoute()">{{$t('report.show')}}</el-button>
@@ -39,9 +44,12 @@
         </div>  
           
     
-          <div class="form-group" style="margin-trim: 8px;margin-top: 8px;">
-            <el-switch v-model="showRouteMarkers"  :active-text="$t('report.showMarkers')"></el-switch>
-         </div>
+        <div class="form-group" style="margin-trim: 8px;margin-top: 8px;">
+      <el-switch v-model="showRouteMarkers" :active-text="$t('report.showMarkers')"></el-switch>
+      <el-switch plain @click="toggleCalor" :active-text="$t('report.showMapadeCalor')" v-model="store.state.devices.showCalor"></el-switch>
+      <el-switch plain @click="togglePercurso" :active-text="$t('report.showPercurso')" v-model="store.state.devices.showPercurso"></el-switch>
+      </div> 
+         
 
     
     <br><br><br>
@@ -140,7 +148,7 @@ import 'element-plus/es/components/input/style/css'
 import 'element-plus/es/components/message-box/style/css'
 
 
-import {ElButton,ElForm,ElSelect,ElOption,ElFormItem,ElSwitch,ElInput,ElMessageBox} from "element-plus";
+import {ElButton,ElForm,ElSelect,ElOption,ElFormItem,ElSwitch,ElInput} from "element-plus";
 
 import {ref,inject,onMounted,watch,onBeforeUnmount,nextTick} from 'vue';
 import {useStore} from 'vuex';
@@ -173,6 +181,19 @@ const formData = ref({deviceId: '',date: [date1,date2]})
 const store = useStore();
 const route = useRoute();
 
+const sendDataToStore = ()=>{
+  const deviceId = formData.value.deviceId;
+  const startDate = formData.value.date[0];
+  const endDate = formData.value.date[1];
+
+  store.dispatch('reports/updateReportData',{deviceId,date: [startDate,endDate]});
+}
+
+watch(formData,()=>{
+  sendDataToStore();
+},{deep: true})
+
+
 onMounted(()=>{
   if(route.query.deviceId){
     formData.value.deviceId = parseInt(route.query.deviceId);
@@ -181,10 +202,10 @@ onMounted(()=>{
   }
 })
 
-onBeforeUnmount(()=>{
-  //resetDevices();
-  //updateRoute([]);
-})
+
+onBeforeUnmount(() => {
+  store.dispatch('devices/resetDeviceStates');
+});
 
 watch(()=> route.query.deviceId,()=>{
   if(route.query.deviceId){
@@ -196,14 +217,17 @@ watch(()=> route.query.deviceId,()=>{
 
 const updateRoute = inject('updateRoute');
 
+const showCalorLayer = inject('showCalorLayer');
+const hideCalorLayer = inject('hideCalorLayer');
+const showPercursoLayer = inject('showPercursoLayer');
+const hidePercursoLayer = inject('hidePercursoLayer');
+// const showCalorCorrelacaoLayer = inject('showCalorCorrelacaoLayer');
+// const hideCalorCorrelacaoLayer = inject('hideCalorCorrelacaoLayer');
+
 
 const routePoints = ref([]);
 
 const loadGraph = ()=>{
-  // console.log('Cheguei Aqui Grafico!');
-  // {
-  //   ElMessageBox.confirm('Para relatorios maiores que 7 dias','Clique em EXPORTAR?');
-  // }
     if(routePoints.value.length===0){
       loadRoute(true);
     }else{
@@ -220,73 +244,42 @@ const resetDevices = ()=>{
 }*/
 
 
-import {saveAs} from "file-saver";
+// import {saveAs} from "file-saver";
 
-const loadRoute = (g=false,e=false)=>{
+const loadRoute = (g=false,p=false,e=false)=>{
   
   const $traccar = window.$traccar;
 
   loading.value = true;
-  
-  //   ElMessageBox.confirm('Para relatorios maiores que 7 dias','Clique em EXPORTAR?');
-  // }
+
 
   $traccar.loadRoute(formData.value.deviceId,formData.value.date[0],formData.value.date[1],e).then((r)=>{
-    if(e){
+    if(p){
       loading.value = 0;
 
-      if(r['headers']['content-type']==='application/pdf'){
-        saveAs(new Blob([r.data], {type: 'application/pdf'}), 'resume.pdf');
+  const d1 = new Date(formData.value.date[0]).toISOString();
+  const d2 = new Date(formData.value.date[1]).toISOString();
+  const deviceId = formData.value.deviceId;
 
-      }else {
-
-        const d1  = formData.value.date[0];
-        const d2    = formData.value.date[1];
-        const diffInMs   = new Date(d2) - new Date(d1)
-        const diffInDays = diffInMs / (1000 * 60 * 60 * 24);
-                
-        if(diffInDays > 31)      {
-          ElMessageBox.confirm('É possível ver no mapa até 7 dias de relatórios, e exportar até 31 dias.')        
-           }   else {
-            loading.value = 3;
-        saveAs(new Blob([r.data], {type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}), 'resume.xlsx');
-      }
-
-
-      }
-    }else {
-
-
-  const d1  = formData.value.date[0];
-  const d2    = formData.value.date[1];
-  const diffInMs   = new Date(d2) - new Date(d1)
-  const diffInDays = diffInMs / (1000 * 60 * 60 * 24);
-  // console.log(diffInDays,"Normal", parseInt(diffInMs),'PARSEINT',Math.trunc(diffInMs),"Trunc",  "QTD DIA",formData.value.date[0],formData.value.date[1]); // 38
-
-
-
-         if(diffInDays > 7)
-             if(diffInDays > 31 )
-          {
-            ElMessageBox.confirm('É possível ver no mapa até 7 dias de relatórios, e exportar até 31 dias')        
-          }           
-      else {       
-        
-        if(diffInDays > 31) {
-          ElMessageBox.confirm('É possível ver no mapa até 7 dias de relatórios, e exportar até 31 dias')        
-           }   else {   
-            loading.value = 3;
-            e = true;
-                    
-         ElMessageBox.confirm('Para relatorios maiores que 7 dias.','O RELATORIO SERA EXPORTADO AUTOMATICAMENTE')        
-          .then(() => {            
-            $traccar.loadRoute(formData.value.deviceId,formData.value.date[0],formData.value.date[1],true).then((x)=>{         
-            saveAs(new Blob([x.data], {type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}), 'resume.xlsx');            
-          })
-        })
-        }
-       }      
-          else{
+  
+    // Abre a página PHP em uma nova aba com os parâmetros
+    const url = `relatorio_percurso_pdf.php?deviceid=${deviceId}&data_inicial=${d1}&data_final=${d2}`;
+    window.open(url, '_blank');
+    loading.value = false; // Para parar o loading ao abrir a nova aba
+    return;
+  
+}
+  else if(e){   
+  const d1 = new Date(formData.value.date[0]).toISOString();
+  const d2 = new Date(formData.value.date[1]).toISOString();
+  const deviceId = formData.value.deviceId;
+    // Abre a página PHP em uma nova aba com os parâmetros
+    const url = `relatorio_percurso_excel.php?deviceid=${deviceId}&data_inicial=${d1}&data_final=${d2}`;
+    window.open(url, '_blank');
+    loading.value = false; // Para parar o loading ao abrir a nova aba
+    return;
+  }
+   else{
 
       const data = r.data;
 
@@ -308,9 +301,28 @@ const loadRoute = (g=false,e=false)=>{
         loadGraph();
       }
     }
-  }
   })
 }
+
+const toggleCalor = () => {
+  if (store.state.devices.toggleCalor) {
+    hideCalorLayer();
+  } else {
+    showCalorLayer();
+  }
+  store.commit('devices/toggleCalor'); // Use commit para chamar a mutation
+};
+
+const togglePercurso = () => {
+  if (store.state.devices.showPercurso) {
+    hidePercursoLayer();
+  } else {
+    showPercursoLayer();
+  }
+  store.commit('devices/togglePercurso'); // Use commit para chamar a mutation
+};
+
+
 
 </script>
 

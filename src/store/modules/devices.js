@@ -1,5 +1,6 @@
 import store from "../index";
 
+
 export default {
     namespaced: true,
     state: () => ({
@@ -11,6 +12,14 @@ export default {
         showRoutes: false,
         trail: false,
         streetview: false,
+        showPercurso: false,
+        togglePercurso: false,
+        togglePontosCorrelacao: false,
+        toggleCalor: false,
+        showPontos: false,   
+        showPontosCorrelacao: false, 
+        showCalorCorrelacao: false,   
+        showCalor: false,
         _sorting: 'name-asc',
         applyFilters: {
             showOnlyId: 0,
@@ -247,6 +256,21 @@ export default {
         toggleStreet(state){
             state.streetview = !state.streetview;
         },
+        togglePercurso(state, value) {
+        state.togglePercurso = value !== undefined ? value : !state.togglePercurso;
+    },
+    toggleCalor(state, value) {
+      state.toggleCalor = value !== undefined ? value : !state.toggleCalor;
+    },
+          toggleCalorCorrelacao(state) {
+            state.showCalorCorrelacao = !state.showCalorCorrelacao;
+          },
+          togglePontos(state) {
+            state.showPontos = !state.showPontos;
+          },
+          togglePontosCorrelacao(state) {
+            state.togglePontosCorrelacao = !state.togglePontosCorrelacao;
+            },
         setTrail(state,value){
             if(value===false) {
                 state.positionHistory = [];
@@ -269,7 +293,18 @@ export default {
             value.forEach((d)=>{
                 state.deviceKeys.push(d.id);
             })
-        },
+        },// Resete os estados quando necessário
+            resetStates(state) {
+                state.showCalor = false;
+                state.showPercurso = false;
+                state.toggleCalor = false;
+                state.togglePercurso = false;
+                state.showPontos = false;
+                state.showPontosCorrelacao = false;
+                state.togglePontosCorrelacao = false;
+                // state.showCalorCorrelacao = false;
+            // Adicione outros resets, se necessário
+          },        
         async addDevice(state,value){
 
 
@@ -353,8 +388,11 @@ export default {
                     window.$setMapCenter(L.latLng(p.latitude,p.longitude));
                 }
 
-                if(window.$updatePano){
-                    window.$updatePano(device.id);
+                if(window.$updateMapaPercurso){
+                    window.$updateMapaPercurso(device.id);
+                }
+                if(window.$updateMapaPercurso){
+                    window.$updateMapaPercurso(device.id);
                 }
             }
         },
@@ -382,6 +420,8 @@ export default {
 
                     if(window.$updatePano){
                         window.$updatePano(device.id);
+                    }if(window.$updateMapaPercurso){
+                        window.$updatePercurso(device.id);
                     }
                 }
             })
@@ -506,6 +546,24 @@ export default {
         toggleStreet(context){
             context.commit("toggleStreet")
         },
+        togglePercurso(context){
+            context.commit("togglePercurso")
+        },
+        toggleCalor(context){
+            context.commit("toggleCalor")
+        },
+        togglePontos(context){
+            context.commit("togglePontos")
+        },
+        togglePontosCorrelacao(context){
+            context.commit("togglePontosCorrelacao")
+        },
+        toggleCalorCorrelacao(context){
+            context.commit("toggleCalorCorrelacao")
+        },
+        resetDeviceStates({ commit }) {
+            commit('resetStates');
+          },
         // eslint-disable-next-line no-unused-vars
         connectWs(context){
             const traccar = window.$traccar;

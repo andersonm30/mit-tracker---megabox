@@ -40,75 +40,6 @@
 
 
       </el-tab-pane>
-
-      <el-tab-pane :label="$t('user.preferences')" name="second">
-
-          <el-form-item :label="$t('user.language')" >
-            <el-select v-model="formData.attributes['tarkan.lang']" @change="updateLanguage" filterable :size="'large'"  :placeholder="KT('server.language')" :no-match-text="KT('NO_MATCH_TEXT')" :no-data-text="KT('NO_DATA_TEXT')">
-              <el-option
-                  :label="'Português do Brasil'"
-                  :value="'pt-BR'"
-              >
-              </el-option>
-              <el-option
-                  :label="'English'"
-                  :value="'en-US'"
-              >
-              </el-option>
-              <el-option
-                  :label="'Español'"
-                  :value="'es-ES'"
-              >
-              </el-option>
-            </el-select>
-          </el-form-item>
-
-        <el-form-item :label="$t('user.map')" >
-          <el-select v-model="formData.map" filterable :size="'large'"  :placeholder="KT('server.map')" :no-match-text="KT('NO_MATCH_TEXT')" :no-data-text="KT('NO_DATA_TEXT')">
-            <el-option
-                :label="'OpenStreetMap'"
-                :value="'openstreet'"
-            >
-            </el-option>
-            <el-option
-                :label="'Google Maps Sat'"
-                :value="'googleST'"
-            >
-            </el-option>
-            <el-option
-                :label="'Google Maps Trafego'"
-                :value="'googleTR'"
-            >
-            </el-option>
-            <el-option
-                :label="'Google Maps'"
-                :value="'googleSN'"
-            >
-            </el-option>
-          </el-select>
-        </el-form-item>
-
-
-        <el-form-item :label="$t('user.latitude')" >
-          <el-input v-model="formData.latitude" :disabled="isSupAdmin"></el-input>
-        </el-form-item>
-        <el-form-item :label="$t('user.longitude')" >
-          <el-input v-model="formData.longitude" :disabled="isSupAdmin"></el-input>
-        </el-form-item>
-        <el-form-item :label="$t('user.zoom')" >
-          <el-input v-model="formData.zoom" :disabled="isSupAdmin"></el-input>
-        </el-form-item>
-
-<!-- 
-        <el-form-item :label="$t('user.twelveHourFormat')" >
-          <el-input v-model="formData.twelveHourFormat" :disabled="isSupAdmin"></el-input>
-        </el-form-item> -->
-
-
-        <el-form-item :label="$t('user.coordinateFormat')" >
-          <el-input v-model="formData.coordinateFormat" :disabled="isSupAdmin"></el-input>
-        </el-form-item>
-      </el-tab-pane>
       <el-tab-pane v-if="store.state.auth.administrator || store.state.auth.id !== formData.id" :label="$t('user.permissions')" name="third">
 
         <div v-if="store.state.auth.id !== formData.id" style="display: flex;margin-bottom: 3px;padding: 7px;border-radius: 3px;background: var(--el-color-info-light); align-content: space-between;justify-content: space-between">
@@ -1185,7 +1116,7 @@ import 'element-plus/es/components/tabs/style/css'
 import 'element-plus/es/components/message/style/css'
 import 'element-plus/es/components/checkbox/style/css'
 
-import {ElDialog,ElDatePicker,ElMessage,ElTabs,ElTabPane,ElForm,ElSwitch,ElFormItem,ElSelect,ElOption,ElButton,ElInput} from "element-plus";
+import {ElDialog,ElDatePicker,ElMessage,ElTabs,ElTabPane,ElForm,ElSwitch,ElFormItem,ElButton,ElInput} from "element-plus";
 
 
 import {ref,defineExpose,computed,watch} from 'vue';
@@ -1204,15 +1135,15 @@ const title = ref('');
 const show = ref(false);
 const tab = ref('first');
 
-import i18n from '../../../lang/'
+// import i18n from '../../../lang/'
 
 import KT from "../../func/kt";
 
 const rules = ref({});
 
-const updateLanguage = (a)=>{
-  i18n.global.locale = a;
-}
+// const updateLanguage = (a)=>{
+//   i18n.global.locale = a;
+// }
 
 
 const defaultUserData = {
@@ -1227,7 +1158,6 @@ const defaultUserData = {
     "longitude": "",
     "zoom": "",
     "password": "",
-    // "twelveHourFormat": false,
     "coordinateFormat": "",
     "disabled": false,
     "expirationTime": "",
@@ -1478,7 +1408,15 @@ const doSave = () => {
                     ElMessageBox.alert(KT('user.error.USER_DUPLICATE'), {
                         confirmButtonText: 'OK'
                     });
-                } else {
+                } 
+                // Tratamento para USER_CREATION_FAILED
+                else if (err.startsWith("USER_CREATION_FAILED")) {
+                    ElMessageBox.alert(KT('user.error.USER_DUPLICATE'), {
+                        confirmButtonText: 'OK'
+                    });
+                }
+                // Tratamento genérico para outros erros
+                else {
                     ElMessageBox.alert(KT('user.error.' + err), KT('user.error.save'), {
                         confirmButtonText: 'OK'
                     });

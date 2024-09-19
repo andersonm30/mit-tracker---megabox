@@ -26,10 +26,6 @@
 
           <el-form-item :label="KT('group.group')" >
             <el-select v-model="formData.groupId" :value-key="'id'" filterable :placeholder="KT('group.group')" :size="'large'"  :no-match-text="KT('NO_MATCH_TEXT')" :no-data-text="KT('NO_DATA_TEXT')">
-
-
-
-
               <el-option
                   :label="KT('no')"
                   :value="0"
@@ -56,6 +52,16 @@
             >
             </el-switch>
           </el-form-item>
+
+          
+        <el-form-item :label=" 'Situação' " prop="situacao">
+          <el-select v-model="formData.attributes['situacao']" :disabled="isSupAdmin || (formData.id===store.state.auth.id && !store.getters.advancedPermissions(0))">
+            <el-option label="Ativo" value="ativo"></el-option>
+            <el-option label="Desativado " value="desativado"></el-option>  
+            <el-option label="Em estoque" value="estoque"></el-option> 
+          </el-select>         
+        </el-form-item>
+
 
 
       </el-tab-pane>
@@ -94,29 +100,24 @@
             <el-input v-model="formData.model"></el-input>
           </el-form-item>
         <el-form-item :label="KT('device.cor')" >
-          <el-input v-model="formData.attributes['placa']"></el-input>
-        </el-form-item>
-        <el-form-item :label="KT('device.cor')" >
-          <el-input v-model="formData.attributes['motor']"></el-input>
-        </el-form-item>
-        <el-form-item :label="KT('device.datafabricacao')">
-          <el-date-picker v-model="formData.attributes['dataFabricacao']" :disabled="isSupAdmin || (formData.id===store.state.auth.id && !store.getters.advancedPermissions(0))"></el-date-picker>
-        </el-form-item>
-        <el-form-item :label="KT('device.numeroVim')" >
-          <el-input v-model="formData.attributes['numeroVim']"></el-input>
-        </el-form-item>   
-        <el-form-item :label="KT('device.numerochassi')" >
-          <el-input v-model="formData.attributes['numerochassi']"></el-input>
+          <el-input v-model="formData.attributes['cor']"></el-input>
+        </el-form-item>        
+          <el-form-item :label="KT('device.anomodelo')" >
+          <el-input v-model="formData.attributes['anomodelo']"></el-input>
         </el-form-item>
         <el-form-item :label="KT('device.plate')" >
           <el-input v-model="formData.attributes['placa']"></el-input>
         </el-form-item>
-        <el-form-item :label="KT('device.unidadecombustivel')" >
+        <el-form-item :label="KT('device.numerochassi')" >
+          <el-input v-model="formData.attributes['numerochassi']"></el-input>
+        </el-form-item>
+   
+        <!-- <el-form-item :label="KT('device.unidadecombustivel')" >
           <el-input v-model="formData.attributes['unidadecombustivel']"></el-input>
-        </el-form-item>
-        <el-form-item :label="KT('device.precocombustivel')" >
+        </el-form-item> -->
+        <!-- <el-form-item :label="KT('device.precocombustivel')" >
           <el-input v-model="formData.attributes['precocombustivel']"></el-input>
-        </el-form-item>
+        </el-form-item> -->
 
         <el-form-item :label="KT('device.odometer')" >
           <el-input v-model="odometerData"></el-input>
@@ -293,6 +294,7 @@ const store = useStore();
 
 import DvCar from "./dv-car";
 import KT from "../../func/kt";
+import TabAttributes from "./tab-attributes";
 
 const show = ref(false);
 const tab = ref('first');
@@ -522,15 +524,15 @@ const doCancel = ()=>{
   show.value = false;
 }
 
-const doSave = ()=>{
-
-
-  formRef.value.validate((valid)=> {
-
+const doSave = () => {
+  formRef.value.validate((valid) => {
     if (valid) {
+      // Define 'Ativo' como valor padrão para 'situacao' se não for preenchido
+      if (!formData.value.attributes.situacao) {
+        formData.value.attributes.situacao = 'ativo';
+      }
       formData.value.attributes['tarkan.color'] = hue.value + '|' + (saturation.value / 100).toFixed(2) + '|' + (brightnes.value / 100).toFixed(2);
       formData.value.attributes['tarkan.color_extra'] = hue2.value + '|' + (saturation2.value / 100).toFixed(2) + '|' + (brightnes2.value / 100).toFixed(2);
-
 
       ElNotification({
         title: KT('info'),
@@ -541,10 +543,7 @@ const doSave = ()=>{
       formData.value.uniqueId = formData.value.uniqueId.trim();
 
       store.dispatch("devices/save", formData.value).then((d) => {
-
-
-        store.dispatch("devices/accumulators",{deviceId: d.id,totalDistance: odometerData.value});
-
+        store.dispatch("devices/accumulators", { deviceId: d.id, totalDistance: odometerData.value });
 
         ElNotification({
           title: KT('success'),
@@ -553,21 +552,18 @@ const doSave = ()=>{
         });
         show.value = false;
       }).catch((r) => {
-
         const err = r.response.data.split("-")[0].trim().replaceAll(" ", "_").toUpperCase();
-
 
         ElMessageBox.alert(KT('device.error.' + err), KT('device.saveError'), {
           confirmButtonText: 'OK'
         })
       });
     } else {
-
       ElMessage.error(KT('device.error.checkForm'));
     }
   });
+};
 
-}
 
 
 </script>

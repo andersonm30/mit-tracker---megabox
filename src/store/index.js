@@ -11,6 +11,7 @@ import attributes from './modules/computedAttributes'
 import drivers from './modules/drivers'
 import calendars from './modules/calendars'
 import maintenance from './modules/maintenance'
+import reports from './modules/reports'
 
 import i18n from '../lang/';
 
@@ -361,7 +362,8 @@ const store = createStore({
         events,
         drivers,
         calendars,
-        maintenance
+        maintenance,
+        reports
     }
 })
 

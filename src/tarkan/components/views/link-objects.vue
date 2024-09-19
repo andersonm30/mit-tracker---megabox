@@ -6,10 +6,6 @@
         <div class="modal-title" style="display: flex;width: calc(100% - 50px)">
 
           <el-input v-model="query" :placeholder="KT(search)" style="--el-input-border-radius: 5px;margin-right: 5px;"></el-input>
-
-
-
-
         </div>
       </div>
     </template>
@@ -33,7 +29,7 @@
         <div style="width: 30px;text-align: center;padding: 10px;font-size: 14px;">
           {{u.id}}
         </div>
-        <template v-if="objectType==='notifications' && !u.attributes['description']">
+        <template v-if="objectType==='notifications' && (!u.attributes || !u.attributes['description'])">
           <div style="flex: 1;padding: 10px;font-size: 14px;text-align: center;">{{KT('notification.types.'+u.type)}}</div>
           <div style="flex: 1;padding: 10px;font-size: 14px;text-align: center;">
             <template v-if="u.notificators.split(',').length">
@@ -41,13 +37,16 @@
             </template>
           </div>
           <div style="flex: 1;padding: 10px;font-size: 14px;text-align: center;">
-            <template v-if="u.attributes['alarms']">
-              <span class="tblItem" v-for="(a,b) in u.attributes['alarms'].split(',')" :key="b">{{KT('alarms.'+a,a)}}</span>
-            </template>
+            <template v-if="u.attributes && u.attributes['alarms']">
+  <span class="tblItem" v-for="(a,b) in u.attributes['alarms'].split(',')" :key="b">{{KT('alarms.'+a,a)}}</span>
+</template>
           </div>
         </template>
-        <div v-else-if="objectType==='devices'" style="flex: 1;padding: 10px;font-size: 14px;text-align: center;">{{u.name || u.description || u.id|| u.attributes['description']}} | {{u.attributes['placa']}}</div>
-        <div v-else style="flex: 1;padding: 10px;font-size: 14px;text-align: center;">{{u.name || u.description || u.attributes['description']}}</div>
+        <div v-else-if="objectType==='devices'" style="flex: 1;padding: 10px;font-size: 14px;text-align: center;">
+  {{ u.name || u.description || u.id || (u.attributes && u.attributes['description']) }} 
+  | {{ u.attributes ? u.attributes['placa'] : '' }}
+</div>
+<div v-else style="flex: 1;padding: 10px;font-size: 14px;text-align: center;">{{u.name || u.description || u.attributes['description']}}</div>
       </div>
 
     </div>
@@ -273,11 +272,6 @@ provide("showObjects",showObjects);
 defineExpose({
   showObjects
 });
-
-
-
-
-
 </script>
 
 <style>
@@ -328,8 +322,6 @@ defineExpose({
   padding-left: 20px;
   padding-right: 20px;
 }
-
-
 
 .danger{
   --el-button-text-color: var(--el-color-danger) !important;

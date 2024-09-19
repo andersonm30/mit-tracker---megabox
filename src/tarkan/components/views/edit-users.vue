@@ -67,7 +67,7 @@
               v-if="store.getters.advancedPermissions(18) && store.getters.advancedPermissions(8)"
               @mouseleave="hideTip" @mouseenter.stop="showTip($event,KT('device.devices'))"
               plain :disabled="selected===0"  @click="linkObjectsRef.showObjects({userId: selected, type: 'devices'});">
-            <i class="fas fa-user"></i>
+            <i class="fas fa-car"></i>
           </el-button>
 
 
