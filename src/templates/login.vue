@@ -197,72 +197,76 @@ const doLoginWithToken = ()=>{
 //     });
 //   }
 // };
-
-
-
-
-
-const doLogin = ()=>{
-
-  //const loadingInstance1 = ElLoading.service({ fullscreen: true })
-
-  store.commit("server/setPage",false);
-
+const doLogin = () => {
   let user = username.value;
 
-  if(route.meta.isDriver){
-    user = 'qrcode-'+user;
+  if (route.meta.isDriver) {
+    user = 'qrcode-' + user;
   }
 
-  traccar.login(user,password.value).then((r)=>{
+  traccar.login(user, password.value).then((r) => {
     console.log(r);
+
+    if (rememberme.value) {
+      window.localStorage.setItem('rememberme', btoa(username.value + "|" + password.value));
+    }
+
+    // Atualiza o estado de autenticação
+    store.commit('setAuth', r);
+
+    // Envia o userId para o Android
+    enviarUserIdParaAndroid(r.id);
+
+    // Continue com o restante do processo de login
+    proceedAfterLogin();
+
+    function proceedAfterLogin() {
+      store.dispatch("loadUserData");
 
       var regex = /(iPhone|iPad|iPod);[^OS]*OS (\d)/;
       var matches = navigator.userAgent.match(regex);
 
-      if (rememberme.value) {
-        window.localStorage.setItem('rememberme', btoa(username.value + "|" + password.value));
-      }
-
-      if(route.query.to){
-        window.location.href = window.location.protocol + '//' + window.location.host + ''+route.query.to+'?time=' + new Date().getTime();
-      }else if(matches){
-        if(route.meta.isDriver) {
+      if (route.query.to) {
+        window.location.href = window.location.protocol + '//' + window.location.host + '' + route.query.to + '?time=' + new Date().getTime();
+      } else if (matches) {
+        if (route.meta.isDriver) {
           window.location.href = window.location.protocol + '//' + window.location.host + '/qr-driver?time=' + new Date().getTime();
-        }else {
+        } else {
           window.location.href = window.location.protocol + '//' + window.location.host + '/home?time=' + new Date().getTime();
         }
-      }else {
-
-        store.commit('setAuth', r);
-
-        store.dispatch("loadUserData");
-
-
-
-
-        if(route.meta.isDriver) {
+      } else {
+        if (route.meta.isDriver) {
           window.location.href = window.location.protocol + '//' + window.location.host + '/qr-driver?time=' + new Date().getTime();
-        }else {
-          push('/home')
+        } else {
+          push('/home');
         }
       }
-      //loadingInstance1.close();
-  }).catch((err)=>{
+    }
 
-
-    store.commit("server/setPage",false);
+  }).catch((err) => {
+    store.commit("server/setPage", false);
 
     console.log(err);
-    //loadingInstance1.close();
     ElMessageBox.confirm(KT(err) || err)
-        .then(() => {
-        })
-        .catch(() => {
-          // catch error
-        })
+      .then(() => {
+      })
+      .catch(() => {
+        // catch error
+      });
   });
+};
+
+// Função para enviar o userId para o Android via WebView
+function enviarUserIdParaAndroid(userId) {
+  if (window.appInterface && window.appInterface.updateUserId) {
+    window.appInterface.updateUserId(userId.toString());
+    console.log('userId enviado para o Android:', userId);
+  } else {
+    console.warn('Função updateUserId não encontrada no appInterface');
+  }
 }
+
+
 
 </script>
 

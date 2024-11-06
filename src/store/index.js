@@ -23,6 +23,7 @@ const store = createStore({
     state () {
         return {
             auth: false,
+            pushToken: null, // Adicione esta linha
             permissions: [],
             mapPref: (window.localStorage.getItem('mapPref'))?JSON.parse(window.localStorage.getItem('mapPref')):{},
             time: new Date().getTime()
@@ -207,20 +208,41 @@ const store = createStore({
           window.localStorage.setItem('mapPref',JSON.stringify(state.mapPref));
 
 
+        }, 
+        setPushToken(state, value) {
+            state.pushToken = value;
         },
         setToken(state,value){
             state.auth.attributes['notificationTokens'] = value;
         }
     },
     actions: {
-        setToken(context,params){
-            context.commit("setToken",params);
-
-            const tmp = JSON.parse(JSON.stringify(context.state.auth));
-
-            tmp.attributes['notificationTokens'] = params;
-
-            context.dispatch("users/save",tmp);
+        setToken(context, value) {
+            // Mantém a funcionalidade existente
+            context.commit("setToken", value);
+    
+            // Atualiza o pushToken no estado global
+            context.commit("setPushToken", value);
+    
+            // Verifica se o usuário está autenticado e se o pushToken está disponível
+            if (context.state.auth && context.state.pushToken) {
+                // Atualiza os atributos do usuário apenas se o token for diferente
+                const currentToken = context.state.auth.attributes['notificationTokens'];
+                if (currentToken !== context.state.pushToken) {
+                    const updatedUser = { ...context.state.auth };
+                    updatedUser.attributes = {
+                        ...updatedUser.attributes,
+                        notificationTokens: context.state.pushToken
+                    };
+    
+                    // Salva o usuário atualizado no servidor
+                    context.dispatch("users/save", updatedUser).then((data) => {
+                        context.commit("setAuth", data);
+                    }).catch((error) => {
+                        console.error('Erro ao salvar o usuário:', error);
+                    });
+                }
+            }
         },
         setMap(context,params){
             context.commit("setMap",params);

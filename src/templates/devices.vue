@@ -1,39 +1,41 @@
 <template>
-  <div style="display: flex; justify-content: space-between; align-content: center; margin-bottom: 20px;">
-    <el-input
-      v-model="query"
-      :placeholder="KT('device.search')"
-      style="--el-input-border-radius: 5px; margin-right: 5px;"
-    ></el-input>
-
-    <!-- Botão de adicionar -->
-    <el-button
-      @mouseleave="hideTip"
-      @mouseenter.stop="showTip($event,KT('device.add'))"
-      :disabled="!store.getters['checkDeviceLimit']"
-      v-if="store.getters.advancedPermissions(13) && (store.state.auth.deviceLimit === -1 || store.state.auth.deviceLimit > 0)"
-      type="primary"
-      @click="(store.getters['checkDeviceLimit'])?editDeviceRef.newDevice():deviceLimitExceded()"
-      style="margin-right: 10px;"
-    >
-      <i class="fas fa-plus"></i>
+<div style="display: flex; justify-content: flex-end; align-items: center; margin-bottom: 20px;">
+  <!-- Botão de filtro -->
+  <el-dropdown @command="filterDevices" style="margin-right: 5px;">
+    <el-button type="primary">
+      Filtrar <i class="el-icon-arrow-down el-icon--right"></i>
     </el-button>
+    <template v-slot:dropdown>
+      <el-dropdown-menu>
+        <el-dropdown-item command="ativo">Ativos</el-dropdown-item>
+        <el-dropdown-item command="estoque">Estoque</el-dropdown-item>
+        <el-dropdown-item command="desativado">Desativados</el-dropdown-item>
+        <el-dropdown-item command="todos">Todos</el-dropdown-item>
+      </el-dropdown-menu>
+    </template>
+  </el-dropdown>
 
-    <!-- Botão de filtro -->
-    <el-dropdown @command="filterDevices" style="margin-right: auto;">
-      <el-button type="primary">
-        Filtrar <i class="el-icon-arrow-down el-icon--right"></i>
-      </el-button>
-      <template v-slot:dropdown>
-        <el-dropdown-menu>
-          <el-dropdown-item command="ativo">Ativos</el-dropdown-item>
-          <el-dropdown-item command="estoque">Estoque</el-dropdown-item>
-          <el-dropdown-item command="desativado">Desativados</el-dropdown-item>
-          <el-dropdown-item command="todos">Todos</el-dropdown-item>
-        </el-dropdown-menu>
-      </template>
-    </el-dropdown>
-  </div>
+  <!-- Botão de adicionar -->
+  <el-button
+    @mouseleave="hideTip"
+    @mouseenter.stop="showTip($event, KT('device.add'))"
+    :disabled="!store.getters['checkDeviceLimit']"
+    v-if="store.getters.advancedPermissions(13) && (store.state.auth.deviceLimit === -1 || store.state.auth.deviceLimit > 0)"
+    type="primary"
+    @click="(store.getters['checkDeviceLimit']) ? editDeviceRef.newDevice() : deviceLimitExceded()"
+    style="margin-left: 5px; margin-right: 10px;"
+  >
+    <i class="fas fa-plus"></i>
+  </el-button>
+
+  <!-- O input de busca -->
+  <el-input
+    v-model="query"
+    :placeholder="KT('device.search')"
+    style="width: 250px; --el-input-border-radius: 5px;"
+  ></el-input>
+</div>
+
 
   <div style="border: silver 1px solid; border-radius: 5px;margin-top: 20px;height: calc(100vh - 200px);">
     <div class="deviceHead">
