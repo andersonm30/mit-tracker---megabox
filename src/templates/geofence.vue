@@ -2,10 +2,8 @@
 
   <edit-geofence ref="editGeofenceRef"></edit-geofence>
 
-  <div style="display: flex;justify-content: space-between;align-content: space-between;">
-    <div style="width: 30%;"></div>
-
-    <el-input v-model="query" placeholder="Buscar Geocerca" style="--el-input-border-radius: 5px;margin-right: 5px;"></el-input>
+  <div style="display: flex; justify-content: flex-start; align-items: center; margin-bottom: 20px;">
+    <el-input v-model="query" placeholder="Buscar Geocerca" style="flex: 1; --el-input-border-radius: 5px; margin-right: 10px;"></el-input>
 
     <el-tooltip
         v-if="store.getters.advancedPermissions(41)"
@@ -13,7 +11,7 @@
         content="Cadastrar Geocerca"
         placement="bottom"
     >
-      <el-button type="primary" @click="editGeofenceRef.newGeofence()"><i class="fas fa-plus"></i></el-button>
+      <el-button type="primary" @click="editGeofenceRef.newGeofence()" style="min-width: auto; padding: 8px 14px;"><i class="fas fa-plus"></i></el-button>
     </el-tooltip>
 
   </div>

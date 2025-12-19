@@ -1,5 +1,6 @@
 
 const messages = {
+        version: '2.2.0',
         ALL_TASK_READY: 'Todas las tareas se completaron con éxito.',
         FILL_ALL_FIELDS: 'Por favor rellena todos los campos.',
         INVALID_LOGIN_DATA: 'Lo sentimos, parece que ingresó datos incorrectos.',

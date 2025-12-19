@@ -503,8 +503,10 @@ const getLastUpdated = (t,tt)=>{
 
 onMounted(()=>{
 
-
-  loadHistoryInfo(parseInt(route.params.deviceId));
+  // Lazy load do histórico após renderização inicial para não bloquear a UI
+  setTimeout(() => {
+    loadHistoryInfo(parseInt(route.params.deviceId));
+  }, 500);
 
   setInterval(()=>{
     now.value = new Date();
@@ -912,7 +914,10 @@ watch(()=> route.params.deviceId,()=>{
   const tmp = store.getters['devices/getDevice'](parseInt(route.params.deviceId));
   if(tmp) {
 
-    loadHistoryInfo(parseInt(route.params.deviceId));
+    // Lazy load do histórico para não bloquear a navegação entre dispositivos
+    setTimeout(() => {
+      loadHistoryInfo(parseInt(route.params.deviceId));
+    }, 500);
     flyToDevice(tmp);
   }
 })

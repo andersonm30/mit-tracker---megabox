@@ -16,13 +16,25 @@ yarn-error.log*
 *.sln
 *.sw?
 
-# Build artifacts
-css/
-js/
+# Build artifacts - raiz do projeto
+/css/
+/js/
 *.map
 precache-manifest*.js
 service-worker.js
 sw.js
+/index.html
+api_traccar.php
+
+# Arquivo principal não deve ser versionado
+src/main.js
+
+# Arquivos temporários
+/push.js
+whatsapp.png
+/public/img/whatsapp.png
+/public/index.html.backup
+/mbb/
 
 # Lock files (opcional - comente se quiser versionar)
 yarn.lock

@@ -1089,7 +1089,120 @@
           </el-form-item> -->
 
       </el-tab-pane>
-      <el-tab-pane v-if="store.state.auth.administrator || store.state.auth.id !== formData.id" :label="$t('attribute.attributes')" name="fourth">
+      <el-tab-pane v-if="(store.state.auth.administrator || store.state.auth.id !== formData.id) && !(formData.id === 1 && store.state.auth.id !== 1)" label="Aviso" name="fourth">
+
+        <div style="padding: 15px;">
+
+          <el-collapse style="margin-bottom: 20px;">
+            <el-collapse-item>
+              <template #title>
+                <div style="font-weight: bold; font-size: 14px; color: var(--el-color-primary);">
+                  <i class="el-icon-info"></i> Sobre o Aviso
+                </div>
+              </template>
+              <div style="font-size: 13px; color: var(--el-text-color-regular); line-height: 1.6; padding: 10px 15px; background: var(--el-color-info-light-9); border-radius: 4px;">
+                Configure um aviso personalizado que sera exibido para este usuario ao entrar no sistema.
+                Voce pode definir se o usuario podera fechar o aviso ou se ele permanecera bloqueado.
+              </div>
+            </el-collapse-item>
+          </el-collapse>
+
+          <el-form-item style="margin-bottom: 20px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <el-switch
+                v-model="formData.attributes['tarkan.msg.habilitado']"
+                :active-value="'true'"
+                :inactive-value="'false'"
+                size="large"
+              />
+              <span style="font-weight: 500; font-size: 14px;">
+                {{ formData.attributes['tarkan.msg.habilitado'] === 'true' ? 'Aviso Habilitado' : 'Aviso Desabilitado' }}
+              </span>
+            </div>
+          </el-form-item>
+
+          <el-form-item label="Título do Aviso" style="margin-bottom: 20px;">
+            <el-input
+              v-model="formData.attributes['tarkan.msg.titulo']"
+              placeholder="Digite o título do aviso (ex: Atenção, Aviso Importante, etc.)"
+              maxlength="100"
+              show-word-limit
+              size="large"
+              :disabled="formData.attributes['tarkan.msg.habilitado'] !== 'true'"
+            />
+          </el-form-item>
+
+          <el-form-item label="Descrição do Aviso" style="margin-bottom: 25px;">
+            <el-input
+              v-model="formData.attributes['tarkan.msg.descricao']"
+              type="textarea"
+              :rows="6"
+              placeholder="Digite a mensagem que será exibida para o usuário. Seja claro e objetivo."
+              maxlength="500"
+              show-word-limit
+              resize="none"
+              :disabled="formData.attributes['tarkan.msg.habilitado'] !== 'true'"
+            />
+          </el-form-item>
+
+          <el-form-item style="margin-bottom: 20px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <el-switch
+                v-model="formData.attributes['tarkan.msg.acesso']"
+                :active-value="'true'"
+                :inactive-value="'false'"
+                size="large"
+                :disabled="formData.attributes['tarkan.msg.habilitado'] !== 'true'"
+              />
+              <span style="font-weight: 500; font-size: 14px;">Pode fechar o aviso?</span>
+              <span style="font-weight: bold; font-size: 14px; color: var(--el-color-primary); margin-left: 8px;">
+                {{ formData.attributes['tarkan.msg.acesso'] === 'true' ? 'SIM' : 'NÃO' }}
+              </span>
+            </div>
+          </el-form-item>
+
+          <el-form-item label="Frequencia de Exibicao" style="margin-bottom: 25px;">
+            <el-select
+              v-model="formData.attributes['tarkan.msg.frequencia']"
+              placeholder="Selecione quando o aviso deve aparecer"
+              size="large"
+              style="width: 100%;"
+              :disabled="formData.attributes['tarkan.msg.habilitado'] !== 'true'"
+            >
+              <el-option value="unica" label="Apenas uma vez - Mostra 1x e nunca mais">
+                <div style="display: flex; flex-direction: column;">
+                  <span style="font-weight: bold;">Apenas uma vez</span>
+                  <span style="font-size: 12px; color: var(--el-text-color-secondary);">Mostra 1x e nunca mais (para avisos permanentes tipo 'bem-vindo')</span>
+                </div>
+              </el-option>
+              <el-option value="hora" label="Uma vez por hora - Maximo 1x por hora">
+                <div style="display: flex; flex-direction: column;">
+                  <span style="font-weight: bold;">Uma vez por hora</span>
+                  <span style="font-size: 12px; color: var(--el-text-color-secondary);">Maximo 1x por hora (para avisos que precisam de lembretes frequentes)</span>
+                </div>
+              </el-option>
+              <el-option value="diario" label="Uma vez por dia - Maximo 1x por dia">
+                <div style="display: flex; flex-direction: column;">
+                  <span style="font-weight: bold;">Uma vez por dia</span>
+                  <span style="font-size: 12px; color: var(--el-text-color-secondary);">Maximo 1x por dia (bom para lembretes diarios)</span>
+                </div>
+              </el-option>
+              <el-option value="sempre" label="Sempre que abrir - Toda vez que abrir o app">
+                <div style="display: flex; flex-direction: column;">
+                  <span style="font-weight: bold;">Sempre que abrir</span>
+                  <span style="font-size: 12px; color: var(--el-text-color-secondary);">Toda vez que abrir ou atualizar o aplicativo (avisos criticos urgentes)</span>
+                </div>
+              </el-option>
+            </el-select>
+            <div v-if="(formData.attributes['tarkan.msg.frequencia'] === 'diario' || formData.attributes['tarkan.msg.frequencia'] === 'hora') && formData.attributes['tarkan.msg.acesso'] === 'false'" style="margin-top: 10px; padding: 10px; background: var(--el-color-info-light-9); border-radius: 4px; font-size: 12px; color: var(--el-text-color-secondary);">
+              <strong>Nota:</strong> Com frequencia {{ formData.attributes['tarkan.msg.frequencia'] === 'hora' ? 'horaria' : 'diaria' }} e usuario nao podendo fechar: o usuario ficara bloqueado apenas na primeira visualizacao do {{ formData.attributes['tarkan.msg.frequencia'] === 'hora' ? 'horario' : 'dia' }}. Nas proximas vezes do mesmo {{ formData.attributes['tarkan.msg.frequencia'] === 'hora' ? 'horario' : 'dia' }}, podera usar o sistema normalmente.
+            </div>
+          </el-form-item>
+
+        </div>
+
+      </el-tab-pane>
+      <el-tab-pane v-if="store.state.auth.administrator || store.state.auth.id !== formData.id" :label="$t('attribute.attributes')" name="fifth">
 
         <tab-attributes v-model="formData.attributes" :type="'user'"></tab-attributes>
 
@@ -1115,8 +1228,10 @@ import 'element-plus/es/components/tab-pane/style/css'
 import 'element-plus/es/components/tabs/style/css'
 import 'element-plus/es/components/message/style/css'
 import 'element-plus/es/components/checkbox/style/css'
+import 'element-plus/es/components/collapse/style/css'
+import 'element-plus/es/components/collapse-item/style/css'
 
-import {ElDialog,ElDatePicker,ElMessage,ElTabs,ElTabPane,ElForm,ElSwitch,ElFormItem,ElButton,ElInput} from "element-plus";
+import {ElDialog,ElDatePicker,ElMessage,ElTabs,ElTabPane,ElForm,ElSwitch,ElFormItem,ElButton,ElInput,ElSelect,ElOption,ElCollapse,ElCollapseItem} from "element-plus";
 
 
 import {ref,defineExpose,computed,watch} from 'vue';
@@ -1205,6 +1320,13 @@ const newUser = ()=>{
     if(store.getters['server/getAttribute']('tarkan.lang')){
       formData.value.attributes['tarkan.lang'] = store.getters['server/getAttribute']('tarkan.lang');
     }
+
+    // Inicializar atributos de aviso
+    formData.value.attributes['tarkan.msg.titulo'] = formData.value.attributes['tarkan.msg.titulo'] || '';
+    formData.value.attributes['tarkan.msg.descricao'] = formData.value.attributes['tarkan.msg.descricao'] || '';
+    formData.value.attributes['tarkan.msg.acesso'] = formData.value.attributes['tarkan.msg.acesso'] || 'true';
+    formData.value.attributes['tarkan.msg.habilitado'] = formData.value.attributes['tarkan.msg.habilitado'] || 'false';
+    formData.value.attributes['tarkan.msg.frequencia'] = formData.value.attributes['tarkan.msg.frequencia'] || 'sempre';
 
   rules.value = {
     name: [
@@ -1323,7 +1445,22 @@ const editUser = (id)=>{
     })
   }
 
-
+  // Inicializar atributos de aviso se não existirem
+  if (!formData.value.attributes['tarkan.msg.titulo']) {
+    formData.value.attributes['tarkan.msg.titulo'] = '';
+  }
+  if (!formData.value.attributes['tarkan.msg.descricao']) {
+    formData.value.attributes['tarkan.msg.descricao'] = '';
+  }
+  if (!formData.value.attributes['tarkan.msg.acesso']) {
+    formData.value.attributes['tarkan.msg.acesso'] = 'true';
+  }
+  if (!formData.value.attributes['tarkan.msg.habilitado']) {
+    formData.value.attributes['tarkan.msg.habilitado'] = 'false';
+  }
+  if (!formData.value.attributes['tarkan.msg.frequencia']) {
+    formData.value.attributes['tarkan.msg.frequencia'] = 'sempre';
+  }
 
 }
 
@@ -1396,6 +1533,13 @@ const doSave = () => {
         formData.value.deviceReadonly = false;
         formData.value.limitCommands = false;
     }
+
+    // Sanitizar atributos de aviso antes de salvar
+    formData.value.attributes['tarkan.msg.titulo'] = String(formData.value.attributes['tarkan.msg.titulo'] || '');
+    formData.value.attributes['tarkan.msg.descricao'] = String(formData.value.attributes['tarkan.msg.descricao'] || '');
+    formData.value.attributes['tarkan.msg.acesso'] = String(formData.value.attributes['tarkan.msg.acesso'] || 'true');
+    formData.value.attributes['tarkan.msg.habilitado'] = String(formData.value.attributes['tarkan.msg.habilitado'] || 'false');
+    formData.value.attributes['tarkan.msg.frequencia'] = String(formData.value.attributes['tarkan.msg.frequencia'] || 'sempre');
 
     formRef.value.validate((valid) => {
         if (valid) {

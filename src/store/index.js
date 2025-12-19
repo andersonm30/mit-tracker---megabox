@@ -82,7 +82,19 @@ const store = createStore({
         },
         mapPref(state){
             return (p)=>{
-                return state.mapPref[p] || false;
+                // Se o usuário já tem uma preferência salva, usa ela
+                if(state.mapPref[p] !== undefined){
+                    return state.mapPref[p];
+                }
+
+                // Se não, verifica se o admin configurou um default no servidor
+                const serverDefault = store.getters['server/getAttribute'](`tarkan.mapPref.${p}`, null);
+                if(serverDefault !== null){
+                    return serverDefault;
+                }
+
+                // Se não tem nem preferência do usuário nem default do servidor, retorna false
+                return false;
             }
         },
         advancedPermissions(state){
@@ -218,30 +230,50 @@ const store = createStore({
     },
     actions: {
         setToken(context, value) {
+            console.log('[DEBUG] setToken chamado com:', value);
+
+            // IMPORTANTE: Buscar o token atual ANTES de fazer qualquer commit
+            const currentToken = context.state.auth?.attributes?.['notificationTokens'];
+            console.log('[DEBUG] Token atual no auth (ANTES do commit):', currentToken);
+            console.log('[DEBUG] Novo token:', value);
+
             // Mantém a funcionalidade existente
             context.commit("setToken", value);
-    
+
             // Atualiza o pushToken no estado global
             context.commit("setPushToken", value);
-    
+
+            console.log('[DEBUG] auth existe?', !!context.state.auth);
+            console.log('[DEBUG] pushToken existe?', !!context.state.pushToken);
+            console.log('[DEBUG] pushToken value:', context.state.pushToken);
+
             // Verifica se o usuário está autenticado e se o pushToken está disponível
             if (context.state.auth && context.state.pushToken) {
-                // Atualiza os atributos do usuário apenas se o token for diferente
-                const currentToken = context.state.auth.attributes['notificationTokens'];
-                if (currentToken !== context.state.pushToken) {
+                console.log('[DEBUG] Tokens são diferentes?', currentToken !== value);
+
+                // Compara o token ANTIGO (antes do commit) com o novo
+                if (currentToken !== value) {
                     const updatedUser = { ...context.state.auth };
                     updatedUser.attributes = {
                         ...updatedUser.attributes,
                         notificationTokens: context.state.pushToken
                     };
-    
+
+                    console.log('[DEBUG] Salvando usuário com token atualizado...');
                     // Salva o usuário atualizado no servidor
                     context.dispatch("users/save", updatedUser).then((data) => {
+                        console.log('[DEBUG] ✅ Token salvo com sucesso no servidor!', data);
                         context.commit("setAuth", data);
                     }).catch((error) => {
-                        console.error('Erro ao salvar o usuário:', error);
+                        console.error('[DEBUG] ❌ Erro ao salvar token no servidor:', error);
                     });
+                } else {
+                    console.log('[DEBUG] Token não mudou, não precisa salvar');
                 }
+            } else {
+                console.log('[DEBUG] ❌ Condição falhou - não salvando token');
+                console.log('[DEBUG] - auth:', context.state.auth);
+                console.log('[DEBUG] - pushToken:', context.state.pushToken);
             }
         },
         setMap(context,params){

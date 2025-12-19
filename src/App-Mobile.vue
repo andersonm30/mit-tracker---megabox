@@ -13,7 +13,7 @@
   <edit-drivers ref="editDriversRef"></edit-drivers>
   <edit-maintenances ref="editMaintenancesRef"></edit-maintenances>
 
-
+  <user-notice-modal ref="userNoticeModalRef"></user-notice-modal>
 
   <div v-if="store.state.auth">
 
@@ -40,7 +40,7 @@
   </div>
   <div id="content">
 
-  <div id="menu" :class="{show: deviceMenu}">
+  <div id="menu" :class="{show: deviceMenu && !$route.meta.mobileBottom}">
       <ul>
         <router-link to="/devices" custom v-slot="{ href,  navigate, isActive, isExactActive }">
           <li :class="{active: isActive || isExactActive,'exact-active': isExactActive}">
@@ -318,6 +318,7 @@ import KoreCanvaMarker from "./tarkan/test/CanvaMarker";
 import ContextMenu from "./tarkan/components/context-menu";
 import EditDevice from "./tarkan/components/views/edit-device";
 import EditUser from "./tarkan/components/views/edit-user";
+import UserNoticeModal from "./tarkan/components/UserNoticeModal";
 import EditGroup from "./tarkan/components/views/edit-group";
 import {ElLoading,ElMessageBox, ElMessage, ElNotification} from "element-plus";
 import EditUsers from "./tarkan/components/views/edit-users";
@@ -502,7 +503,26 @@ const flyToDevice = (device) =>{
     setTimeout(()=> {
       //map.value.leafletObject.setZoom(17)
       setTimeout(() => {
-        map.value.leafletObject.flyTo([position.latitude, position.longitude],14,{animate: true,duration: 1.5});
+        // Detecta se está em modo mobile com painel bottom aberto
+        const isMobileBottom = router.currentRoute.value.meta.mobileBottom;
+
+        if(isMobileBottom){
+          // No mobile com painel bottom (44vh), ajusta para mostrar o veículo a 35% do topo
+          // Isso deixa 65% abaixo onde está o painel de informações
+          const mapHeight = map.value.leafletObject.getSize().y;
+          // Offset para centralizar a 35% do topo ao invés de 50% (centro padrão)
+          // (50% - 35%) = 15% do topo precisa ser deslocado para baixo
+          const offsetY = mapHeight * 0.15;
+
+          map.value.leafletObject.flyTo([position.latitude, position.longitude],14,{animate: true,duration: 1.5});
+
+          // Desloca o mapa para baixo após o flyTo para que o veículo fique visível
+          setTimeout(() => {
+            map.value.leafletObject.panBy([0, -offsetY], {animate: false});
+          }, 1600);
+        }else{
+          map.value.leafletObject.flyTo([position.latitude, position.longitude],14,{animate: true,duration: 1.5});
+        }
       }, 100);
     },100);
   }

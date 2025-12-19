@@ -552,11 +552,25 @@ const doSave = () => {
         });
         show.value = false;
       }).catch((r) => {
-        const err = r.response.data.split("-")[0].trim().replaceAll(" ", "_").toUpperCase();
-
-        ElMessageBox.alert(KT('device.error.' + err), KT('device.saveError'), {
-          confirmButtonText: 'OK'
-        })
+        const errorData = r.response?.data || r.message || 'Unknown error';
+        const errorString = String(errorData).toUpperCase();
+        
+        // Check for duplicate IMEI error
+        if (errorString.includes('DUPLICATE_ENTRY') || 
+            errorString.includes('DUPLICATE') || 
+            errorString.includes('UNIQUEID') ||
+            errorString.includes('SQLINTEGRITYCONSTRAINTVIOLATIONEXCEPTION')) {
+          // Specific error for duplicate IMEI
+          ElMessageBox.alert(KT('device.error.DUPLICATE_ENTRY'), KT('device.saveError'), {
+            confirmButtonText: 'OK'
+          });
+        } else {
+          // Generic error handling for other cases
+          const err = errorData.split("-")[0].trim().replaceAll(" ", "_").toUpperCase();
+          ElMessageBox.alert(KT('device.error.' + err) || errorData, KT('device.saveError'), {
+            confirmButtonText: 'OK'
+          });
+        }
       });
     } else {
       ElMessage.error(KT('device.error.checkForm'));

@@ -20,7 +20,7 @@
     </el-form-item>
     
     <el-form-item v-else>
-      <div class="form-group">
+      <div class="form-group" style="margin-left: 28px;">
               <label for="theInputDevice">SELECIONE O DISPOSITIVO</label>
               <el-select
                   @change="onChange" v-model="formData.deviceId" multiple :value-key="'id'" filterable :placeholder="$t('device.devices')" :size="'large'" :no-data-text="$t('NO_DATA_TEXT')" :no-match-text="$t('NO_MATCH_TEXT')">

@@ -286,6 +286,10 @@ const filteredUsers = computed(()=>{
 
   return [...store.getters['users/getUsers']].filter((f)=>{
 
+    // Oculta usuário com ID 1 apenas se o usuário logado não for o ID 1
+    if(f.id === 1 && store.state.auth.id !== 1){
+      return false;
+    }
 
     for(let k of Object.keys(f)){
       if(String(f[k]).toLowerCase().match(query.value.toLowerCase())){

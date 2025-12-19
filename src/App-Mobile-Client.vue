@@ -1,6 +1,7 @@
 <template>
   <context-menu ref="contextMenuRef"></context-menu>
 
+  <user-notice-modal ref="userNoticeModalRef"></user-notice-modal>
 
   <div v-if="store.state.auth">
 
@@ -205,6 +206,7 @@ import KoreMarker from "./tarkan/components/kore-marker";
 import KoreFence from "./tarkan/components/kore-fence";
 import KoreCanvaMarker from "./tarkan/test/CanvaMarker";
 import ContextMenu from "./tarkan/components/context-menu";
+import UserNoticeModal from "./tarkan/components/UserNoticeModal";
 import {ElLoading,ElMessageBox, ElMessage, ElNotification} from "element-plus";
 
 

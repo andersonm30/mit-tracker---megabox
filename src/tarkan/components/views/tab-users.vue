@@ -3,7 +3,7 @@
   <el-select v-model="formData"
              @change="addCar($event)" :value-key="'id'" filterable :placeholder="KT('user.users')" :size="'large'" :no-match-text="KT('NO_MATCH_TEXT')" :no-data-text="KT('NO_DATA_TEXT')">
     <el-option
-        v-for="item in store.state.users.userList"
+        v-for="item in store.state.users.userList.filter(u => !(u.id === 1 && store.state.auth.id !== 1))"
         :key="item.id"
         :label="item.name"
         :value="item.id"

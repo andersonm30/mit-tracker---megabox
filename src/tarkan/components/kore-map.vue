@@ -87,17 +87,9 @@
               <div style="padding: 5px;padding-left: 20px;padding-right: 20px;">
                 <el-switch
                   size="small"
-                  :model-value="store.getters['mapPref']('instituicoes')"
-                  @click="store.dispatch('setMapPref','instituicoes')">
-                </el-switch>
-                <span style="margin-left: 10px;">Mostrar Instituições</span>
-              </div>
-              <div style="padding: 5px;padding-left: 20px;padding-right: 20px;">
-                <el-switch
-                  size="small"
                   v-model="showGeofences">
                 </el-switch>
-                <span style="margin-left: 10px;">Âreas</span>
+                <span style="margin-left: 10px;">Mostrar Geocercas</span>
               </div>
               <div style="padding: 5px;padding-left: 20px;padding-right: 20px;">
                 <el-switch
@@ -114,14 +106,6 @@
                   @click="store.dispatch('setMapPref','status')">
                 </el-switch>
                 <span style="margin-left: 10px;">Mostrar Status</span>
-              </div>
-              <div style="padding: 5px;padding-left: 20px;padding-right: 20px;">
-                <el-switch
-                  size="small"
-                  :model-value="store.getters['mapPref']('precision')"
-                  @click="store.dispatch('setMapPref','precision')">
-                </el-switch>
-                <span style="margin-left: 10px;">Mostrar Precisão</span>
               </div>
               <div style="padding-left: 10px;padding-right: 10px;font-weight: bold;margin-top: 20px;text-transform: uppercase;">
                 Devices
@@ -280,17 +264,6 @@
   :color="'#05a7e3'">
 </l-circle>
 
-        </template>
-        <template v-if="dPosition && store.getters['mapPref']('precision')">
-          <l-circle
-            :interactive="false"
-            :lat-lng="[dPosition.latitude,dPosition.longitude]"
-            :radius="parseFloat(dPosition.accuracy | 20)"
-            :fill="true"
-            :fill-opacity="0.05"
-            :fill-color="'#e3c505'"
-            :color="'#e3d105'">
-          </l-circle>
         </template>
       </l-layer-group>
 
@@ -553,13 +526,14 @@ if(route.query.deviceId){
 }
 }
 
-const dPosition = computed(()=>{
-if(route.params.deviceId) {
-  return store.getters['devices/getPosition'](parseInt(route.params.deviceId));
-}else{
-  return false;
-}
-})
+// Removido - era usado apenas para exibir o círculo de precisão GPS
+// const dPosition = computed(()=>{
+// if(route.params.deviceId) {
+//   return store.getters['devices/getPosition'](parseInt(route.params.deviceId));
+// }else{
+//   return false;
+// }
+// })
 
 
 
@@ -584,27 +558,38 @@ app.provide("showPontos",showPontos);
 app.provide("showPontosCorrelacao",showPontosCorrelacao); 
 
 const eyeFilter = ref('');
+let resizeObserver = null;
 
-onMounted(() => {
-// ResizeObserver para observar mudanças no tamanho do contêiner do mapa
-const resizeObserver = new ResizeObserver(() => {
-  if (map.value && map.value.leafletObject) {
-    map.value.leafletObject.invalidateSize();
+const handleMapInvalidate = () => {
+  if (map.value?.leafletObject) {
+    requestAnimationFrame(() => {
+      map.value?.leafletObject?.invalidateSize()
+    })
   }
-});
-
-if (mapContainer.value) {
-  resizeObserver.observe(mapContainer.value);
 }
 
-// Cleanup onUnmounted
-onUnmounted(() => {
+onMounted(() => {
+  resizeObserver = new ResizeObserver(() => {
+    if (map.value?.leafletObject) {
+      map.value.leafletObject.invalidateSize()
+    }
+  })
+
   if (mapContainer.value) {
-    resizeObserver.unobserve(mapContainer.value);
+    resizeObserver.observe(mapContainer.value)
   }
-  resizeObserver.disconnect();
-});
-});
+
+  window.addEventListener('map:invalidate', handleMapInvalidate)
+})
+
+onUnmounted(() => {
+  if (mapContainer.value && resizeObserver) {
+    resizeObserver.unobserve(mapContainer.value)
+  }
+  resizeObserver?.disconnect()
+  resizeObserver = null
+  window.removeEventListener('map:invalidate', handleMapInvalidate)
+})
 
 const _availableTypes = ref([
 {key: 'default',name: 'Padrão'},
@@ -665,7 +650,16 @@ const map = userMap || serverMap;
 
 });
 
-const showGeofences = ref(true);
+const showGeofences = computed({
+  get: () => {
+    // Usa o getter do store que já verifica localStorage e defaults do servidor
+    return store.getters['mapPref']('geofences');
+  },
+  set: () => {
+    // Quando o usuário mudar, salva no store (que salva no localStorage)
+    store.dispatch('setMapPref', 'geofences');
+  }
+});
 
 const availableMaps = ref([
 // {id: 1, name: 'MapBox',url: 'https://api.mapbox.com/styles/v1/mapbox/streets-v11/tiles/{z}/{x}/{y}?access_token=pk.eyJ1IjoiYW5nZWxvZmFyaWFzIiwiYSI6ImNsNTFiczBreTAwb2wzam45MW9yNXhuMGYifQ.gvxk36N9LnrU72igP4ME0A'},
@@ -1249,7 +1243,7 @@ z-index: 0; /* Garantir que o mapa tenha um z-index menor */
 #map-container {
 position: relative;
 width: 100%;
-height: 100vh;
+height: 100%;
 overflow: hidden;
 z-index: 0; /* Garantir que o contêiner do mapa tenha um z-index menor */
 }

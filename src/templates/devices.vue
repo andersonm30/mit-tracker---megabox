@@ -1,9 +1,29 @@
 <template>
-<div style="display: flex; justify-content: flex-end; align-items: center; margin-bottom: 20px;">
+<div style="display: flex; justify-content: flex-start; align-items: center; margin-bottom: 20px;">
+  <!-- O input de busca -->
+  <el-input
+    v-model="query"
+    :placeholder="KT('device.search')"
+    style="flex: 1; --el-input-border-radius: 5px; margin-left: 28px; margin-right: 10px;"
+  ></el-input>
+
+  <!-- Botão de adicionar -->
+  <el-button
+    @mouseleave="hideTip"
+    @mouseenter.stop="showTip($event, KT('device.add'))"
+    :disabled="!store.getters['checkDeviceLimit']"
+    v-if="store.getters.advancedPermissions(13) && (store.state.auth.deviceLimit === -1 || store.state.auth.deviceLimit > 0)"
+    type="primary"
+    @click="(store.getters['checkDeviceLimit']) ? editDeviceRef.newDevice() : deviceLimitExceded()"
+    style="margin-right: 10px; min-width: auto; padding: 8px 14px;"
+  >
+    <i class="fas fa-plus"></i>
+  </el-button>
+
   <!-- Botão de filtro -->
-  <el-dropdown @command="filterDevices" style="margin-right: 5px;">
-    <el-button type="primary">
-      Filtrar <i class="el-icon-arrow-down el-icon--right"></i>
+  <el-dropdown @command="filterDevices">
+    <el-button type="primary" style="min-width: auto; padding: 8px 14px;">
+      <i class="fas fa-filter"></i>
     </el-button>
     <template v-slot:dropdown>
       <el-dropdown-menu>
@@ -14,26 +34,6 @@
       </el-dropdown-menu>
     </template>
   </el-dropdown>
-
-  <!-- Botão de adicionar -->
-  <el-button
-    @mouseleave="hideTip"
-    @mouseenter.stop="showTip($event, KT('device.add'))"
-    :disabled="!store.getters['checkDeviceLimit']"
-    v-if="store.getters.advancedPermissions(13) && (store.state.auth.deviceLimit === -1 || store.state.auth.deviceLimit > 0)"
-    type="primary"
-    @click="(store.getters['checkDeviceLimit']) ? editDeviceRef.newDevice() : deviceLimitExceded()"
-    style="margin-left: 5px; margin-right: 10px;"
-  >
-    <i class="fas fa-plus"></i>
-  </el-button>
-
-  <!-- O input de busca -->
-  <el-input
-    v-model="query"
-    :placeholder="KT('device.search')"
-    style="width: 250px; --el-input-border-radius: 5px;"
-  ></el-input>
 </div>
 
 
@@ -302,6 +302,17 @@ const realDevices = ref(null);
 const offsetDevices = ref(0);
 const maxDevices = ref(0);
 
+// Debounce para otimizar recálculos
+let recalcTimeout = null;
+const debouncedRecalc = (situacao = null, delay = 150) => {
+  if (recalcTimeout) {
+    clearTimeout(recalcTimeout);
+  }
+  recalcTimeout = setTimeout(() => {
+    filteredDevices.value = recalcDevices(situacao);
+  }, delay);
+};
+
 const validStates = [
     'motion',
     'anchor',
@@ -337,18 +348,27 @@ onMounted(()=>{
     now.value = new Date();
   },3000);
 
+  // Primeiro carregamento sem debounce
   filteredDevices.value = recalcDevices();
+
+  // Prefetch do componente devices.internal para que o primeiro clique seja instantâneo
+  // O chunk será baixado em background enquanto o usuário visualiza a lista
+  setTimeout(() => {
+    import('./devices.internal.vue');
+  }, 1000);
 });
 
+// Debounce na busca por texto (usuário digitando)
 watch(query,()=>{
-  filteredDevices.value = recalcDevices();
+  debouncedRecalc(null, 300);
 });
 
+// Debounce quando a lista de dispositivos muda
 watch(()=> store.getters['devices/getOrderedDevices'].length,()=>{
-  filteredDevices.value = recalcDevices();
+  debouncedRecalc(null, 150);
 });
 
-
+// Sem debounce na ordenação (ação direta do usuário)
 watch(()=> store.getters['devices/sorting'],()=>{
   filteredDevices.value = recalcDevices();
 });
@@ -406,9 +426,6 @@ const filterDevices = (situacao) => {
 
 
 const recalcDevices = (situacao = null) => {
-  console.log("Gargalo 3");
-  console.log("Situação recebida para filtragem:", situacao); // Log da situação recebida
-
   window.localStorage.setItem('query', query.value);
 
   const r = query.value.toLowerCase().matchAll(/(.*?):(?<sinal>\+|-|=)(?<tempo>\d*) (?<filtro>dias|minutos|horas|segundos)/gi);
@@ -433,16 +450,11 @@ const recalcDevices = (situacao = null) => {
     // Verifica se o campo 'situacao' existe e é válido antes de tentar acessá-lo
     const deviceSituacao = d.attributes['situacao'] ? d.attributes['situacao'].toLowerCase() : null;
 
-    // Log do valor atual do campo 'situacao' do dispositivo e a comparação
-    console.log(`Comparando ${deviceSituacao} com ${situacao}`);
-
     // Verifica se há uma situação específica para filtrar
     if (situacao && deviceSituacao === situacao) {
-      console.log("Dispositivo filtrado (situação combinada):", d);
       d.icon.addToMap();
       visible = true;
     } else if (!situacao) {
-      console.log("Nenhuma situação específica, aplicando filtro padrão.");
       // Lógica de filtro atual baseada em query
       if (s.value) {
         if (s.value.groups.filtro === 'dias') {
@@ -487,7 +499,6 @@ const recalcDevices = (situacao = null) => {
     }
   });
 
-  console.log("Dispositivos filtrados:", tmp); // Verifica a lista final filtrada
   return tmp;
 };
 

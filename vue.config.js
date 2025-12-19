@@ -1,7 +1,5 @@
 const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
 
-
-
 module.exports = {
     publicPath: '/',
     productionSourceMap: false,
@@ -14,7 +12,6 @@ module.exports = {
             }
             return args
         })
-
 
         // GraphQL Loader
         config.module
@@ -43,7 +40,15 @@ module.exports = {
     },
 
     devServer: {
-        disableHostCheck: true
+        port: 8083,
+        disableHostCheck: true,
+        proxy: {
+            '/api': {
+                target: 'http://localhost/back-end',
+                changeOrigin: true,
+                secure: false
+            }
+        }
     },
 
     pwa: {

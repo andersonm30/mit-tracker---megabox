@@ -1,6 +1,6 @@
 
 const messages = {
-        version: '2.0.0',
+        version: '2.2.0',
         errors: {
             USER_DEVICE_LIMIT_REACHED: 'User device limit reached',
             ACCOUNT_IS_READONLY: 'Account is ReadyOnly',
@@ -323,7 +323,17 @@ const messages = {
             password: 'Password',
             your_email: 'your username',
             your_password: 'your password',
-            signin: 'Sign-in'
+            signin: 'Sign-in',
+            error: {
+                UNAUTHORIZED: 'Invalid username or password.',
+                HTTP_401_UNAUTHORIZED: 'Invalid username or password.',
+                JAKARTA: 'Invalid username or password.',
+                invalid_credentials: 'Invalid username or password.',
+                BLOCKED: 'Your account is blocked. Please contact the administrator.',
+                DISABLED: 'Your account is disabled. Please contact the administrator.',
+                ACCOUNT_BLOCKED: 'Your account is blocked. Please contact the administrator.',
+                USER_BLOCKED: 'Your account is blocked. Please contact the administrator.'
+            }
         },
         actions: {
             custom: 'Custom Command',
@@ -487,7 +497,12 @@ const messages = {
             sat: 'Satelittes',
             blocked: 'Blocked',
             ignition: 'Ignition',
-            network: 'Network'
+            network: 'Network',
+            error:{
+                DUPLICATE_ENTRY: 'This IMEI is already registered in the system.',
+                UNIQUEID: 'This IMEI is already registered in the system.',
+                checkForm: 'Please check the form data.',
+            }
         },
         group:{
             title: 'Manage Groups',

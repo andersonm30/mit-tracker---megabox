@@ -419,7 +419,8 @@ export default {
                     }
 
                     if(window.$updatePano){
-                        window.$updatePano(device.id);
+                        console.log('devices.js: Chamando $updatePano para device:', device.id, 'position:', p);
+                        window.$updatePano(device.id, p);
                     }if(window.$updateMapaPercurso){
                         window.$updatePercurso(device.id);
                     }

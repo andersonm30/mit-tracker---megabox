@@ -246,13 +246,35 @@ const doLogin = () => {
   }).catch((err) => {
     store.commit("server/setPage", false);
 
-    console.log(err);
-    ElMessageBox.confirm(KT(err) || err)
-      .then(() => {
-      })
-      .catch(() => {
-        // catch error
-      });
+    // Get error data from response
+    const errorData = err.response?.data || err.message || String(err);
+    const errorString = String(errorData).toUpperCase();
+
+    // Check for blocked/disabled user errors first
+    if (errorString.includes('BLOCKED') ||
+        errorString.includes('DISABLED') ||
+        errorString.includes('ACCOUNT_BLOCKED') ||
+        errorString.includes('USER_BLOCKED')) {
+      // Specific error for blocked/disabled account
+      ElMessageBox.confirm(KT('login.error.BLOCKED'))
+        .then(() => {})
+        .catch(() => {});
+    }
+    // Check for invalid credentials errors
+    else if (errorString.includes('HTTP_401_UNAUTHORIZED') ||
+        errorString.includes('UNAUTHORIZED') ||
+        errorString.includes('JAKARTA') ||
+        errorString.includes('401')) {
+      // Specific error for invalid credentials
+      ElMessageBox.confirm(KT('login.error.UNAUTHORIZED'))
+        .then(() => {})
+        .catch(() => {});
+    } else {
+      // Generic error handling for other cases
+      ElMessageBox.confirm(KT(err) || errorData)
+        .then(() => {})
+        .catch(() => {});
+    }
   });
 };
 

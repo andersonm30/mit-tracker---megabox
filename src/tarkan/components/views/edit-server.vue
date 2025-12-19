@@ -152,83 +152,122 @@
 
 
       <el-tab-pane  :label="KT('server.tarkan')" name="firsttk">
-        <el-form-item :label="KT('server.enableLockUnlock')">
-          <el-switch
-              v-model="formData.attributes['tarkan.enableLockUnlock']"
-              :inactive-text="KT('automatic')"
-              :active-text="KT('always')"
-              :active-value="true"
-              :inactive-value="false"
-          >
-          </el-switch>
-        </el-form-item>
+        <el-form label-width="120px" label-position="top">
 
-        <el-form-item v-if="store.state.server.isPlus" :label="KT('server.enableAdvancedPerms')">
-          <el-switch
-              v-model="formData.attributes['tarkan.enableAdvancedPerms']"
-              :inactive-text="KT('disabled')"
-              :active-text="KT('enabled')"
-              :active-value="true"
-              :inactive-value="false"
-          >
-          </el-switch>
-        </el-form-item>
+          <el-form-item :label="KT('server.enableLockUnlock')">
+            <el-switch
+                v-model="formData.attributes['tarkan.enableLockUnlock']"
+                :inactive-text="KT('automatic')"
+                :active-text="KT('always')"
+                :active-value="true"
+                :inactive-value="false"
+            >
+            </el-switch>
+          </el-form-item>
 
+          <el-form-item v-if="store.state.server.isPlus" :label="KT('server.enableAdvancedPerms')">
+            <el-switch
+                v-model="formData.attributes['tarkan.enableAdvancedPerms']"
+                :inactive-text="KT('disabled')"
+                :active-text="KT('enabled')"
+                :active-value="true"
+                :inactive-value="false"
+            >
+            </el-switch>
+          </el-form-item>
 
+          <el-form-item v-if="store.state.server.isPlus" :label="KT('server.enableQrDriverId')">
+            <el-switch
+                v-model="formData.attributes['tarkan.enableQrDriverId']"
+                :inactive-text="KT('disabled')"
+                :active-text="KT('enabled')"
+                :active-value="true"
+                :inactive-value="false"
+            >
+            </el-switch>
+          </el-form-item>
 
-        <el-form-item v-if="store.state.server.isPlus" :label="KT('server.enableQrDriverId')">
-          <el-switch
-              v-model="formData.attributes['tarkan.enableQrDriverId']"
-              :inactive-text="KT('disabled')"
-              :active-text="KT('enabled')"
-              :active-value="true"
-              :inactive-value="false"
-          >
-          </el-switch>
-        </el-form-item>
+          <el-form-item v-if="store.state.server.isPlus" :label="KT('server.lazyDeletion')">
+            <el-switch
+                v-model="formData.attributes['tarkan.enableLazyDeletion']"
+                :inactive-text="KT('disabled')"
+                :active-text="KT('enabled')"
+                :active-value="true"
+                :inactive-value="false"
+            >
+            </el-switch>
+          </el-form-item>
 
-        <el-form-item v-if="store.state.server.isPlus" :label="KT('server.lazyDeletion')">
-          <el-switch
-              v-model="formData.attributes['tarkan.enableLazyDeletion']"
-              :inactive-text="KT('disabled')"
-              :active-text="KT('enabled')"
-              :active-value="true"
-              :inactive-value="false"
-          >
-          </el-switch>
-        </el-form-item>
+          <el-form-item v-if="store.state.server.isPlus" :label="KT('server.showStops')">
+            <el-switch
+                v-model="formData.attributes['tarkan.enableStops']"
+                :inactive-text="KT('disabled')"
+                :active-text="KT('enabled')"
+                :active-value="true"
+                :inactive-value="false"
+            >
+            </el-switch>
+          </el-form-item>
 
+          <el-form-item v-if="store.state.server.isPlus" :label="KT('server.showEvents')">
+            <el-switch
+                v-model="formData.attributes['tarkan.enableEvents']"
+                :inactive-text="KT('disabled')"
+                :active-text="KT('enabled')"
+                :active-value="true"
+                :inactive-value="false"
+            >
+            </el-switch>
+          </el-form-item>
 
-        <el-form-item v-if="store.state.server.isPlus" :label="KT('server.showStops')">
-          <el-switch
-              v-model="formData.attributes['tarkan.enableStops']"
-              :inactive-text="KT('disabled')"
-              :active-text="KT('enabled')"
-              :active-value="true"
-              :inactive-value="false"
-          >
-          </el-switch>
-        </el-form-item>
+          <div style="border-top: 1px solid #e0e0e0; margin: 30px 0 20px 0; padding-top: 20px;">
+            <div style="font-weight: bold; margin-bottom: 15px; font-size: 14px; color: #303133;">Preferências de Mapa Padrão</div>
 
+            <el-form-item :label="'Mostrar Geocercas por Padrão'">
+              <el-switch
+                  v-model="formData.attributes['tarkan.mapPref.geofences']"
+                  :inactive-text="KT('disabled')"
+                  :active-text="KT('enabled')"
+                  :active-value="true"
+                  :inactive-value="false"
+              >
+              </el-switch>
+            </el-form-item>
 
-        <el-form-item v-if="store.state.server.isPlus" :label="KT('server.showEvents')">
-          <el-switch
-              v-model="formData.attributes['tarkan.enableEvents']"
-              :inactive-text="KT('disabled')"
-              :active-text="KT('enabled')"
-              :active-value="true"
-              :inactive-value="false"
-          >
-          </el-switch>
-        </el-form-item>
+            <el-form-item :label="'Mostrar Nome por Padrão'">
+              <el-switch
+                  v-model="formData.attributes['tarkan.mapPref.name']"
+                  :inactive-text="KT('disabled')"
+                  :active-text="KT('enabled')"
+                  :active-value="true"
+                  :inactive-value="false"
+              >
+              </el-switch>
+            </el-form-item>
 
+            <el-form-item :label="'Mostrar Status por Padrão'">
+              <el-switch
+                  v-model="formData.attributes['tarkan.mapPref.status']"
+                  :inactive-text="KT('disabled')"
+                  :active-text="KT('enabled')"
+                  :active-value="true"
+                  :inactive-value="false"
+              >
+              </el-switch>
+            </el-form-item>
+          </div>
+
+        </el-form>
       </el-tab-pane>
 
+      <!-- Aba Atributos ocultada em 11/11/2025 às 19:26 -->
+      <!--
       <el-tab-pane :label="KT('attribute.attributes')" name="fourth">
 
         <tab-attributes v-model="formData.attributes" :type="'server'"></tab-attributes>
 
       </el-tab-pane>
+      -->
     </el-tabs>
   </el-dialog>
 </template>
@@ -270,7 +309,7 @@ const store = useStore();
 
 
 
-import TabAttributes from "./tab-attributes";
+// import TabAttributes from "./tab-attributes"; // Comentado em 11/11/2025 às 19:36 - componente não utilizado
 
 
 const title = ref('');

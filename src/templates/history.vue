@@ -1,7 +1,7 @@
 <template>
   <el-form>
   <el-form-item >
-    <div class="form-group">
+    <div class="form-group" style="margin-left: 28px;">
       <label for="theInputDevice">SELECIONE O DISPOSITIVO</label>
     <el-select v-model="formData.deviceId" :value-key="'id'" filterable :placeholder="$t('device.device')" :size="'large'" :no-data-text="$t('NO_DATA_TEXT')" :no-match-text="$t('NO_MATCH_TEXT')">
       <el-option

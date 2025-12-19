@@ -1,5 +1,6 @@
 
 const messages = {
+	version: '2.2.0',
 	NEW_VERSION_AVAILABLE: 'Uma nova versão foi baixada, clique OK para acessar!',
         ALL_TASK_READY: 'Todas as tarefas foram concluidas com sucesso.',
         FILL_ALL_FIELDS: 'Por favor, preencha todos os campos.',
@@ -287,7 +288,17 @@ const messages = {
             password: 'Senha',
             your_email: 'Seu usuário',
             your_password: 'Sua senha',
-            signin: 'Acessar'
+            signin: 'Acessar',
+            error: {
+                UNAUTHORIZED: 'Usuário ou senha incorretos.',
+                HTTP_401_UNAUTHORIZED: 'Usuário ou senha incorretos.',
+                JAKARTA: 'Usuário ou senha incorretos.',
+                invalid_credentials: 'Usuário ou senha incorretos.',
+                BLOCKED: 'Acesso bloqueado. Entre em contato conosco.',
+                DISABLED: 'Acesso bloqueado. Entre em contato conosco.',
+                ACCOUNT_BLOCKED: 'Acesso bloqueado. Entre em contato conosco.',
+                USER_BLOCKED: 'Acesso bloqueado. Entre em contato conosco.'
+            }
         },
         actions: {
             custom: 'Comando Personalizado',
@@ -503,6 +514,11 @@ const messages = {
             form:{
                 nameEmpty: 'Por favor insira um nome para o dispositivo',
                 uniqueIdEmpty: 'Por favor insira o identificador único do dispositivo',
+            },
+            error:{
+                DUPLICATE_ENTRY: 'Este IMEI já está cadastrado no sistema.',
+                UNIQUEID: 'Este IMEI já está cadastrado no sistema.',
+                checkForm: 'Verifique os dados do formulário.',
             },
             streetview: 'StreetView',
 

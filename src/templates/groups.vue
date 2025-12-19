@@ -1,19 +1,16 @@
 <template>
 
 
-  <div style="display: flex;justify-content: space-between;align-content: space-between;">
-    <div style="width: 30%;"></div>
-
-    <el-input v-model="query" placeholder="Buscar Grupo" style="--el-input-border-radius: 5px;margin-right: 5px;"></el-input>
+  <div style="display: flex; justify-content: flex-start; align-items: center; margin-bottom: 20px;">
+    <el-input v-model="query" placeholder="Buscar Grupo" style="flex: 1; --el-input-border-radius: 5px; margin-right: 10px;"></el-input>
     <el-tooltip
         effect="dark"
         content="Cadastrar Grupo"
         placement="bottom"
         v-if="store.getters.advancedPermissions(49)"
     >
-      <el-button type="primary" @click="editGroupRef.newGroup()"><i class="fas fa-folder-plus"></i></el-button>
+      <el-button type="primary" @click="editGroupRef.newGroup()" style="min-width: auto; padding: 8px 14px;"><i class="fas fa-folder-plus"></i></el-button>
     </el-tooltip>
-
 
   </div>
 
