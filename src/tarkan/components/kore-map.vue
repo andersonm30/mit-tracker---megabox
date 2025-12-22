@@ -61,14 +61,14 @@
           </el-tooltip>
 
         <el-button
-          v-if="store.state.server.isPlus && ((store.state.server.serverInfo.attributes['tarkan.enableAdvancedPerms'] && store.getters.advancedPermissions(24))) || (!store.state.server.serverInfo.attributes['tarkan.enableAdvancedPerms'] && !store.state.auth.attributes['isShared'] && !store.getters['isReadonly'])"
+          v-if="store.state.server.isPlus && ((store.state.server.serverInfo?.attributes?.['tarkan.enableAdvancedPerms'] && store.getters.advancedPermissions(24))) || (!store.state.server.serverInfo?.attributes?.['tarkan.enableAdvancedPerms'] && !store.state.auth.attributes?.['isShared'] && !store.getters['isReadonly'])"
           @click="editSharesRef.showShares()"
           style="margin-right: 5px;">
           <i class="fas fa-share-alt"></i>
         </el-button>
 
         <el-dropdown
-          v-if="!store.state.auth.attributes['isShared']"
+          v-if="!store.state.auth.attributes?.['isShared']"
           size="large"
           style="margin-right: 5px;"
           max-height="50%"
@@ -153,7 +153,7 @@
         </el-dropdown>
       </l-control>
 
-      <l-control position="topleft" v-if="!store.state.auth.attributes['isShared']">
+      <l-control position="topleft" v-if="!store.state.auth.attributes?.['isShared']">
         <div :set="count = store.getters['devices/deviceCount']">
           <el-tooltip
             placement="right-start"
@@ -445,19 +445,19 @@ console.log('openMarkInfo', e);
 }
 
 watch(()=> store.getters['mapPref']('name'),()=>{
-carLayer.value.leafletObject.eachLayer((layer)=>{
+carLayer.value?.leafletObject?.eachLayer((layer)=>{
   layer.setLabel({name: store.getters['mapPref']('name'),plate: store.getters['mapPref']('plate'),status: store.getters['mapPref']('status')});
 });
 })
 
 watch(()=> store.getters['mapPref']('plate'),()=>{
-carLayer.value.leafletObject.eachLayer((layer)=>{
+carLayer.value?.leafletObject?.eachLayer((layer)=>{
   layer.setLabel({name: store.getters['mapPref']('name'),plate: store.getters['mapPref']('plate'),status: store.getters['mapPref']('status')});
 });
 })
 
 watch(()=> store.getters['mapPref']('status'),()=>{
-carLayer.value.leafletObject.eachLayer((layer)=>{
+carLayer.value?.leafletObject?.eachLayer((layer)=>{
   layer.setLabel({name: store.getters['mapPref']('name'),plate: store.getters['mapPref']('plate'),status: store.getters['mapPref']('status')});
 });
 })
@@ -502,7 +502,7 @@ if (newVal) {
 
 window.addEventListener("keydown",(e)=>{
 if(e.code==='ControlLeft'){
-  carLayer.value.leafletObject.eachLayer((layer)=>{
+  carLayer.value?.leafletObject?.eachLayer((layer)=>{
     layer.setPressed(true);
   });
 }
@@ -510,7 +510,7 @@ if(e.code==='ControlLeft'){
 
 window.addEventListener("keyup",(e)=>{
 if(e.code==='ControlLeft'){
-  carLayer.value.leafletObject.eachLayer((layer)=>{
+  carLayer.value?.leafletObject?.eachLayer((layer)=>{
     layer.setPressed(false);
   });
 }
@@ -570,7 +570,7 @@ const handleMapInvalidate = () => {
 
 onMounted(() => {
   resizeObserver = new ResizeObserver(() => {
-    if (map.value?.leafletObject) {
+    if (map.value?.leafletObject?.invalidateSize) {
       map.value.leafletObject.invalidateSize()
     }
   })
@@ -697,6 +697,7 @@ window.$hideTip();
 const markerOver = (e)=>{
 const deviceId = (e.target)?e.target.options.id:e;
 const device = store.getters['devices/getDevice'](deviceId);
+if (!map.value?.leafletObject) return;
 const markPoint = map.value.leafletObject.latLngToContainerPoint(e.target._latlng);
 const left = markPoint.x+(router.currentRoute.value.meta.shown?553:73);
 const top = markPoint.y;
@@ -709,7 +710,7 @@ const zoom = (store.state.server.serverInfo.attributes && store.state.server.ser
 if(position){
   setTimeout(()=> {
     setTimeout(() => {
-      map.value.leafletObject.flyTo([position.latitude, position.longitude],zoom,{animate: true,duration: 1.5});
+      map.value?.leafletObject?.flyTo([position.latitude, position.longitude],zoom,{animate: true,duration: 1.5});
     }, 100);
   },100);
 }
@@ -747,14 +748,14 @@ setTimeout(() => {
   // eslint-disable-next-line no-undef
   const bds = L.latLngBounds(tmp);
   //map.value.leafletObject.flyTo([points[0][0],points[0][1]], 12, {animate: true, duration: 1.5});
-  map.value.leafletObject.fitBounds(bds);
+  map.value?.leafletObject?.fitBounds(bds);
 }, 300);
 }
 }
 
 
 const setMapCenter = (pos)=>{
-map.value.leafletObject.panTo(pos);
+map.value?.leafletObject?.panTo(pos);
 }
 window.$setMapCenter = setMapCenter;
 

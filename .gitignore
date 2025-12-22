@@ -1,41 +1,10 @@
 node_modules
+node_modules.broken
+css/
+js/
 dist/
 dist-mobile/
-.DS_Store
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Editor directories and files
-.idea
-.vscode
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-
-# Build artifacts - raiz do projeto
-/css/
-/js/
-*.map
-precache-manifest*.js
+mbb/
+*.js.map
+precache-manifest.*.js
 service-worker.js
-sw.js
-/index.html
-api_traccar.php
-
-# Arquivo principal não deve ser versionado
-src/main.js
-
-# Arquivos temporários
-/push.js
-whatsapp.png
-/public/img/whatsapp.png
-/public/index.html.backup
-/mbb/
-
-# Lock files (opcional - comente se quiser versionar)
-yarn.lock
-package-lock.json
