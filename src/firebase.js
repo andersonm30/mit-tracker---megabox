@@ -1,8 +1,7 @@
 
 
-import "firebase/app"
-import "firebase/messaging"
-import firebase from "firebase/compat";
+import firebase from "firebase/compat/app"
+import "firebase/compat/messaging"
 
 let m = false;
 

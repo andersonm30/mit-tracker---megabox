@@ -441,18 +441,37 @@ const recalcDevices = (situacao = null) => {
 
   let tmp = [];
 
+  // 🎯 HELPER: Manipular icon com fallback seguro (array ou objeto)
+  const safeIconRemove = (icon) => {
+    if (!icon) return;
+    if (Array.isArray(icon)) {
+      icon.forEach(i => i?.remove?.());
+    } else {
+      icon.remove?.();
+    }
+  };
+
+  const safeIconAddToMap = (icon) => {
+    if (!icon) return;
+    if (Array.isArray(icon)) {
+      icon.forEach(i => i?.addToMap?.());
+    } else {
+      icon.addToMap?.();
+    }
+  };
+
   store.getters['devices/getOrderedDevices'].forEach((dk) => {
     const d = store.getters['devices/getDevice'](dk);
     let visible = false;
 
-    d.icon.remove();
+    safeIconRemove(d.icon);
 
     // Verifica se o campo 'situacao' existe e é válido antes de tentar acessá-lo
     const deviceSituacao = d.attributes['situacao'] ? d.attributes['situacao'].toLowerCase() : null;
 
     // Verifica se há uma situação específica para filtrar
     if (situacao && deviceSituacao === situacao) {
-      d.icon.addToMap();
+      safeIconAddToMap(d.icon);
       visible = true;
     } else if (!situacao) {
       // Lógica de filtro atual baseada em query
@@ -462,10 +481,10 @@ const recalcDevices = (situacao = null) => {
           const diff = Math.round((new Date().getTime() - new Date(d.lastUpdate).getTime()) / 1000);
 
           if (s.value.groups.sinal === '+' && diff >= df) {
-            d.icon.addToMap();
+            safeIconAddToMap(d.icon);
             visible = true;
           } else if (s.value.groups.sinal === '-' && diff <= df) {
-            d.icon.addToMap();
+            safeIconAddToMap(d.icon);
             visible = true;
           }
         }
@@ -473,23 +492,23 @@ const recalcDevices = (situacao = null) => {
 
       for (let k of Object.keys(d)) {
         if (k === 'status' && String(d[k]).toLowerCase().replace('unknown', 'desconhecido').match(query.value.toLowerCase())) {
-          d.icon.addToMap();
+          safeIconAddToMap(d.icon);
           visible = true;
         } else if (String(d[k]).toLowerCase().match(query.value.toLowerCase())) {
-          d.icon.addToMap();
+          safeIconAddToMap(d.icon);
           visible = true;
         }
       }
 
       for (let k of Object.keys(d.attributes)) {
         if (d.attributes[k] && d.attributes[k].toString().toLowerCase().match(query.value.toLowerCase())) {
-          d.icon.addToMap();
+          safeIconAddToMap(d.icon);
           visible = true;
         }
       }
 
       if (!visible && d.groupId !== 0 && groupList.includes(d.groupId)) {
-        d.icon.addToMap();
+        safeIconAddToMap(d.icon);
         visible = true;
       }
     }

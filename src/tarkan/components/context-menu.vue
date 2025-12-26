@@ -3,12 +3,16 @@
   <div id="context" ref="context" @blur="doHide()" :class="{ctxshow: show,ctxdisplay: display}" :style="{left: pos.x+'px',top: pos.y+'px'}">
       <ul>
         <li v-for="(o,ok) in menus" :key="ok" @click.self="(o.cb && !o.disabled)?o.cb():emptyHandle()" @mouseover.self="submenuHandle($event,o.submenu)"  :class="{'separator': o.text==='separator','disabled': o.disabled}">
-          {{o.text}}
+          <i v-if="o.icon" :class="o.icon" class="menu-icon"></i>
+          <span>{{o.text}}</span>
           <template v-if="o.submenu">
             <i style="color:#595959;float: right;margin-left: 20px;margin-right: -7px;font-size: 16px;line-height: 18px;" class="fas fa-caret-right"></i>
             <div v-if="submenu" ref="sub" id="submenu" :style="{left: pos.subX+'px',top: pos.subY+'px'}">
               <ul>
-                <li v-for="(s,sk) in submenu" :key="'smenu'+sk" :class="{'separator': s.text==='separator','disabled': s.disabled}" @click="(s.cb && !s.disabled)?s.cb():emptyHandle()">{{s.text}}</li>
+                <li v-for="(s,sk) in submenu" :key="'smenu'+sk" :class="{'separator': s.text==='separator','disabled': s.disabled}" @click="(s.cb && !s.disabled)?s.cb():emptyHandle()">
+                  <i v-if="s.icon" :class="s.icon" class="menu-icon"></i>
+                  <span>{{s.text}}</span>
+                </li>
               </ul>
             </div>
           </template>
@@ -155,6 +159,22 @@ defineExpose({openMenu});
   cursor: pointer;
   user-select: none;
   border-bottom: rgba(192, 192, 192, 0.20) 1px solid;
+  display: flex;
+  align-items: center;
+}
+
+#context li .menu-icon,
+#submenu ul li .menu-icon {
+  width: 16px;
+  margin-right: 10px;
+  text-align: center;
+  color: #666;
+  font-size: 12px;
+}
+
+#context ul li:not(.separator):hover .menu-icon,
+#submenu ul li:not(.separator):hover .menu-icon {
+  color: #409eff;
 }
 
 #context ul li:not(.separator):hover{

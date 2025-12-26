@@ -309,6 +309,7 @@ import {
   provide,
   computed,
   watch,
+  nextTick,
 } from 'vue'
 import { useStore } from 'vuex'
 
@@ -447,8 +448,35 @@ const sidebarClosed = ref(false)
 
 /* Desktop x Mobile - REATIVO para detectar orientação */
 const portrait = ref(false)
-const computePortrait = () =>
-  window.matchMedia && window.matchMedia('(orientation: portrait)').matches
+const computePortrait = () => {
+  // Fallback baseado em dimensão para devices frágeis (Android split-screen, tablets)
+  const vv = window.visualViewport
+  const w = vv?.width ?? window.innerWidth
+  const h = vv?.height ?? window.innerHeight
+  
+  // Tablet em janela estreita (<900px) é tratado como mobile
+  const isNarrow = w < 900
+  
+  // Priorizar matchMedia quando disponível, fallback para dimensão
+  if (window.matchMedia) {
+    try {
+      const isOrientationPortrait = window.matchMedia('(orientation: portrait)').matches
+      return isOrientationPortrait || isNarrow
+    } catch {
+      return h >= w || isNarrow
+    }
+  }
+  return h >= w || isNarrow
+}
+
+const updatePortrait = () => {
+  const newValue = computePortrait()
+  if (portrait.value !== newValue) {
+    portrait.value = newValue
+    // Invalidar mapa após mudança de orientação (layout mudou)
+    nextTick(() => emitMapInvalidate({ source: 'orientation-change' }))
+  }
+}
 
 /**
  * restoreSidebar - ALTERADO conforme referência
@@ -561,15 +589,21 @@ const commandLoading = ref(false)
 const modalConfig = computed(() => {
   const isOnlineDevice = currentDevice.value?.status === 'online'
   const offlineWarning = 'O veículo está offline. O comando será enviado quando reconectar.'
+  const noInternetWarning = 'Sem conexão com a internet. Conecte-se para executar este comando.'
+  
+  // Helper para aplicar mensagem offline consistentemente
+  // Prioriza mensagem de internet quando navegador está offline
+  const needOnlineMsg = (fallback) => {
+    if (!isOnline.value) return noInternetWarning
+    return isOnlineDevice ? fallback : offlineWarning
+  }
 
   const configs = {
     block: {
       title: currentDevice.value?.name || 'Veículo',
       titleIcon: '',
       warningTitle: 'ATENÇÃO - USO APENAS EM EMERGÊNCIA',
-      warningText: isOnlineDevice
-        ? 'Este comando deve ser usado somente em casos de emergência como roubo ou furto.'
-        : offlineWarning,
+      warningText: needOnlineMsg('Este comando deve ser usado somente em casos de emergência como roubo ou furto.'),
       confirmLabel: 'Deslize para Bloquear',
       sliderLabel: 'Deslize para confirmar bloqueio',
       iconClass: 'fas fa-lock',
@@ -580,9 +614,7 @@ const modalConfig = computed(() => {
       title: currentDevice.value?.name || 'Veículo',
       titleIcon: '',
       warningTitle: 'CONFIRMAÇÃO NECESSÁRIA',
-      warningText: isOnlineDevice
-        ? 'Confirme que deseja executar este comando no veículo.'
-        : offlineWarning,
+      warningText: needOnlineMsg('Confirme que deseja executar este comando no veículo.'),
       confirmLabel: 'Deslize para Desbloquear',
       sliderLabel: 'Deslize para confirmar desbloqueio',
       iconClass: 'fas fa-unlock',
@@ -593,7 +625,7 @@ const modalConfig = computed(() => {
       title: currentDevice.value?.name || 'Veículo',
       titleIcon: 'fas fa-anchor',
       warningTitle: 'ATIVAR ÂNCORA',
-      warningText: 'A âncora irá alertar se o veículo sair do local atual.',
+      warningText: needOnlineMsg('A âncora irá alertar se o veículo sair do local atual.'),
       confirmLabel: 'Ativar Âncora',
       sliderLabel: 'Deslize para confirmar',
       iconClass: 'fas fa-anchor',
@@ -604,7 +636,7 @@ const modalConfig = computed(() => {
       title: currentDevice.value?.name || 'Veículo',
       titleIcon: 'fas fa-anchor',
       warningTitle: 'DESATIVAR ÂNCORA',
-      warningText: 'A âncora será desativada e alertas de movimento serão suspensos.',
+      warningText: needOnlineMsg('A âncora será desativada e alertas de movimento serão suspensos.'),
       confirmLabel: 'Desativar Âncora',
       sliderLabel: 'Deslize para a ESQUERDA para confirmar',
       iconClass: 'fas fa-anchor',
@@ -643,9 +675,6 @@ const updateConnectionStatus = () => {
     else connectionSpeed.value = 'slow'
   }
 }
-
-// Handler para atualização reativa de orientação (definido aqui para poder remover no unmount)
-const updatePortrait = () => { portrait.value = computePortrait() }
 
 /* ===========================
  *  HELPERS
@@ -843,12 +872,20 @@ const handleAnchorCommand = async () => {
   const isEnabling = currentModalMode.value === 'anchor_enable'
   commandLoading.value = true
   try {
+    // PRIORIDADE: validar internet primeiro (evita flip-flop de mensagem)
     if (!isOnline.value) {
       throw new Error('Sem conexão com a internet.')
     }
     
     const deviceId = currentDevice.value?.id
     if (!deviceId) throw new Error('Dispositivo não identificado.')
+    
+    // Validar se device está online (comando âncora requer device conectado)
+    // Esta validação só roda se internet estiver OK
+    const isDeviceOnline = currentDevice.value?.status === 'online'
+    if (!isDeviceOnline) {
+      throw new Error('O veículo está offline. Comando de âncora requer conexão ativa.')
+    }
     
     await actAnchor(deviceId, isEnabling)
     
@@ -873,6 +910,8 @@ const handleAnchorCommand = async () => {
 const handleDeleteCommand = async () => {
   commandLoading.value = true
   try {
+    // Exclusão só depende de internet (operação de servidor)
+    // NÃO depende de device.status (pode excluir device offline)
     if (!isOnline.value) {
       throw new Error('Sem conexão com a internet.')
     }
@@ -1049,48 +1088,93 @@ const isCustomModalOpen = computed(() => showConfirmModal.value)
 const modalOpen = computed(() => isCustomModalOpen.value)
 
 const previouslyFocusedEl = ref(null)
+const prevBodyStyles = ref(null)
 
 const lockBodyScroll = () => {
   const y = window.scrollY || document.documentElement.scrollTop
   document.body.dataset.scrollY = String(y)
+  
+  // Guardar estilos pré-existentes para restaurar depois
+  // Inclui overflow/touchAction/overscrollBehavior para compatibilidade com menu-open
+  prevBodyStyles.value = {
+    position: document.body.style.position,
+    top: document.body.style.top,
+    left: document.body.style.left,
+    right: document.body.style.right,
+    width: document.body.style.width,
+    paddingRight: document.body.style.paddingRight,
+    overflow: document.body.style.overflow,
+    touchAction: document.body.style.touchAction,
+    overscrollBehavior: document.body.style.overscrollBehavior,
+  }
+  
+  // Calcular largura da scrollbar para evitar layout shift no desktop
+  const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth
+  if (scrollbarWidth > 0) {
+    document.body.style.paddingRight = `${scrollbarWidth}px`
+  }
+  
+  // Travar scroll completamente (iOS/Safari)
   document.body.style.position = 'fixed'
   document.body.style.top = `-${y}px`
   document.body.style.left = '0'
   document.body.style.right = '0'
   document.body.style.width = '100%'
+  document.body.style.overflow = 'hidden'
+  document.body.style.touchAction = 'none'
+  document.body.style.overscrollBehavior = 'none'
 }
 
 const unlockBodyScroll = () => {
   const y = parseInt(document.body.dataset.scrollY || '0', 10)
-  document.body.style.position = ''
-  document.body.style.top = ''
-  document.body.style.left = ''
-  document.body.style.right = ''
-  document.body.style.width = ''
+  
+  // Restaurar estilos pré-existentes
+  const prev = prevBodyStyles.value
+  if (prev) {
+    Object.assign(document.body.style, prev)
+  }
+  prevBodyStyles.value = null
+  
   delete document.body.dataset.scrollY
   window.scrollTo(0, y)
+  
+  // Invalidar mapa no próximo frame (layout mudou com unlock)
+  nextTick(() => emitMapInvalidate({ source: 'modal-close' }))
+}
+
+// Cache para trapTabKeydown (evita queries repetidas a cada TAB)
+let cachedDialog = null
+let cachedFocusables = []
+
+const invalidateFocusCache = () => {
+  cachedDialog = null
+  cachedFocusables = []
 }
 
 const trapTabKeydown = (e) => {
   if (!modalOpen.value || e.key !== 'Tab') return
 
-  // Prioriza modal custom (.modal-overlay) sobre el-dialog do Element Plus
-  const dialog =
-    document.querySelector('.modal-overlay[role="dialog"][aria-modal="true"]') ||
-    document.querySelector('.el-dialog[role="dialog"]') ||
-    document.querySelector('.el-dialog')
+  // Reusar cache se dialog ainda está visível
+  if (!cachedDialog || !document.contains(cachedDialog)) {
+    // Prioriza modal custom (.modal-overlay) sobre el-dialog do Element Plus
+    cachedDialog =
+      document.querySelector('.modal-overlay[role="dialog"][aria-modal="true"]') ||
+      document.querySelector('.el-dialog[role="dialog"]') ||
+      document.querySelector('.el-dialog')
+    
+    if (!cachedDialog) return
+    
+    cachedFocusables = Array.from(cachedDialog.querySelectorAll(
+      'button, [href], input, select, textarea, [role="slider"], [tabindex]:not([tabindex="-1"])'
+    ))
+  }
 
-  if (!dialog) return
+  if (!cachedFocusables.length) return
 
-  const focusables = dialog.querySelectorAll(
-    'button, [href], input, select, textarea, [role="slider"], [tabindex]:not([tabindex="-1"])'
-  )
-  if (!focusables.length) return
+  const first = cachedFocusables[0]
+  const last = cachedFocusables[cachedFocusables.length - 1]
 
-  const first = focusables[0]
-  const last = focusables[focusables.length - 1]
-
-  if (!dialog.contains(document.activeElement)) {
+  if (!cachedDialog.contains(document.activeElement)) {
     e.preventDefault()
     first.focus()
     return
@@ -1136,9 +1220,19 @@ const handleVisibilityChange = () => {
 // Watch para modais custom: aplica lockBodyScroll + classe modal-open
 watch(isCustomModalOpen, (open) => {
   if (open) {
+    // MELHORIA 4: Fechar menu mobile quando modal abre (evita estado híbrido)
+    // ORDEM: fecha menu ANTES de lockBodyScroll para não herdar travamento do CSS
+    if (portrait.value && menuShown.value) {
+      menuShown.value = false
+      document.body.classList.remove('menu-open')
+    }
+    
     previouslyFocusedEl.value = document.activeElement
     lockBodyScroll()
     document.body.classList.add('modal-open')
+    
+    // CORREÇÃO 4: Invalidar cache ao abrir (não só ao fechar)
+    invalidateFocusCache()
   } else {
     unlockBodyScroll()
     document.body.classList.remove('modal-open')
@@ -1154,10 +1248,13 @@ watch(isCustomModalOpen, (open) => {
   }
 })
 
+// Cache de elementos inert para performance
+let inertFallbackEls = []
+
 // Watch para todos os modais: trap de TAB + ESC global + fallback inert
 watch(modalOpen, (open) => {
-  // Fallback para Safari antigo: toggle .is-inert manualmente
-  document.querySelectorAll('.inert-wrap[data-inert-fallback="1"]').forEach(el => {
+  // Fallback para Safari antigo: toggle .is-inert manualmente (usa cache)
+  inertFallbackEls.forEach(el => {
     el.classList.toggle('is-inert', !!open)
   })
 
@@ -1167,6 +1264,29 @@ watch(modalOpen, (open) => {
   } else {
     document.removeEventListener('keydown', trapTabKeydown, true)
     document.removeEventListener('keydown', handleGlobalEscape, true)
+    // Limpar cache do trapTabKeydown
+    invalidateFocusCache()
+  }
+})
+
+// Watch commandLoading: invalidar cache quando DOM do modal mudar (botões disabled/spinner)
+watch(commandLoading, () => {
+  if (modalOpen.value) {
+    invalidateFocusCache()
+  }
+})
+
+// Watch currentModalMode: invalidar cache quando tipo de modal mudar (botões diferentes)
+watch(currentModalMode, () => {
+  if (modalOpen.value) {
+    invalidateFocusCache()
+  }
+})
+
+// Watch showConfirmModal: invalidar cache quando modal abrir/fechar diretamente
+watch(showConfirmModal, () => {
+  if (showConfirmModal.value) {
+    invalidateFocusCache()
   }
 })
 
@@ -1208,7 +1328,9 @@ let removeBeforeEach = null
 onMounted(() => {
   // Fallback para browsers sem suporte a inert (Safari < 15.5)
   if (!('inert' in HTMLElement.prototype)) {
-    document.querySelectorAll('.inert-wrap').forEach(el => {
+    // Cachear elementos para uso no watch (performance)
+    inertFallbackEls = Array.from(document.querySelectorAll('.inert-wrap'))
+    inertFallbackEls.forEach(el => {
       el.setAttribute('data-inert-fallback', '1')
     })
   }
@@ -1241,7 +1363,14 @@ onMounted(() => {
   applyViewportVars()
   registerViewportListeners()
   document.addEventListener('visibilitychange', handleVisibilityChange, true)
-  emitMapInvalidate({ source: 'mount' })
+  
+  // FIX 1: Atrasar invalidate até DOM/KoreMap/Leaflet estarem prontos
+  // nextTick garante DOM montado + RAF garante Leaflet inicializado
+  nextTick(() => {
+    requestAnimationFrame(() => {
+      emitMapInvalidate({ source: 'mount' })
+    })
+  })
 
   // Inicializa portrait reativo e registra listeners
   portrait.value = computePortrait()
@@ -1403,9 +1532,7 @@ body {
   position: relative;
 }
 
-body.el-popup-parent--hidden {
-  padding-right: 0 !important;
-}
+/* body.el-popup-parent--hidden removido - conflita com lockBodyScroll paddingRight */
 
 #app {
   font-family: 'Segoe UI', system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
@@ -1548,18 +1675,17 @@ body.menu-open {
   position: relative;
 }
 
-/* Wrapper inert - usa display:contents mas com classe para facilitar debug/troca futura */
+/* Wrapper inert - FIX: display:flex para que filhos (#menu, #open, #main) possam usar flex */
 .inert-wrap {
-  display: contents;
-}
-
-/* Fallback para browsers sem suporte a inert (Safari antigo) */
-.inert-wrap[data-inert-fallback="1"] {
-  display: block;
+  display: flex;
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
 }
 
 /* Só bloqueia quando modal está aberto (simula inert) */
-.inert-wrap[data-inert-fallback="1"].is-inert {
+.inert-wrap.is-inert {
   pointer-events: none;
   user-select: none;
 }
