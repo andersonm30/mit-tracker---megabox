@@ -1,43 +1,81 @@
 <template>
-<div style="display: flex; justify-content: flex-start; align-items: center; margin-bottom: 20px;">
-  <!-- O input de busca -->
-  <el-input
-    v-model="query"
-    :placeholder="KT('device.search')"
-    style="flex: 1; --el-input-border-radius: 5px; margin-left: 28px; margin-right: 10px;"
-  ></el-input>
+  <div class="devices-page">
+    <!-- ===== Linha de busca + ações ===== -->
+    <div class="search-row">
+      <el-input v-model="query" class="search-input" size="small"
+        :placeholder="KT('device.search')" clearable @clear="onClearInput">
+        <!-- Prefixo: filtro leve -->
+        <template #prefix>
+          <span class="filter-toggle-button" :class="{ 'active': showFiltersPanel || activeFiltersCount > 0 }"
+            role="button" tabindex="0" @click="toggleFiltersPanel"
+            @mouseenter.stop="showTip($event, 'Filtros avançados')" @mouseleave="hideTip">
+            <i class="fas fa-filter"></i>
+            <span v-if="activeFiltersCount > 0" class="filter-badge">{{ activeFiltersCount }}</span>
+          </span>
+        </template>
+      </el-input>
 
-  <!-- Botão de adicionar -->
-  <el-button
-    @mouseleave="hideTip"
-    @mouseenter.stop="showTip($event, KT('device.add'))"
-    :disabled="!store.getters['checkDeviceLimit']"
-    v-if="store.getters.advancedPermissions(13) && (store.state.auth.deviceLimit === -1 || store.state.auth.deviceLimit > 0)"
-    type="primary"
-    @click="(store.getters['checkDeviceLimit']) ? editDeviceRef.newDevice() : deviceLimitExceded()"
-    style="margin-right: 10px; min-width: auto; padding: 8px 14px;"
-  >
-    <i class="fas fa-plus"></i>
-  </el-button>
+      <div class="actions-group">
+        <el-button class="add-btn" size="small" type="primary" :disabled="!store.getters['checkDeviceLimit']"
+          v-if="store.getters.advancedPermissions(13) && (store.state.auth.deviceLimit === -1 || store.state.auth.deviceLimit > 0)"
+          @click="(store.getters['checkDeviceLimit']) ? editDeviceRef.newDevice() : deviceLimitExceded()"
+          @mouseenter.stop="showTip($event, KT('device.add'))" @mouseleave="hideTip">
+          <i class="fas fa-plus"></i>
+        </el-button>
+      </div>
+    </div>
 
-  <!-- Botão de filtro -->
-  <el-dropdown @command="filterDevices">
-    <el-button type="primary" style="min-width: auto; padding: 8px 14px;">
-      <i class="fas fa-filter"></i>
-    </el-button>
-    <template v-slot:dropdown>
-      <el-dropdown-menu>
-        <el-dropdown-item command="ativo">Ativos</el-dropdown-item>
-        <el-dropdown-item command="estoque">Estoque</el-dropdown-item>
-        <el-dropdown-item command="desativado">Desativados</el-dropdown-item>
-        <el-dropdown-item command="todos">Todos</el-dropdown-item>
-      </el-dropdown-menu>
-    </template>
-  </el-dropdown>
-</div>
+    <!-- ===== Painel de Filtros Avançados (UI apenas) ===== -->
+    <div v-if="showFiltersPanel" class="filters-panel">
+      <div class="filters-panel-header">
+        <h4>Filtros</h4>
+        <el-button type="text" @click="clearAllFilters" class="clear-all-btn">
+          <i class="fas fa-trash-alt"></i> Limpar
+        </el-button>
+      </div>
 
+      <!-- Linha 1: Situação -->
+      <div class="filters-row primary-row">
+        <div class="category-label">
+          <span>Situação</span>
+        </div>
+        <div class="filters-group situacao-filters">
+          <div class="filter-icon small" :class="{ active: situacaoFilter === 'todos' }" @click="filterDevices('todos')"
+            @mouseenter.stop="showTip($event, 'Todos')" @mouseleave="hideTip">
+            <i class="fas fa-layer-group"></i>
+          </div>
+          <div class="filter-icon small" :class="{ active: situacaoFilter === 'ativo' }" @click="filterDevices('ativo')"
+            @mouseenter.stop="showTip($event, 'Ativos')" @mouseleave="hideTip">
+            <i class="fas fa-check-circle"></i>
+          </div>
+          <div class="filter-icon small" :class="{ active: situacaoFilter === 'estoque' }"
+            @click="filterDevices('estoque')" @mouseenter.stop="showTip($event, 'Estoque')" @mouseleave="hideTip">
+            <i class="fas fa-box-open"></i>
+          </div>
+          <div class="filter-icon small" :class="{ active: situacaoFilter === 'desativado' }"
+            @click="filterDevices('desativado')" @mouseenter.stop="showTip($event, 'Desativados')" @mouseleave="hideTip">
+            <i class="fas fa-ban"></i>
+          </div>
+        </div>
+      </div>
 
-  <div style="border: silver 1px solid; border-radius: 5px;margin-top: 20px;height: calc(100vh - 200px);">
+      <!-- Linha 2: Estilo -->
+      <div class="filters-row">
+        <div class="category-label"><span>Estilo</span></div>
+        <div class="filters-group style-filters">
+          <div class="filter-icon small" :class="{ active: estilo === 'cozy' }" @click="setEstilo('cozy')"
+            @mouseenter.stop="showTip($event, 'Conforto')" @mouseleave="hideTip">
+            <i class="fas fa-mug-hot"></i>
+          </div>
+          <div class="filter-icon small" :class="{ active: estilo === 'compact' }" @click="setEstilo('compact')"
+            @mouseenter.stop="showTip($event, 'Compacto')" @mouseleave="hideTip">
+            <i class="fas fa-th"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  <div style="border: silver 1px solid; border-radius: 5px;margin-top: 12px;height: calc(100vh - 200px);">
     <div class="deviceHead">
       <div v-if="store.getters['isAdmin']" @click="store.dispatch('devices/setSorting','id')" class="name" style="font-size: 12px;box-sizing: border-box;font-weight: 100;padding: 5px;flex: 1 1 15%;">
         {{KT('device.id')}}
@@ -220,6 +258,7 @@
       </div>
     </div>
   </div>
+  </div>
 
 </template>
 
@@ -252,8 +291,40 @@ const markerClick = inject('markerClick');
 
 const filteredDevices = ref([]);
 
-const query = ref(window.localStorage.getItem('query') || '');
+const query = ref(localStorage.getItem('device_query') || '');
+const estilo = ref(localStorage.getItem('device_estilo') || 'cozy');
+const situacaoFilter = ref('todos');
+const showFiltersPanel = ref(false);
+const activeFiltersCount = computed(() => {
+  let count = 0;
+  if (situacaoFilter.value !== 'todos') count++;
+  if (estilo.value !== 'cozy') count++;
+  return count;
+});
+
 const editDeviceRef = inject('edit-device');
+
+// UI handlers
+const toggleFiltersPanel = () => {
+  showFiltersPanel.value = !showFiltersPanel.value;
+};
+
+const clearAllFilters = () => {
+  situacaoFilter.value = 'todos';
+  estilo.value = 'cozy';
+  filterDevices('todos');
+  localStorage.removeItem('device_estilo');
+};
+
+const setEstilo = (value) => {
+  estilo.value = value;
+  localStorage.setItem('device_estilo', value);
+};
+
+const onClearInput = () => {
+  query.value = '';
+};
+
 // const editGroupRef = inject('edit-group');
 
 const now = ref(0);
@@ -360,6 +431,7 @@ onMounted(()=>{
 
 // Debounce na busca por texto (usuário digitando)
 watch(query,()=>{
+  localStorage.setItem('device_query', query.value);
   debouncedRecalc(null, 300);
 });
 
@@ -416,6 +488,7 @@ const getLastUpdated = (t,tt)=>{
 
 
 const filterDevices = (situacao) => {
+  situacaoFilter.value = situacao;
   if (situacao === 'todos') {
     filteredDevices.value = recalcDevices(); // Chama recalcDevices sem filtro
   } else {
@@ -426,7 +499,7 @@ const filterDevices = (situacao) => {
 
 
 const recalcDevices = (situacao = null) => {
-  window.localStorage.setItem('query', query.value);
+  localStorage.setItem('device_query', query.value);
 
   const r = query.value.toLowerCase().matchAll(/(.*?):(?<sinal>\+|-|=)(?<tempo>\d*) (?<filtro>dias|minutos|horas|segundos)/gi);
   const s = r.next();
@@ -579,6 +652,101 @@ const groupedDevices = computed(()=>{
 </script>
 
 <style scoped>
+/* =========================== WRAPPER ===========================  */
+.devices-page {
+  padding: 0;
+}
+
+/* =========================== BARRA DE BUSCA + AÇÕES =========================== */
+.search-row{
+  display:flex;align-items:center;gap:8px;margin-bottom:12px;width:100%;
+  flex-wrap:nowrap;
+}
+
+.search-input{flex:1 1 auto;min-width:0;}
+.search-input :deep(.el-input__wrapper){
+  height:32px;padding-left:24px;padding-right:8px;box-shadow:0 1px 2px rgba(0,0,0,.06);
+}
+.search-input :deep(.el-input__inner){line-height:30px;font-size:13px;}
+.search-input :deep(.el-input__prefix){
+  display:flex;align-items:center;padding-left:2px;gap:0;height:100%;
+}
+
+.filter-toggle-button{
+  padding:0;margin-left:2px;margin-right:4px;position:relative;color:#909399;width:12px;height:12px;
+  display:inline-flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0;font-size:10px;
+  cursor:pointer;
+}
+.filter-toggle-button:hover{color:var(--el-color-primary);transform:translateY(-1px);}
+.filter-toggle-button.active{color:var(--el-color-primary);transform:scale(1.05);text-shadow:0 0 5px rgba(64,158,255,.25);}
+.filter-badge{
+  position:absolute;top:-6px;right:-7px;background:#F56C6C;color:#fff;border-radius:10px;min-width:14px;height:14px;
+  font-size:9px;padding:0 4px;display:flex;align-items:center;justify-content:center;font-weight:700;box-sizing:border-box;
+  box-shadow:0 1px 2px rgba(0,0,0,.2);animation:pulseBadge 2s infinite;
+}
+
+.actions-group{
+  display:flex;align-items:center;gap:6px;flex-wrap:nowrap;flex-shrink:0;min-width:fit-content;
+  margin-left:auto;
+}
+
+.search-row .el-button{
+  border-radius:50% !important;width:32px;height:32px;min-width:32px;padding:0;
+  display:inline-flex;align-items:center;justify-content:center;
+  box-shadow:0 3px 6px rgba(0,0,0,.12);transition:all .15s ease;flex-shrink:0;
+}
+.search-row .el-button:hover{transform:translateY(-1px);box-shadow:0 4px 8px rgba(0,0,0,.16);}
+
+.add-btn{
+  background:var(--el-color-primary);border-color:var(--el-color-primary);color:#fff;
+  box-shadow:0 4px 8px rgba(0,110,255,.18);transition:transform .15s, box-shadow .15s;
+}
+.add-btn:hover{transform:translateY(-2px);box-shadow:0 6px 12px rgba(0,110,255,.28);}
+
+/* =========================== PAINEL DE FILTROS =========================== */
+.filters-panel{
+  background:#f8f9fa;border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,.1);margin-top:5px;margin-bottom:8px;padding:6px 8px;
+  transition:all .3s ease;animation:fadeIn .3s ease;
+}
+.filters-panel-header{
+  display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #eaeaea;
+}
+.filters-panel-header h4{margin:0;font-size:12px;font-weight:600;color:#333;}
+.clear-all-btn{font-size:10px;color:#F56C6C;padding:0;height:auto;}
+.clear-all-btn:hover{opacity:.8;}
+
+.filters-row{display:flex;flex-direction:row;align-items:center;margin-bottom:6px;gap:6px;}
+.primary-row{
+  background:linear-gradient(to right,#e8f3ff,#ecf8ff);border-radius:5px;padding:5px 6px;border:1px solid #d8ebff;margin-bottom:5px;
+  position:relative;box-shadow:inset 0 1px 3px rgba(0,0,0,.03);
+}
+
+.category-label{
+  font-size:10px;font-weight:600;color:#409EFF;margin-right:8px;display:flex;align-items:center;min-width:45px;
+}
+
+.filters-group{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;}
+
+.filter-icon{
+  border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s ease;border:1px solid transparent;
+  background:#f5f5f5;margin:0;position:relative;box-shadow:0 1px 2px rgba(0,0,0,.05);
+}
+.filter-icon:hover{transform:scale(1.1);box-shadow:0 2px 4px rgba(0,0,0,.15);}
+.filter-icon.large{width:24px;height:24px;font-size:11px;}
+.filter-icon.medium{width:20px;height:20px;font-size:9px;}
+.filter-icon.small{width:16px;height:16px;font-size:8px;}
+.filter-icon.active{border-color:currentColor;background:rgba(255,255,255,.9);}
+
+.filter-icon.sit-all{color:#606266;}
+.filter-icon.sit-ativo{color:#16a34a;}
+.filter-icon.sit-estoque{color:#64748b;}
+.filter-icon.sit-desativado{color:#ef4444;}
+
+/* =========================== ANIMAÇÕES =========================== */
+@keyframes pulseBadge{0%{transform:scale(1)}50%{transform:scale(1.1)}100%{transform:scale(1)}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+
+/* =========================== TABELA BASELINE =========================== */
 .device{
   border-bottom: var(--el-border-color-light) 1px solid;
   display: flex;
@@ -601,8 +769,6 @@ const groupedDevices = computed(()=>{
 .device:hover{
   background: var(--el-color-primary-light-9);
 }
-
-
 
 .device .name,.deviceHead .name{
   font-size: 12px;
@@ -658,10 +824,17 @@ const groupedDevices = computed(()=>{
   margin-right: 3px;
 }
 
+.isDisabled{
+  opacity: 0.4;
+}
 
-
-  .isDisabled{
-    opacity: 0.4;
-  }
-
+/* =========================== RESPONSIVIDADE =========================== */
+@media (max-width:420px){
+  .search-row{gap:6px;flex-wrap:nowrap !important;}
+  .search-input{font-size:14px;flex:1 1 auto;min-width:0;}
+  .search-input :deep(.el-input__wrapper){height:30px;padding-left:20px;padding-right:8px;}
+  .search-input :deep(.el-input__prefix){padding-left:2px;}
+  .actions-group{gap:6px;flex-shrink:0;margin-left:auto;}
+  .search-row .el-button{width:30px;height:30px;min-width:30px;}
+}
 </style>
