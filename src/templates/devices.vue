@@ -271,12 +271,9 @@ import 'element-plus/es/components/input/style/css'
 import 'element-plus/es/components/message/style/css'
 import 'element-plus/es/components/message-box/style/css'
 import 'element-plus/es/components/notification/style/css'
-import 'element-plus/es/components/dropdown/style/css'
-import 'element-plus/es/components/dropdown-menu/style/css'
-import 'element-plus/es/components/dropdown-item/style/css'
 
 
-import { ElButton, ElInput, ElDropdown, ElDropdownMenu, ElDropdownItem } from "element-plus";
+import { ElButton, ElInput } from "element-plus";
 
 
 import {ref,computed,inject,onMounted,watch} from 'vue';
