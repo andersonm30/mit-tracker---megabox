@@ -1,5 +1,5 @@
 <template>
-  <div class="devices-page">
+  <div class="devices-page" :class="{ 'is-compact': estilo === 'compact' }">
     <!-- ===== Linha de busca + ações ===== -->
     <div class="search-row">
       <el-input v-model="query" class="search-input" size="small"
@@ -132,9 +132,9 @@
       </div>
     </div>
     <div ref="realDevices" @scroll="realScroll($event)" style="overflow-x: hidden;overflow-y: scroll;height: calc(100vh - 230px);">
-      <div class="fakeScroll" :style="{height: (filteredDevices.length*33)+'px'}">
+      <div class="fakeScroll" :style="{height: (displayDevices.length*33)+'px'}">
 
-        <div v-for="(group) in groupedDevices" :key="group.id">
+        <div v-for="(group) in displayedGroupedDevices" :key="group.id">
           <div v-if="group.id!==-1" style="background: #f7f7f7;padding: 5px;font-size: 13px;"><i class="far fa-object-group"></i>&nbsp;&nbsp;&nbsp;{{group.name}}</div>
 
           <div v-for="(device) in group.devices" :key="device.id" class="device" :class="{'isDisabled': device.disabled}" @click="markerClick(device.id)" @contextmenu.prevent="markerContext($event,device.id)" :set="position = store.getters['devices/getPosition'](device.id)">                      
@@ -594,33 +594,37 @@ const recalcDevices = (situacao = null) => {
 
 
 
-const chunkedDevices = computed(()=>{
-  let tmp = Object.assign([],filteredDevices.value);
+// ETAPA 2A: Computed final que aplica filtro de situação
+const displayDevices = computed(() => {
+  if (situacaoFilter.value === 'todos') {
+    return filteredDevices.value;
+  }
+  
+  return filteredDevices.value.filter((device) => {
+    const deviceSituacao = device.attributes?.['situacao'] ? device.attributes['situacao'].toLowerCase() : null;
+    return deviceSituacao === situacaoFilter.value;
+  });
+});
 
-
-
-
+const chunkedDisplayDevices = computed(()=>{
+  let tmp = Object.assign([],displayDevices.value);
   return tmp.splice(0,maxDevices.value+offsetDevices.value);
 });
 
-const groupedDevices = computed(()=>{
+const displayedGroupedDevices = computed(()=>{
   let showGroups = store.getters['mapPref']('groups');
 
   if(showGroups){
-
-
     let tmp = {};
     const groups = store.state.groups.groupList;
 
-    chunkedDevices.value.forEach((device)=>{
-
+    chunkedDisplayDevices.value.forEach((device)=>{
         if(!groups.find((g)=> g.id===device.groupId )){
           if (!tmp[0]) {
             tmp[0] = [];
           }
           tmp[0].push(device);
         }else {
-
           if (!tmp[device.groupId]) {
             tmp[device.groupId] = [];
           }
@@ -629,7 +633,6 @@ const groupedDevices = computed(()=>{
     })
 
     let list = [];
-
     list.push({id: 0,name: 'Sem Grupo',devices: tmp[0]});
     groups.forEach((g)=>{
       if(tmp[g.id] && tmp[g.id].length>0) {
@@ -639,9 +642,8 @@ const groupedDevices = computed(()=>{
 
     return list;
   }else{
-    return [{id: -1,name: '',devices: chunkedDevices.value}];
+    return [{id: -1,name: '',devices: chunkedDisplayDevices.value}];
   }
-
 })
 
 
@@ -833,5 +835,25 @@ const groupedDevices = computed(()=>{
   .search-input :deep(.el-input__prefix){padding-left:2px;}
   .actions-group{gap:6px;flex-shrink:0;margin-left:auto;}
   .search-row .el-button{width:30px;height:30px;min-width:30px;}
+}
+
+/* =========================== MODO COMPACTO (ETAPA 2B) =========================== */
+.is-compact .device {
+  min-height: 26px !important;
+}
+
+.is-compact .device .name,
+.is-compact .deviceHead .name {
+  font-size: 11px !important;
+  padding: 4px !important;
+  line-height: 12px !important;
+}
+
+.is-compact .icons div i {
+  font-size: 12px !important;
+}
+
+.is-compact .fakeScroll {
+  /* altura da linha compacta: 26px */
 }
 </style>
