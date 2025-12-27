@@ -151,24 +151,32 @@
     <!-- ===== Painel de Filtros Avançados (UI apenas) ===== -->
     <div v-if="showFiltersPanel" class="filters-panel">
       <div class="filters-panel-header">
-        <h4>Filtros</h4>
-        <el-button type="text" @click="clearAllFilters" class="clear-all-btn">
-          <i class="fas fa-trash-alt"></i> Limpar
-        </el-button>
+        <h4>Filtros Avançados</h4>
+        <div class="header-actions">
+          <label class="filters-ui-toggle">
+            <input type="checkbox" v-model="showOnlyActiveControls" @change="saveUIOnlyActiveState">
+            <span class="toggle-label">Somente ativos</span>
+          </label>
+          <el-button type="text" @click="clearAllFilters" class="btn-clear" :disabled="activeFiltersCount === 0"
+            @mouseenter.stop="showTip($event, activeFiltersCount === 0 ? 'Nenhum filtro ativo' : 'Limpar todos os filtros')" @mouseleave="hideTip">
+            <i class="fas fa-trash-alt"></i> Limpar
+          </el-button>
+        </div>
       </div>
 
-      <!-- ETAPA 5A: Presets rápidos -->
-      <div class="presets-section">
-        <div class="presets-header">
-          <span class="presets-title">Presets</span>
+      <!-- ETAPA 6B: Seção Presets (sempre visível) -->
+      <div class="filter-section">
+        <div class="filter-section__head">
+          <div class="filter-section__title">Presets</div>
           <el-button type="text" @click="saveCurrentPreset" class="save-preset-btn"
             @mouseenter.stop="showTip($event, 'Salvar filtro atual')" @mouseleave="hideTip">
             <i class="fas fa-save"></i>
           </el-button>
         </div>
         
-        <!-- Presets padrão -->
-        <div class="presets-row">
+        <div class="filter-section__body">
+          <!-- Presets padrão -->
+          <div class="presets-row">
           <div v-for="preset in defaultPresets" :key="preset.id" class="preset-container">
             <div class="preset-btn default" @click="applyPreset(preset)"
               @mouseenter.stop="showTip($event, preset.name)" @mouseleave="hideTip">
@@ -202,14 +210,17 @@
             </button>
           </div>
         </div>
+        </div>
       </div>
 
-      <!-- Linha 1: Situação -->
-      <div class="filters-row primary-row">
-        <div class="category-label">
-          <span>Situação</span>
+      <!-- ETAPA 6B: Seção Situação -->
+      <div v-if="!showOnlyActiveControls || situacaoFilter !== 'todos'" class="filter-section">
+        <div class="filter-section__head">
+          <div class="filter-section__title">Situação</div>
+          <div class="filter-section__hint">Status operacional do veículo</div>
         </div>
-        <div class="filters-group situacao-filters">
+        <div class="filter-section__body">
+          <div class="filters-group situacao-filters">
           <div class="filter-icon small" :class="{ active: situacaoFilter === 'todos' }" @click="filterDevices('todos')"
             @mouseenter.stop="showTip($event, 'Todos')" @mouseleave="hideTip">
             <i class="fas fa-layer-group"></i>
@@ -229,44 +240,54 @@
         </div>
       </div>
 
-      <!-- Linha 2: Estilo -->
-      <div class="filters-row">
-        <div class="category-label"><span>Estilo</span></div>
-        <div class="filters-group style-filters">
-          <div class="filter-icon small" :class="{ active: estilo === 'cozy' }" @click="setEstilo('cozy')"
-            @mouseenter.stop="showTip($event, 'Conforto')" @mouseleave="hideTip">
-            <i class="fas fa-mug-hot"></i>
-          </div>
-          <div class="filter-icon small" :class="{ active: estilo === 'compact' }" @click="setEstilo('compact')"
-            @mouseenter.stop="showTip($event, 'Compacto')" @mouseleave="hideTip">
-            <i class="fas fa-th"></i>
+      <!-- ETAPA 6B: Seção Conectividade -->
+      <div v-if="!showOnlyActiveControls || connectivityFilter !== 'todos' || movingOnly" class="filter-section">
+        <div class="filter-section__head">
+          <div class="filter-section__title">Conectividade & Movimento</div>
+          <div class="filter-section__hint">Estado de conexão e movimentação</div>
+        </div>
+        <div class="filter-section__body">
+          <div class="filters-group">
+            <div class="filter-icon small" :class="{ active: connectivityFilter === 'todos' }" 
+              @click="connectivityFilter = 'todos'; localStorage.setItem('device_connectivity_filter', 'todos')"
+              @mouseenter.stop="showTip($event, 'Todos')" @mouseleave="hideTip">
+              <i class="fas fa-globe"></i>
+            </div>
+            <div class="filter-icon small" :class="{ active: connectivityFilter === 'online' }" 
+              @click="connectivityFilter = 'online'; localStorage.setItem('device_connectivity_filter', 'online')"
+              @mouseenter.stop="showTip($event, 'Online')" @mouseleave="hideTip">
+              <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="filter-icon small" :class="{ active: connectivityFilter === 'offline' }" 
+              @click="connectivityFilter = 'offline'; localStorage.setItem('device_connectivity_filter', 'offline')"
+              @mouseenter.stop="showTip($event, 'Offline')" @mouseleave="hideTip">
+              <i class="fas fa-exclamation-circle"></i>
+            </div>
+            <div class="filter-icon small" :class="{ active: movingOnly }" 
+              @click="movingOnly = !movingOnly; localStorage.setItem('device_moving_only', movingOnly)"
+              @mouseenter.stop="showTip($event, 'Somente em movimento')" @mouseleave="hideTip">
+              <i class="fas fa-running"></i>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- Linha 3: Conectividade (ETAPA 3A) -->
-      <div class="filters-row">
-        <div class="category-label"><span>Conectividade</span></div>
-        <div class="filters-group">
-          <div class="filter-icon medium" :class="{ active: connectivityFilter === 'todos' }" 
-            @click="connectivityFilter = 'todos'; localStorage.setItem('device_connectivity_filter', 'todos')"
-            @mouseenter.stop="showTip($event, 'Todos')" @mouseleave="hideTip">
-            <i class="fas fa-globe"></i>
-          </div>
-          <div class="filter-icon medium" :class="{ active: connectivityFilter === 'online' }" 
-            @click="connectivityFilter = 'online'; localStorage.setItem('device_connectivity_filter', 'online')"
-            @mouseenter.stop="showTip($event, 'Online')" @mouseleave="hideTip">
-            <i class="fas fa-check-circle"></i>
-          </div>
-          <div class="filter-icon medium" :class="{ active: connectivityFilter === 'offline' }" 
-            @click="connectivityFilter = 'offline'; localStorage.setItem('device_connectivity_filter', 'offline')"
-            @mouseenter.stop="showTip($event, 'Offline')" @mouseleave="hideTip">
-            <i class="fas fa-exclamation-circle"></i>
-          </div>
-          <div class="filter-icon small" :class="{ active: movingOnly }" 
-            @click="movingOnly = !movingOnly; localStorage.setItem('device_moving_only', movingOnly)"
-            @mouseenter.stop="showTip($event, 'Somente em movimento')" @mouseleave="hideTip">
-            <i class="fas fa-running"></i>
+      <!-- ETAPA 6B: Seção Estilo -->
+      <div v-if="!showOnlyActiveControls || estilo !== 'cozy'" class="filter-section">
+        <div class="filter-section__head">
+          <div class="filter-section__title">Estilo de Visualização</div>
+          <div class="filter-section__hint">Densidade da lista</div>
+        </div>
+        <div class="filter-section__body">
+          <div class="filters-group">
+            <div class="filter-icon small" :class="{ active: estilo === 'cozy' }" @click="setEstilo('cozy')"
+              @mouseenter.stop="showTip($event, 'Conforto')" @mouseleave="hideTip">
+              <i class="fas fa-mug-hot"></i>
+            </div>
+            <div class="filter-icon small" :class="{ active: estilo === 'compact' }" @click="setEstilo('compact')"
+              @mouseenter.stop="showTip($event, 'Compacto')" @mouseleave="hideTip">
+              <i class="fas fa-th"></i>
+            </div>
           </div>
         </div>
       </div>
@@ -494,6 +515,26 @@ const situacaoFilter = ref('todos');
 const showFiltersPanel = ref(false);
 const showExportMenu = ref(false);
 const exportBtnRef = ref(null);
+
+// ETAPA 6B: Toggle UI-only para mostrar apenas controles ativos no painel
+const loadUIOnlyActiveState = () => {
+  try {
+    const stored = localStorage.getItem('device_filters_ui_only_active');
+    return stored === 'true';
+  } catch (error) {
+    return false;
+  }
+};
+
+const showOnlyActiveControls = ref(loadUIOnlyActiveState());
+
+const saveUIOnlyActiveState = () => {
+  try {
+    localStorage.setItem('device_filters_ui_only_active', showOnlyActiveControls.value);
+  } catch (error) {
+    console.error('Error saving UI-only active state:', error);
+  }
+};
 
 // ETAPA 4B: Verificar disponibilidade de XLSX
 const isXlsxAvailable = computed(() => {
@@ -1637,37 +1678,121 @@ onBeforeUnmount(() => {
 
 /* =========================== PAINEL DE FILTROS =========================== */
 .filters-panel{
-  background:#f8f9fa;border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,.1);margin-top:5px;margin-bottom:8px;padding:6px 8px;
+  background:#f8f9fa;border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,.1);margin-top:5px;margin-bottom:8px;padding:8px;
   transition:all .3s ease;animation:fadeIn .3s ease;
 }
+
 .filters-panel-header{
-  display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #eaeaea;
-}
-.filters-panel-header h4{margin:0;font-size:12px;font-weight:600;color:#333;}
-.clear-all-btn{font-size:10px;color:#F56C6C;padding:0;height:auto;}
-.clear-all-btn:hover{opacity:.8;}
-
-/* =========================== ETAPA 5A: PRESETS =========================== */
-.presets-section{
-  background:#fff;border-radius:6px;padding:8px;margin-bottom:8px;
-  border:1px solid #e4e7ed;
+  display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #e4e7ed;
 }
 
-.presets-header{
-  display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;
+.filters-panel-header h4{
+  margin:0;font-size:14px;font-weight:700;color:#303133;letter-spacing:0.5px;
 }
 
-.presets-title{
-  font-size:11px;font-weight:600;color:#606266;text-transform:uppercase;letter-spacing:0.5px;
+.header-actions{
+  display:flex;align-items:center;gap:12px;
+}
+
+/* ETAPA 6B: Toggle UI-only */
+.filters-ui-toggle{
+  display:flex;align-items:center;gap:6px;font-size:11px;color:#606266;cursor:pointer;
+  user-select:none;transition:all .2s ease;
+}
+
+.filters-ui-toggle input[type="checkbox"]{
+  width:14px;height:14px;cursor:pointer;accent-color:#409EFF;
+}
+
+.filters-ui-toggle:hover{
+  color:#409EFF;
+}
+
+.toggle-label{
+  font-weight:500;
+}
+
+/* Botão limpar melhorado */
+.btn-clear{
+  font-size:11px;color:#F56C6C;padding:4px 8px;height:auto;border-radius:4px;
+  transition:all .2s ease;font-weight:600;
+}
+
+.btn-clear:not(:disabled):hover{
+  background:rgba(245,108,108,.1);opacity:1;
+}
+
+.btn-clear:disabled{
+  color:#c0c4cc;cursor:not-allowed;opacity:.5;
+}
+
+.btn-clear i{
+  font-size:10px;
+}
+
+/* ETAPA 6B: Seções de filtro */
+.filter-section{
+  background:#fff;border-radius:6px;padding:10px 12px;margin-bottom:8px;
+  border:1px solid #e4e7ed;transition:all .2s ease;
+}
+
+.filter-section:hover{
+  border-color:#d1d5db;box-shadow:0 2px 4px rgba(0,0,0,.05);
+}
+
+.filter-section__head{
+  display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;
+}
+
+.filter-section__title{
+  font-size:12px;font-weight:700;color:#409EFF;text-transform:uppercase;
+  letter-spacing:0.8px;line-height:1.2;
+}
+
+.filter-section__hint{
+  font-size:10px;color:#909399;margin-top:2px;font-style:italic;
+  opacity:.8;line-height:1.3;
+}
+
+.filter-section__body{
+  margin-top:8px;
+}
+
+/* Responsivo */
+@media (max-width: 420px) {
+  .filter-section{
+    padding:8px 10px;
+  }
+  
+  .filter-section__title{
+    font-size:11px;
+  }
+  
+  .filter-section__hint{
+    font-size:9px;
+  }
+  
+  .filters-panel-header h4{
+    font-size:12px;
+  }
+}
+
+/* =========================== ETAPA 5A: PRESETS (ajustado para seções) =========================== */
+.presets-row{
+  display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px;
 }
 
 .save-preset-btn{
-  font-size:11px;color:#409EFF;padding:0;height:auto;
+  font-size:11px;color:#409EFF;padding:4px 8px;height:auto;border-radius:4px;
+  transition:all .2s ease;font-weight:600;
 }
-.save-preset-btn:hover{opacity:.8;}
 
-.presets-row{
-  display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px;
+.save-preset-btn:hover{
+  background:rgba(64,158,255,.1);
+}
+
+.save-preset-btn i{
+  font-size:10px;
 }
 
 .preset-container{
@@ -1781,15 +1906,15 @@ onBeforeUnmount(() => {
   font-size:11px;color:#6b7280;font-style:italic;margin-left:auto;font-weight:500;
 }
 
-.filters-row{display:flex;flex-direction:row;align-items:center;margin-bottom:6px;gap:6px;}
-.primary-row{
+/* ETAPA 6B: Classes antigas removidas (substituídas por .filter-section) */
+/* .filters-row{display:flex;flex-direction:row;align-items:center;margin-bottom:6px;gap:6px;} */
+/* .primary-row{
   background:linear-gradient(to right,#e8f3ff,#ecf8ff);border-radius:5px;padding:5px 6px;border:1px solid #d8ebff;margin-bottom:5px;
   position:relative;box-shadow:inset 0 1px 3px rgba(0,0,0,.03);
-}
-
-.category-label{
+} */
+/* .category-label{
   font-size:10px;font-weight:600;color:#409EFF;margin-right:8px;display:flex;align-items:center;min-width:45px;
-}
+} */
 
 .filters-group{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;}
 
