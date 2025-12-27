@@ -52,6 +52,20 @@
       </div>
     </div>
 
+    <!-- ===== ETAPA 5B: Quick Presets (Favoritos fixados) ===== -->
+    <div v-if="favoritesList.length > 0" class="quick-presets-row">
+      <div class="quick-preset" v-for="preset in favoritesList" :key="preset.id" 
+        @click="applyPreset(preset)"
+        @mouseenter.stop="showTip($event, preset.name)" @mouseleave="hideTip">
+        <i :class="preset.icon || 'fas fa-bookmark'"></i>
+        <span>{{ preset.name }}</span>
+        <button class="quick-preset-unfav" @click.stop="toggleFavorite(preset.id)"
+          @mouseenter.stop="showTip($event, 'Desfavoritar')" @mouseleave="hideTip">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+    </div>
+
     <!-- ===== ETAPA 3B: Chips de filtros ativos ===== -->
     <div v-if="activeFilterChips.length > 0" class="active-filters-chips">
       <div v-for="chip in activeFilterChips" :key="chip.key" class="filter-chip">
@@ -84,11 +98,17 @@
         
         <!-- Presets padrão -->
         <div class="presets-row">
-          <div v-for="preset in defaultPresets" :key="preset.id" 
-            class="preset-btn default" @click="applyPreset(preset)"
-            @mouseenter.stop="showTip($event, preset.name)" @mouseleave="hideTip">
-            <i :class="preset.icon"></i>
-            <span>{{ preset.name }}</span>
+          <div v-for="preset in defaultPresets" :key="preset.id" class="preset-container">
+            <div class="preset-btn default" @click="applyPreset(preset)"
+              @mouseenter.stop="showTip($event, preset.name)" @mouseleave="hideTip">
+              <i :class="preset.icon"></i>
+              <span>{{ preset.name }}</span>
+            </div>
+            <button class="preset-favorite" :class="{ active: isFavorite(preset.id) }" 
+              @click="toggleFavorite(preset.id)"
+              @mouseenter.stop="showTip($event, isFavorite(preset.id) ? 'Desfavoritar' : 'Favoritar')" @mouseleave="hideTip">
+              <i :class="isFavorite(preset.id) ? 'fas fa-star' : 'far fa-star'"></i>
+            </button>
           </div>
         </div>
         
@@ -96,6 +116,11 @@
         <div v-if="savedPresets.length > 0" class="saved-presets">
           <div class="saved-presets-label">Salvos</div>
           <div v-for="preset in savedPresets" :key="preset.id" class="preset-item">
+            <button class="preset-favorite" :class="{ active: isFavorite(preset.id) }" 
+              @click="toggleFavorite(preset.id)"
+              @mouseenter.stop="showTip($event, isFavorite(preset.id) ? 'Desfavoritar' : 'Favoritar')" @mouseleave="hideTip">
+              <i :class="isFavorite(preset.id) ? 'fas fa-star' : 'far fa-star'"></i>
+            </button>
             <div class="preset-btn saved" @click="applyPreset(preset)">
               <i class="fas fa-bookmark"></i>
               <span>{{ preset.name }}</span>
@@ -472,6 +497,27 @@ const loadSavedPresets = () => {
 
 const savedPresets = ref(loadSavedPresets());
 
+// ETAPA 5B: Favoritos
+const loadFavorites = () => {
+  try {
+    const stored = localStorage.getItem('device_filter_favorites');
+    return stored ? JSON.parse(stored) : [];
+  } catch (error) {
+    console.error('Error loading favorites:', error);
+    return [];
+  }
+};
+
+const saveFavorites = (favorites) => {
+  try {
+    localStorage.setItem('device_filter_favorites', JSON.stringify(favorites));
+  } catch (error) {
+    console.error('Error saving favorites:', error);
+  }
+};
+
+const favoritePresetIds = ref(loadFavorites());
+
 const activeFiltersCount = computed(() => {
   let count = 0;
   if (situacaoFilter.value !== 'todos') count++;
@@ -540,6 +586,21 @@ const resultSummary = computed(() => {
   }
   
   return `Mostrando ${displayed} de ${total} dispositivos`;
+});
+
+// ETAPA 5B: Lista de presets favoritos
+const favoritesList = computed(() => {
+  const allPresets = [...defaultPresets, ...savedPresets.value];
+  const favorites = allPresets.filter(preset => favoritePresetIds.value.includes(preset.id));
+  
+  // Ordenar: defaults primeiro, depois salvos
+  return favorites.sort((a, b) => {
+    const aIsDefault = defaultPresets.some(p => p.id === a.id);
+    const bIsDefault = defaultPresets.some(p => p.id === b.id);
+    if (aIsDefault && !bIsDefault) return -1;
+    if (!aIsDefault && bIsDefault) return 1;
+    return 0;
+  });
 });
 
 // ETAPA 4B: Datasets para exportação
@@ -629,11 +690,29 @@ const saveCurrentPreset = () => {
 const removePreset = (presetId) => {
   savedPresets.value = savedPresets.value.filter(p => p.id !== presetId);
   
+  // Remover dos favoritos se existir
+  favoritePresetIds.value = favoritePresetIds.value.filter(id => id !== presetId);
+  saveFavorites(favoritePresetIds.value);
+  
   try {
     localStorage.setItem('device_filter_presets', JSON.stringify(savedPresets.value));
   } catch (error) {
     console.error('Error removing preset:', error);
   }
+};
+
+// ETAPA 5B: Gerenciamento de favoritos
+const isFavorite = (presetId) => {
+  return favoritePresetIds.value.includes(presetId);
+};
+
+const toggleFavorite = (presetId) => {
+  if (isFavorite(presetId)) {
+    favoritePresetIds.value = favoritePresetIds.value.filter(id => id !== presetId);
+  } else {
+    favoritePresetIds.value.push(presetId);
+  }
+  saveFavorites(favoritePresetIds.value);
 };
 
 const setEstilo = (value) => {
@@ -1274,6 +1353,43 @@ onBeforeUnmount(() => {
 }
 .search-row .el-button:hover{transform:translateY(-1px);box-shadow:0 4px 8px rgba(0,0,0,.16);}
 
+/* =========================== ETAPA 5B: QUICK PRESETS (FAVORITOS) =========================== */
+.quick-presets-row{
+  display:flex;gap:6px;margin-bottom:8px;overflow-x:auto;padding:4px 2px;
+  scrollbar-width:thin;scrollbar-color:#d1d5db transparent;
+}
+
+.quick-presets-row::-webkit-scrollbar{height:4px;}
+.quick-presets-row::-webkit-scrollbar-track{background:transparent;}
+.quick-presets-row::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:2px;}
+.quick-presets-row::-webkit-scrollbar-thumb:hover{background:#9ca3af;}
+
+.quick-preset{
+  display:inline-flex;align-items:center;gap:4px;padding:4px 8px;
+  background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);
+  border-radius:12px;font-size:10px;color:#fff;cursor:pointer;
+  transition:all .2s ease;white-space:nowrap;flex-shrink:0;
+  box-shadow:0 2px 4px rgba(102,126,234,.3);
+}
+
+.quick-preset:hover{
+  transform:translateY(-1px);box-shadow:0 4px 8px rgba(102,126,234,.4);
+}
+
+.quick-preset i{font-size:9px;}
+
+.quick-preset-unfav{
+  background:rgba(255,255,255,.2);border:none;padding:2px 4px;
+  border-radius:50%;cursor:pointer;color:#fff;transition:all .2s ease;
+  margin-left:2px;width:14px;height:14px;display:flex;align-items:center;justify-content:center;
+}
+
+.quick-preset-unfav:hover{
+  background:rgba(255,255,255,.4);transform:scale(1.1);
+}
+
+.quick-preset-unfav i{font-size:7px;}
+
 .add-btn{
   background:var(--el-color-primary);border-color:var(--el-color-primary);color:#fff;
   box-shadow:0 4px 8px rgba(0,110,255,.18);transition:transform .15s, box-shadow .15s;
@@ -1350,10 +1466,33 @@ onBeforeUnmount(() => {
   display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px;
 }
 
+.preset-container{
+  position:relative;display:inline-flex;align-items:center;
+}
+
 .preset-btn{
   display:inline-flex;align-items:center;gap:4px;padding:5px 10px;
   border-radius:12px;font-size:11px;cursor:pointer;transition:all .2s ease;
   border:1px solid #e4e7ed;background:#f9fafb;
+}
+
+.preset-favorite{
+  position:absolute;top:-4px;right:-4px;background:#fff;border:1px solid #e4e7ed;
+  padding:2px 4px;border-radius:50%;cursor:pointer;color:#d1d5db;
+  transition:all .2s ease;width:16px;height:16px;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 1px 3px rgba(0,0,0,.1);z-index:1;
+}
+
+.preset-favorite:hover{
+  border-color:#fbbf24;color:#fbbf24;transform:scale(1.15);
+}
+
+.preset-favorite.active{
+  color:#fbbf24;border-color:#fbbf24;background:#fffbeb;
+}
+
+.preset-favorite i{
+  font-size:8px;
 }
 
 .preset-btn:hover{
@@ -1382,7 +1521,11 @@ onBeforeUnmount(() => {
 }
 
 .preset-item{
-  display:flex;align-items:center;gap:4px;margin-bottom:4px;
+  display:flex;align-items:center;gap:4px;margin-bottom:4px;position:relative;
+}
+
+.preset-item .preset-favorite{
+  position:static;margin-right:4px;
 }
 
 .preset-item .preset-btn{
