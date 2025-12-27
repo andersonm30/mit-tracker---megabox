@@ -4,9 +4,9 @@
     <div class="search-row">
       <el-input v-model="query" class="search-input" size="small"
         :placeholder="KT('device.search')" clearable @clear="onClearInput">
-        <!-- Prefixo: filtro leve -->
+        <!-- Prefixo: filtro leve (ADMIN ONLY) -->
         <template #prefix>
-          <span class="filter-toggle-button" :class="{ 'active': showFiltersPanel || activeFiltersCount > 0 }"
+          <span v-if="store.getters['isAdmin']" class="filter-toggle-button" :class="{ 'active': showFiltersPanel || activeFiltersCount > 0 }"
             role="button" tabindex="0" @click="toggleFiltersPanel"
             @mouseenter.stop="showTip($event, 'Filtros avançados')" @mouseleave="hideTip">
             <i class="fas fa-filter"></i>
@@ -159,8 +159,8 @@
       <div v-if="resultSummary" class="result-summary">{{ resultSummary }}</div>
     </div>
 
-    <!-- ===== Painel de Filtros Avançados (UI apenas, Accordion) - Desktop apenas (ETAPA 8D) ===== -->
-    <div v-if="!isMobile && showFiltersPanel" class="filters-accordion">
+    <!-- ===== Painel de Filtros Avançados (UI apenas, Accordion) - Desktop apenas, ADMIN ONLY (ETAPA 8D) ===== -->
+    <div v-if="!isMobile && showFiltersPanel && store.getters['isAdmin']" class="filters-accordion">
       <div class="filters-accordion__header">
         <div class="filters-accordion__title">
           <span>Filtros</span>
