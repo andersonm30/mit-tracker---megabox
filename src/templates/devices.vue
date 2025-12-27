@@ -276,7 +276,7 @@ import 'element-plus/es/components/notification/style/css'
 import { ElButton, ElInput } from "element-plus";
 
 
-import {ref,computed,inject,onMounted,watch} from 'vue';
+import {ref,computed,inject,onMounted,watch,onBeforeUnmount} from 'vue';
 import {useStore} from "vuex"
 
 import KT from '../tarkan/func/kt.js';
@@ -369,6 +369,10 @@ const showDriverTip = ($event,deviceId)=>{
 const realDevices = ref(null);
 const offsetDevices = ref(0);
 const maxDevices = ref(0);
+
+// ETAPA 2C: Controle de sync de markers do mapa
+const prevVisibleIds = new Set();
+let syncDebounceTimer = null;
 
 // Debounce para otimizar recálculos
 let recalcTimeout = null;
@@ -511,37 +515,15 @@ const recalcDevices = (situacao = null) => {
 
   let tmp = [];
 
-  // 🎯 HELPER: Manipular icon com fallback seguro (array ou objeto)
-  const safeIconRemove = (icon) => {
-    if (!icon) return;
-    if (Array.isArray(icon)) {
-      icon.forEach(i => i?.remove?.());
-    } else {
-      icon.remove?.();
-    }
-  };
-
-  const safeIconAddToMap = (icon) => {
-    if (!icon) return;
-    if (Array.isArray(icon)) {
-      icon.forEach(i => i?.addToMap?.());
-    } else {
-      icon.addToMap?.();
-    }
-  };
-
   store.getters['devices/getOrderedDevices'].forEach((dk) => {
     const d = store.getters['devices/getDevice'](dk);
     let visible = false;
-
-    safeIconRemove(d.icon);
 
     // Verifica se o campo 'situacao' existe e é válido antes de tentar acessá-lo
     const deviceSituacao = d.attributes['situacao'] ? d.attributes['situacao'].toLowerCase() : null;
 
     // Verifica se há uma situação específica para filtrar
     if (situacao && deviceSituacao === situacao) {
-      safeIconAddToMap(d.icon);
       visible = true;
     } else if (!situacao) {
       // Lógica de filtro atual baseada em query
@@ -551,10 +533,8 @@ const recalcDevices = (situacao = null) => {
           const diff = Math.round((new Date().getTime() - new Date(d.lastUpdate).getTime()) / 1000);
 
           if (s.value.groups.sinal === '+' && diff >= df) {
-            safeIconAddToMap(d.icon);
             visible = true;
           } else if (s.value.groups.sinal === '-' && diff <= df) {
-            safeIconAddToMap(d.icon);
             visible = true;
           }
         }
@@ -562,23 +542,19 @@ const recalcDevices = (situacao = null) => {
 
       for (let k of Object.keys(d)) {
         if (k === 'status' && String(d[k]).toLowerCase().replace('unknown', 'desconhecido').match(query.value.toLowerCase())) {
-          safeIconAddToMap(d.icon);
           visible = true;
         } else if (String(d[k]).toLowerCase().match(query.value.toLowerCase())) {
-          safeIconAddToMap(d.icon);
           visible = true;
         }
       }
 
       for (let k of Object.keys(d.attributes)) {
         if (d.attributes[k] && d.attributes[k].toString().toLowerCase().match(query.value.toLowerCase())) {
-          safeIconAddToMap(d.icon);
           visible = true;
         }
       }
 
       if (!visible && d.groupId !== 0 && groupList.includes(d.groupId)) {
-        safeIconAddToMap(d.icon);
         visible = true;
       }
     }
@@ -645,6 +621,88 @@ const displayedGroupedDevices = computed(()=>{
     return [{id: -1,name: '',devices: chunkedDisplayDevices.value}];
   }
 })
+
+// ETAPA 2C: Computed para sync de markers (janela virtual flat)
+const visibleDevicesForMap = computed(() => {
+  return chunkedDisplayDevices.value;
+});
+
+// ETAPA 2C: Helpers para manipular markers (reutiliza lógica baseline)
+const safeIconRemove = (icon) => {
+  if (!icon) return;
+  if (Array.isArray(icon)) {
+    icon.forEach(i => i?.remove?.());
+  } else {
+    icon.remove?.();
+  }
+};
+
+const safeIconAddToMap = (icon) => {
+  if (!icon) return;
+  if (Array.isArray(icon)) {
+    icon.forEach(i => i?.addToMap?.());
+  } else {
+    icon.addToMap?.();
+  }
+};
+
+// ETAPA 2C: Sync de markers com diff de IDs
+const syncMapMarkers = () => {
+  const nowIds = new Set(visibleDevicesForMap.value.map(d => d.id));
+  
+  // IDs para adicionar
+  const toAdd = [...nowIds].filter(id => !prevVisibleIds.has(id));
+  
+  // IDs para remover
+  const toRemove = [...prevVisibleIds].filter(id => !nowIds.has(id));
+  
+  // Remove markers que saíram da janela
+  toRemove.forEach(deviceId => {
+    const device = store.getters['devices/getDevice'](deviceId);
+    if (device?.icon) {
+      safeIconRemove(device.icon);
+    }
+  });
+  
+  // Adiciona markers que entraram na janela
+  toAdd.forEach(deviceId => {
+    const device = store.getters['devices/getDevice'](deviceId);
+    if (device?.icon) {
+      safeIconAddToMap(device.icon);
+    }
+  });
+  
+  // Atualiza estado
+  prevVisibleIds.clear();
+  nowIds.forEach(id => prevVisibleIds.add(id));
+};
+
+// ETAPA 2C: Watcher com debounce
+watch(visibleDevicesForMap, () => {
+  if (syncDebounceTimer) {
+    clearTimeout(syncDebounceTimer);
+  }
+  
+  syncDebounceTimer = setTimeout(() => {
+    syncMapMarkers();
+  }, 80);
+}, { deep: true });
+
+// ETAPA 2C: Cleanup no unmount
+onBeforeUnmount(() => {
+  // Remove todos os markers ainda visíveis
+  prevVisibleIds.forEach(deviceId => {
+    const device = store.getters['devices/getDevice'](deviceId);
+    if (device?.icon) {
+      safeIconRemove(device.icon);
+    }
+  });
+  prevVisibleIds.clear();
+  
+  if (syncDebounceTimer) {
+    clearTimeout(syncDebounceTimer);
+  }
+});
 
 
 
