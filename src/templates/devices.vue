@@ -249,6 +249,7 @@
             <i class="fas fa-ban"></i>
           </div>
         </div>
+        </div>
       </div>
 
       <!-- ETAPA 6B: Seção Conectividade -->
