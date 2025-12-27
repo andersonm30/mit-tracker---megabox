@@ -2936,44 +2936,6 @@ onBeforeUnmount(() => {
     font-size: 10px;
   }
 }
-  
-  .kpi-mini__label {
-    font-size: 11px;
-  }
-  
-  .kpi-mini__icon {
-    font-size: 16px;
-  }
-}
-
-@media (max-width: 420px) {
-  .kpi-grid-compact{
-    grid-template-columns:repeat(2,1fr);
-    gap: 6px;
-  }
-  
-  .kpi-mini {
-    padding: 8px 6px;
-    gap: 4px;
-    border-left-width: 3px;
-  }
-  
-  .kpi-mini__value {
-    font-size: 14px;
-  }
-  
-  .kpi-mini__label {
-    font-size: 10px;
-  }
-  
-  .kpi-mini__icon {
-    font-size: 14px;
-  }
-  
-  .kpi-mini__total {
-    font-size: 10px;
-  }
-}
 
 .kpi-mini{
   display:flex;align-items:center;gap:8px;padding:8px 10px;background:#fff;
@@ -3846,19 +3808,6 @@ onBeforeUnmount(() => {
     font-size: 12px;
   }
 }
-    font-size: 12px;
-  }
-  
-  .card-icons {
-    gap: 6px;
-  }
-  
-  .card-icon {
-    width: 32px;
-    height: 32px;
-    font-size: 14px;
-  }
-}
 
 @media (max-width: 640px) {
   .cards-container {
@@ -4648,10 +4597,6 @@ onBeforeUnmount(() => {
 
 .is-compact .icons div i {
   font-size: 12px !important;
-}
-
-.is-compact .fakeScroll {
-  /* altura da linha compacta: 26px */
 }
 
 /* =========================== ETAPA 8D: MOBILE DRAWER =========================== */
