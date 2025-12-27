@@ -704,7 +704,98 @@
         <span><i class="fas fa-sort"></i></span>
       </div>
     </div>
-    <div ref="realDevices" @scroll="realScroll($event)" style="overflow-x: hidden;overflow-y: scroll;height: calc(100vh - 230px);">
+
+    <!-- VISUALIZAÇÃO EM CARDS -->
+    <div v-if="viewMode === 'card'" class="cards-container" style="overflow-y: scroll; height: calc(100vh - 230px); padding: 12px;">
+      <div class="cards-grid">
+        <div v-for="device in displayDevices" :key="device.id" 
+          class="device-card" 
+          :class="{
+            'card-online': device.status === 'online',
+            'card-offline': device.status === 'offline',
+            'card-moving': device.status === 'online' && store.getters['devices/getPosition'](device.id)?.attributes?.motion,
+            'card-disabled': device.disabled
+          }"
+          @click="markerClick(device.id)" 
+          @contextmenu.prevent="markerContext($event, device.id)">
+          
+          <!-- Barra de status lateral -->
+          <div class="card-status-bar"></div>
+          
+          <!-- Conteúdo do card -->
+          <div class="card-content">
+            <!-- Cabeçalho -->
+            <div class="card-header">
+              <div class="card-name">{{ device.name }}</div>
+              <div class="card-status-icon">
+                <i v-if="device.lastUpdate === null" class="fas fa-question-circle" style="color: var(--el-color-info);"></i>
+                <i v-else-if="device.status === 'online'" class="fas fa-check-circle" style="color: var(--el-color-success);"></i>
+                <i v-else-if="device.status === 'offline'" class="fas fa-exclamation-circle" style="color: var(--el-color-danger);"></i>
+                <i v-else class="fas fa-question-circle" style="color: var(--el-color-warning);"></i>
+              </div>
+            </div>
+            
+            <!-- ID (admin only) -->
+            <div v-if="store.getters['isAdmin']" class="card-id">ID: {{ device.id }}</div>
+            
+            <!-- Última atualização -->
+            <div class="card-update">
+              <i class="far fa-clock"></i>
+              {{ getLastUpdated(device.lastUpdate, now) }}
+            </div>
+            
+            <!-- Ícones de status -->
+            <div v-if="store.getters['devices/getPosition'](device.id)" class="card-icons" :set="position = store.getters['devices/getPosition'](device.id)">
+              <!-- Alarme -->
+              <div class="card-icon" :class="{ active: position.attributes.alarm }">
+                <i class="fas fa-exclamation-triangle" :style="{ color: position.attributes.alarm ? 'var(--el-color-danger)' : 'var(--el-color-info)' }"></i>
+              </div>
+              
+              <!-- Motorista -->
+              <div class="card-icon" :class="{ active: position.attributes['driverUniqueId'] }">
+                <i class="far fa-id-card" :style="{ 
+                  color: position.attributes['driverUniqueId'] ? 'var(--el-color-success)' : 
+                         position.attributes['isQrLocked'] ? 'var(--el-color-danger)' : 'var(--el-color-info)'
+                }"></i>
+              </div>
+              
+              <!-- Ignição -->
+              <div class="card-icon" :class="{ active: position.attributes.ignition === true }">
+                <i class="fas fa-key" :style="{ 
+                  color: position.attributes.ignition === true ? 'var(--el-color-success)' : 
+                         position.attributes.ignition === false ? 'var(--el-color-danger)' : 'var(--el-color-info)'
+                }"></i>
+              </div>
+              
+              <!-- Bloqueio -->
+              <div class="card-icon" :class="{ active: position.attributes.blocked === false }">
+                <i :class="position.attributes.blocked === true ? 'fas fa-lock' : 'fas fa-lock-open'" 
+                   :style="{ 
+                     color: position.attributes.blocked === true ? 'var(--el-color-danger)' : 
+                            position.attributes.blocked === false ? 'var(--el-color-success)' : 'var(--el-color-info)'
+                   }"></i>
+              </div>
+              
+              <!-- Movimento -->
+              <div class="card-icon" :class="{ active: position.attributes.motion }">
+                <i class="fas fa-angle-double-right" :style="{ 
+                  color: position.attributes.motion ? 'var(--el-color-primary)' : 'var(--el-color-info)'
+                }"></i>
+              </div>
+            </div>
+            
+            <!-- Sem posição -->
+            <div v-else class="card-no-position">
+              <i class="fas fa-eye-slash"></i>
+              <span>{{ KT('device.noPosition') }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- VISUALIZAÇÃO EM LISTA (original) -->
+    <div v-else ref="realDevices" @scroll="realScroll($event)" style="overflow-x: hidden;overflow-y: scroll;height: calc(100vh - 230px);">
       <div class="fakeScroll" :style="{height: (displayDevices.length*33)+'px'}">
 
         <div v-for="(group) in groupsForRender" :key="group.id" class="group-block">
@@ -3361,6 +3452,226 @@ onBeforeUnmount(() => {
   
   .threshold-input-group {
     flex-direction: column;
+  }
+}
+
+/* ========================= CARDS VIEW STYLES ========================= */
+
+.cards-container {
+  background: #f5f7fa;
+}
+
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+  padding: 4px;
+}
+
+.device-card {
+  position: relative;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(16, 24, 40, 0.06);
+  overflow: hidden;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  animation: fadeInUp 0.4s ease-out;
+}
+
+.device-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(16, 24, 40, 0.12);
+  border-color: #3b82f6;
+}
+
+.device-card:active {
+  transform: translateY(-2px);
+}
+
+/* Barra de status lateral colorida */
+.card-status-bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  background: #e5e7eb;
+  transition: background 0.3s ease;
+}
+
+.device-card.card-online .card-status-bar {
+  background: linear-gradient(180deg, #22c55e 0%, #16a34a 100%);
+}
+
+.device-card.card-moving .card-status-bar {
+  background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
+  animation: pulseGlow 2s ease-in-out infinite;
+}
+
+.device-card.card-offline .card-status-bar {
+  background: linear-gradient(180deg, #ef4444 0%, #dc2626 100%);
+}
+
+.device-card.card-disabled {
+  opacity: 0.6;
+  filter: grayscale(30%);
+}
+
+/* Conteúdo do card */
+.card-content {
+  padding: 16px;
+  padding-left: 20px;
+}
+
+/* Cabeçalho do card */
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+  gap: 12px;
+}
+
+.card-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+  line-height: 1.4;
+  flex: 1;
+  word-break: break-word;
+}
+
+.card-status-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+/* ID do dispositivo */
+.card-id {
+  font-size: 11px;
+  color: #6b7280;
+  font-family: 'Courier New', monospace;
+  margin-bottom: 8px;
+  padding: 4px 8px;
+  background: #f3f4f6;
+  border-radius: 6px;
+  display: inline-block;
+}
+
+/* Última atualização */
+.card-update {
+  font-size: 13px;
+  color: #6b7280;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.card-update i {
+  opacity: 0.7;
+}
+
+/* Ícones de status */
+.card-icons {
+  display: flex;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid #e5e7eb;
+  justify-content: space-around;
+}
+
+.card-icon {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: #f9fafb;
+  transition: all 0.2s ease;
+  font-size: 16px;
+}
+
+.card-icon:hover {
+  background: #f3f4f6;
+  transform: scale(1.1);
+}
+
+.card-icon.active {
+  background: #e0f2fe;
+  box-shadow: 0 0 0 2px #bae6fd;
+}
+
+/* Sem posição */
+.card-no-position {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  background: #fef3c7;
+  border-radius: 8px;
+  color: #92400e;
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+.card-no-position i {
+  font-size: 16px;
+  opacity: 0.7;
+}
+
+/* Animações para cards */
+@keyframes cardPulse {
+  0%, 100% {
+    box-shadow: 0 2px 8px rgba(16, 24, 40, 0.06);
+  }
+  50% {
+    box-shadow: 0 4px 16px rgba(59, 130, 246, 0.2);
+  }
+}
+
+.device-card.card-moving {
+  animation: fadeInUp 0.4s ease-out, cardPulse 3s ease-in-out infinite;
+}
+
+/* Responsivo - cards */
+@media (max-width: 768px) {
+  .cards-grid {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+  }
+  
+  .card-content {
+    padding: 12px;
+    padding-left: 16px;
+  }
+  
+  .card-icons {
+    gap: 6px;
+  }
+  
+  .card-icon {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 420px) {
+  .cards-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .card-name {
+    font-size: 15px;
+  }
+  
+  .card-status-icon {
+    font-size: 18px;
   }
 }
 
