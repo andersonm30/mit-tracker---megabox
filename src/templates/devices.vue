@@ -25,6 +25,17 @@
       </div>
     </div>
 
+    <!-- ===== ETAPA 3B: Chips de filtros ativos ===== -->
+    <div v-if="activeFilterChips.length > 0" class="active-filters-chips">
+      <div v-for="chip in activeFilterChips" :key="chip.key" class="filter-chip">
+        <span class="chip-label">{{ chip.label }}</span>
+        <button class="chip-remove" @click="chip.onRemove" @mouseenter.stop="showTip($event, 'Remover filtro')" @mouseleave="hideTip">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div v-if="resultSummary" class="result-summary">{{ resultSummary }}</div>
+    </div>
+
     <!-- ===== Painel de Filtros Avançados (UI apenas) ===== -->
     <div v-if="showFiltersPanel" class="filters-panel">
       <div class="filters-panel-header">
@@ -331,6 +342,67 @@ const activeFiltersCount = computed(() => {
   if (connectivityFilter.value !== 'todos') count++;
   if (movingOnly.value) count++;
   return count;
+});
+
+// ETAPA 3B: Chips de filtros ativos
+const activeFilterChips = computed(() => {
+  const chips = [];
+  
+  if (situacaoFilter.value !== 'todos') {
+    const labels = {
+      'ativo': 'Ativo',
+      'estoque': 'Estoque',
+      'desativado': 'Desativado'
+    };
+    chips.push({
+      key: 'situacao',
+      label: `Situação: ${labels[situacaoFilter.value] || situacaoFilter.value}`,
+      onRemove: () => {
+        situacaoFilter.value = 'todos';
+        filterDevices('todos');
+      }
+    });
+  }
+  
+  if (connectivityFilter.value !== 'todos') {
+    const labels = {
+      'online': 'Online',
+      'offline': 'Offline'
+    };
+    chips.push({
+      key: 'connectivity',
+      label: `Conectividade: ${labels[connectivityFilter.value]}`,
+      onRemove: () => {
+        connectivityFilter.value = 'todos';
+        localStorage.removeItem('device_connectivity_filter');
+      }
+    });
+  }
+  
+  if (movingOnly.value) {
+    chips.push({
+      key: 'moving',
+      label: 'Em movimento',
+      onRemove: () => {
+        movingOnly.value = false;
+        localStorage.removeItem('device_moving_only');
+      }
+    });
+  }
+  
+  return chips;
+});
+
+// ETAPA 3B: Resumo inteligente de resultados
+const resultSummary = computed(() => {
+  const displayed = displayDevices.value.length;
+  const total = filteredDevices.value.length;
+  
+  if (displayed === total || displayed === 0) {
+    return null;
+  }
+  
+  return `Mostrando ${displayed} de ${total} dispositivos`;
 });
 
 const editDeviceRef = inject('edit-device');
@@ -855,6 +927,38 @@ onBeforeUnmount(() => {
 .filters-panel-header h4{margin:0;font-size:12px;font-weight:600;color:#333;}
 .clear-all-btn{font-size:10px;color:#F56C6C;padding:0;height:auto;}
 .clear-all-btn:hover{opacity:.8;}
+
+/* =========================== ETAPA 3B: CHIPS DE FILTROS ATIVOS =========================== */
+.active-filters-chips{
+  display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0;padding:8px 12px;
+  background:#f9fafb;border-radius:6px;border:1px solid #e5e7eb;
+}
+
+.filter-chip{
+  display:inline-flex;align-items:center;gap:6px;padding:4px 8px;background:#fff;
+  border:1px solid #d1d5db;border-radius:12px;font-size:11px;color:#374151;
+  transition:all .2s ease;box-shadow:0 1px 2px rgba(0,0,0,.05);
+}
+
+.filter-chip:hover{
+  border-color:#409EFF;box-shadow:0 2px 4px rgba(64,158,255,.15);
+}
+
+.chip-label{font-weight:500;}
+
+.chip-remove{
+  background:none;border:none;padding:0;width:14px;height:14px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  color:#9ca3af;transition:all .2s ease;font-size:9px;
+}
+
+.chip-remove:hover{
+  background:#fee;color:#ef4444;transform:scale(1.1);
+}
+
+.result-summary{
+  font-size:11px;color:#6b7280;font-style:italic;margin-left:auto;font-weight:500;
+}
 
 .filters-row{display:flex;flex-direction:row;align-items:center;margin-bottom:6px;gap:6px;}
 .primary-row{
