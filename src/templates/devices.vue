@@ -451,6 +451,23 @@
       </div>
     </div>
 
+    <!-- ETAPA 9A: Contador global + Toggle de agrupamento -->
+    <div class="devices-counter-row">
+      <div class="devices-counter-text">
+        <span class="counter-primary">Mostrando {{ displayDevices.length }}</span>
+        <span class="counter-secondary"> de {{ totalGlobal }} dispositivos</span>
+        <span v-if="groupMode === 'grouped' && groupCount > 0" class="counter-groups">
+          • {{ groupCount }} grupos
+        </span>
+      </div>
+      <button class="group-toggle-btn" :class="{ active: groupMode === 'grouped' }" @click="toggleGroupMode"
+        @mouseenter.stop="showTip($event, groupMode === 'grouped' ? 'Desagrupar' : 'Agrupar por grupo')" 
+        @mouseleave="hideTip">
+        <i class="fas fa-layer-group"></i>
+        <span>{{ groupMode === 'grouped' ? 'Agrupado' : 'Agrupar' }}</span>
+      </button>
+    </div>
+
     <div style="border: silver 1px solid; border-radius: 5px;margin-top: 12px;height: calc(100vh - 200px);">
       <div class="deviceHead">
       <div v-if="store.getters['isAdmin']" @click="store.dispatch('devices/setSorting','id')" class="name" style="font-size: 12px;box-sizing: border-box;font-weight: 100;padding: 5px;flex: 1 1 15%;">
@@ -510,8 +527,19 @@
     <div ref="realDevices" @scroll="realScroll($event)" style="overflow-x: hidden;overflow-y: scroll;height: calc(100vh - 230px);">
       <div class="fakeScroll" :style="{height: (displayDevices.length*33)+'px'}">
 
-        <div v-for="(group) in displayedGroupedDevices" :key="group.id">
-          <div v-if="group.id!==-1" style="background: #f7f7f7;padding: 5px;font-size: 13px;"><i class="far fa-object-group"></i>&nbsp;&nbsp;&nbsp;{{group.name}}</div>
+        <div v-for="(group) in groupsForRender" :key="group.id">
+          <!-- ETAPA 9A: Header de grupo com contador e accordion -->
+          <div v-if="group.id !== -1" class="group-header" @click="toggleGroupCollapse(group.id)">
+            <div class="group-header-left">
+              <i class="fas group-chevron" :class="collapsedGroups[group.id] ? 'fa-chevron-right' : 'fa-chevron-down'"></i>
+              <i class="far fa-object-group"></i>
+              <span class="group-name">{{ group.name }}</span>
+            </div>
+            <span class="group-count-badge">{{ group.count }}</span>
+          </div>
+
+          <!-- Devices do grupo (oculto se collapsed) -->
+          <template v-if="group.id === -1 || !collapsedGroups[group.id]">
 
           <div v-for="(device) in group.devices" :key="device.id" class="device" :class="{'isDisabled': device.disabled}" @click="markerClick(device.id)" @contextmenu.prevent="markerContext($event,device.id)" :set="position = store.getters['devices/getPosition'](device.id)">                      
           <div v-if="store.getters['isAdmin']" class="name" style="width: 90px;box-sizing: border-box;overflow: hidden;white-space: nowrap;text-align: center; flex: 1 1 15%" >{{device.id}}</div>            
@@ -629,7 +657,7 @@
             </div>
           </div>
         </div>
-
+          </template>
         </div>
       </div>
     </div>
@@ -729,6 +757,38 @@ let resizeAnimationFrame = null;
 
 // ETAPA 8D-B: Estado do drawer mobile
 const filtersDrawerOpen = ref(false);
+
+// ETAPA 9A: Agrupamento por grupos
+const loadGroupMode = () => {
+  try {
+    const stored = localStorage.getItem('device_group_mode');
+    return stored || 'flat'; // 'flat' | 'grouped'
+  } catch (error) {
+    return 'flat';
+  }
+};
+
+const loadCollapsedGroups = () => {
+  try {
+    const stored = localStorage.getItem('device_groups_collapsed');
+    return stored ? JSON.parse(stored) : {};
+  } catch (error) {
+    return {};
+  }
+};
+
+const groupMode = ref(loadGroupMode());
+const collapsedGroups = ref(loadCollapsedGroups());
+
+const toggleGroupMode = () => {
+  groupMode.value = groupMode.value === 'flat' ? 'grouped' : 'flat';
+  debouncePersist('device_group_mode', groupMode.value, 150);
+};
+
+const toggleGroupCollapse = (groupId) => {
+  collapsedGroups.value[groupId] = !collapsedGroups.value[groupId];
+  debouncePersist('device_groups_collapsed', JSON.stringify(collapsedGroups.value), 150);
+};
 
 // ETAPA 6C: Salvar com debounce
 const saveUIOnlyActiveState = () => {
@@ -1040,6 +1100,72 @@ const totalShown = computed(() => {
 
 const totalGlobal = computed(() => {
   return filteredDevices.value.length;
+});
+
+// ETAPA 9A: Computeds de agrupamento
+const groupNameMap = computed(() => {
+  const map = {};
+  if (store.state.groups && store.state.groups.groupList) {
+    store.state.groups.groupList.forEach(g => {
+      map[g.id] = g.name;
+    });
+  }
+  return map;
+});
+
+const devicesByGroup = computed(() => {
+  const grouped = {};
+  displayDevices.value.forEach(device => {
+    const groupId = device.groupId || 0; // 0 = sem grupo
+    if (!grouped[groupId]) {
+      grouped[groupId] = [];
+    }
+    grouped[groupId].push(device);
+  });
+  return grouped;
+});
+
+const groupsForRender = computed(() => {
+  if (groupMode.value === 'flat') {
+    return [{ id: -1, name: '', count: displayDevices.value.length, devices: chunkedDisplayDevices.value }];
+  }
+  
+  const grouped = devicesByGroup.value;
+  const groups = [];
+  
+  // Sem grupo sempre primeiro
+  if (grouped[0] && grouped[0].length > 0) {
+    groups.push({
+      id: 0,
+      name: 'Sem grupo',
+      count: grouped[0].length,
+      devices: grouped[0]
+    });
+  }
+  
+  // Demais grupos ordenados por nome
+  Object.keys(grouped)
+    .filter(id => id !== '0')
+    .sort((a, b) => {
+      const nameA = groupNameMap.value[a] || `Grupo ${a}`;
+      const nameB = groupNameMap.value[b] || `Grupo ${b}`;
+      return nameA.localeCompare(nameB);
+    })
+    .forEach(groupId => {
+      groups.push({
+        id: parseInt(groupId),
+        name: groupNameMap.value[groupId] || `Grupo ${groupId}`,
+        count: grouped[groupId].length,
+        devices: grouped[groupId]
+      });
+    });
+  
+  return groups;
+});
+
+const groupCount = computed(() => {
+  if (groupMode.value === 'flat') return 0;
+  return groupsForRender.value.filter(g => g.id !== -1).length;
 });
 
 const onlineCount = computed(() => {
@@ -2074,41 +2200,6 @@ const chunkedDisplayDevices = computed(()=>{
   return tmp.splice(0,maxDevices.value+offsetDevices.value);
 });
 
-const displayedGroupedDevices = computed(()=>{
-  let showGroups = store.getters['mapPref']('groups');
-
-  if(showGroups){
-    let tmp = {};
-    const groups = store.state.groups.groupList;
-
-    chunkedDisplayDevices.value.forEach((device)=>{
-        if(!groups.find((g)=> g.id===device.groupId )){
-          if (!tmp[0]) {
-            tmp[0] = [];
-          }
-          tmp[0].push(device);
-        }else {
-          if (!tmp[device.groupId]) {
-            tmp[device.groupId] = [];
-          }
-          tmp[device.groupId].push(device);
-        }
-    })
-
-    let list = [];
-    list.push({id: 0,name: 'Sem Grupo',devices: tmp[0]});
-    groups.forEach((g)=>{
-      if(tmp[g.id] && tmp[g.id].length>0) {
-        list.push({id: g.id, name: g.name, devices: tmp[g.id]});
-      }
-    })
-
-    return list;
-  }else{
-    return [{id: -1,name: '',devices: chunkedDisplayDevices.value}];
-  }
-})
-
 // ETAPA 2C: Computed para sync de markers (janela virtual flat)
 const visibleDevicesForMap = computed(() => {
   return chunkedDisplayDevices.value;
@@ -3040,6 +3131,140 @@ onBeforeUnmount(() => {
 
 .isDisabled{
   opacity: 0.4;
+}
+
+/* =========================== RESPONSIVIDADE =========================== */
+
+/* =========================== ETAPA 9A: CONTADOR + AGRUPAMENTO =========================== */
+.devices-counter-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.03) 0%, rgba(118, 75, 162, 0.03) 100%);
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 6px;
+  margin-top: 8px;
+  gap: 12px;
+}
+
+.devices-counter-text {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  flex-wrap: wrap;
+}
+
+.counter-primary {
+  font-weight: 700;
+  color: var(--el-color-primary);
+  font-size: 13px;
+}
+
+.counter-secondary {
+  color: var(--el-text-color-regular);
+  font-weight: 500;
+}
+
+.counter-groups {
+  color: var(--el-text-color-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  margin-left: 4px;
+}
+
+.group-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border: 1px solid var(--el-border-color);
+  border-radius: 6px;
+  background: #ffffff;
+  color: var(--el-text-color-regular);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.group-toggle-btn:hover {
+  background: var(--el-color-primary-light-9);
+  border-color: var(--el-color-primary-light-5);
+  color: var(--el-color-primary);
+  transform: translateY(-1px);
+}
+
+.group-toggle-btn.active {
+  background: linear-gradient(135deg, var(--el-color-primary) 0%, #764ba2 100%);
+  border-color: var(--el-color-primary);
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);
+}
+
+.group-toggle-btn.active:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(102, 126, 234, 0.4);
+}
+
+.group-toggle-btn i {
+  font-size: 12px;
+}
+
+/* Header de grupo com accordion */
+.group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+  border-top: 1px solid var(--el-border-color-lighter);
+  border-bottom: 1px solid var(--el-border-color-lighter);
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  user-select: none;
+}
+
+.group-header:hover {
+  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+}
+
+.group-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}
+
+.group-chevron {
+  font-size: 10px;
+  transition: transform 0.2s;
+  color: var(--el-color-primary);
+  width: 10px;
+}
+
+.group-name {
+  font-weight: 600;
+  color: #374151;
+}
+
+.group-count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 18px;
+  padding: 0 6px;
+  background: linear-gradient(135deg, var(--el-color-primary) 0%, #764ba2 100%);
+  color: #ffffff;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.2);
 }
 
 /* =========================== RESPONSIVIDADE =========================== */
