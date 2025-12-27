@@ -304,8 +304,8 @@
       </div>
     </div>
 
-  <div style="border: silver 1px solid; border-radius: 5px;margin-top: 12px;height: calc(100vh - 200px);">
-    <div class="deviceHead">
+    <div style="border: silver 1px solid; border-radius: 5px;margin-top: 12px;height: calc(100vh - 200px);">
+      <div class="deviceHead">
       <div v-if="store.getters['isAdmin']" @click="store.dispatch('devices/setSorting','id')" class="name" style="font-size: 12px;box-sizing: border-box;font-weight: 100;padding: 5px;flex: 1 1 15%;">
         {{KT('device.id')}}
         <span v-if="store.getters['devices/sorting']==='id-asc'">
