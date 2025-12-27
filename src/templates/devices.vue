@@ -811,17 +811,23 @@ const isAdminUser = computed(() => {
     if (sessionUser?.administrator !== undefined) {
       return !!sessionUser.administrator;
     }
-  } catch (e) {}
+  } catch (e) {
+    // Getter session/user não existe ou não está disponível, tentar próximo caminho
+  }
   try {
     if (store.getters['auth/isAdmin'] !== undefined) {
       return !!store.getters['auth/isAdmin'];
     }
-  } catch (e) {}
+  } catch (e) {
+    // Getter auth/isAdmin não existe, tentar próximo caminho
+  }
   try {
     if (store.getters['session/isAdmin'] !== undefined) {
       return !!store.getters['session/isAdmin'];
     }
-  } catch (e) {}
+  } catch (e) {
+    // Getter session/isAdmin não existe, usar fallback
+  }
   if (store.state.user?.administrator !== undefined) {
     return !!store.state.user.administrator;
   }
