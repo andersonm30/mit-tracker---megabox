@@ -54,6 +54,12 @@
           @mouseleave="hideTip">
           <i :class="shareLinkCopied ? 'fas fa-check' : 'fas fa-link'"></i>
         </el-button>
+        <el-button class="view-mode-btn" size="small" 
+          @click="toggleViewMode"
+          @mouseenter.stop="showTip($event, viewMode === 'list' ? 'Visualização em Cards' : 'Visualização em Lista')" 
+          @mouseleave="hideTip">
+          <i :class="viewMode === 'list' ? 'fas fa-th' : 'fas fa-list'"></i>
+        </el-button>
         <el-button class="add-btn" size="small" type="primary" :disabled="!store.getters['checkDeviceLimit']"
           v-if="store.getters.advancedPermissions(13) && (store.state.auth.deviceLimit === -1 || store.state.auth.deviceLimit > 0)"
           @click="(store.getters['checkDeviceLimit']) ? editDeviceRef.newDevice() : deviceLimitExceded()"
@@ -91,6 +97,13 @@
         <div class="kpi-mini__content">
           <div class="kpi-mini__value">{{ offlineCount }}<span v-if="offlineCount !== offlineCountGlobal" class="kpi-mini__total"> / {{ offlineCountGlobal }}</span></div>
           <div class="kpi-mini__label">Offline</div>
+        </div>
+      </div>
+      <div class="kpi-mini kpi-mini--offline-critical" :class="{ active: timeFilter === 'custom' }" @click="setTimeFilter('custom')"
+        @mouseenter.stop="showTip($event, `Offline > ${offlineHoursThreshold}h: ${offlineExceedingThreshold}`)" @mouseleave="hideTip">
+        <div class="kpi-mini__content">
+          <div class="kpi-mini__value">{{ offlineExceedingThreshold }}</div>
+          <div class="kpi-mini__label">Offline > {{ offlineHoursThreshold }}h</div>
         </div>
       </div>
       <div class="kpi-mini" :class="{ active: movingOnly }" @click="toggleMovingFilter"
@@ -334,6 +347,69 @@
                       @mouseenter.stop="showTip($event, 'Limpar filtros GPS')" @mouseleave="hideTip">
                 <i class="fas fa-times"></i> Limpar GPS
               </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Seção Offline (Chips rápidos + Threshold configurável) -->
+      <div v-if="!showOnlyActiveControls || timeFilter" class="section-collapsible">
+        <div class="section-collapsible__head" @click="toggleSection('offline')">
+          <div class="section-collapsible__title">
+            <i class="fas" :class="openSections.offline ? 'fa-chevron-down' : 'fa-chevron-right'"></i>
+            <span>Filtros Offline</span>
+          </div>
+          <div class="section-collapsible__hint">Tempo offline e threshold</div>
+        </div>
+        <div v-show="openSections.offline" class="section-collapsible__body">
+          <!-- Chips rápidos -->
+          <div class="offline-chips-row">
+            <div class="offline-chip" :class="{ active: timeFilter === 'offline-1h' }" @click="setTimeFilter('offline-1h')"
+              @mouseenter.stop="showTip($event, 'Offline < 1h')" @mouseleave="hideTip">
+              <i class="fas fa-hourglass-start"></i>
+              <span>1h</span>
+            </div>
+            <div class="offline-chip" :class="{ active: timeFilter === 'offline-2h' }" @click="setTimeFilter('offline-2h')"
+              @mouseenter.stop="showTip($event, 'Offline < 2h')" @mouseleave="hideTip">
+              <i class="fas fa-hourglass-half"></i>
+              <span>2h</span>
+            </div>
+            <div class="offline-chip" :class="{ active: timeFilter === 'offline-6h' }" @click="setTimeFilter('offline-6h')"
+              @mouseenter.stop="showTip($event, 'Offline < 6h')" @mouseleave="hideTip">
+              <i class="fas fa-hourglass-end"></i>
+              <span>6h</span>
+            </div>
+            <div class="offline-chip" :class="{ active: timeFilter === 'offline-12h' }" @click="setTimeFilter('offline-12h')"
+              @mouseenter.stop="showTip($event, 'Offline < 12h')" @mouseleave="hideTip">
+              <i class="fas fa-stopwatch"></i>
+              <span>12h</span>
+            </div>
+            <div class="offline-chip" :class="{ active: timeFilter === 'offline-24h' }" @click="setTimeFilter('offline-24h')"
+              @mouseenter.stop="showTip($event, 'Offline < 24h')" @mouseleave="hideTip">
+              <i class="fas fa-clock"></i>
+              <span>24h</span>
+            </div>
+            <div v-if="timeFilter" class="offline-chip clear" @click="clearTimeFilter"
+              @mouseenter.stop="showTip($event, 'Limpar filtro')" @mouseleave="hideTip">
+              <i class="fas fa-times"></i>
+            </div>
+          </div>
+          
+          <!-- Threshold configurável -->
+          <div class="threshold-config">
+            <label class="threshold-label">Threshold customizado (horas):</label>
+            <div class="threshold-input-group">
+              <input type="number" v-model.number="offlineHoursThreshold" 
+                @change="setOfflineHoursThreshold(offlineHoursThreshold)"
+                min="1" max="720" class="threshold-input">
+              <button class="threshold-apply-btn" @click="setTimeFilter('custom')"
+                @mouseenter.stop="showTip($event, 'Aplicar filtro')" @mouseleave="hideTip">
+                <i class="fas fa-check"></i> Aplicar
+              </button>
+            </div>
+            <div class="threshold-info">
+              <i class="fas fa-info-circle"></i>
+              <span>{{ offlineExceedingThreshold }} veículos offline > {{ offlineHoursThreshold }}h</span>
             </div>
           </div>
         </div>
@@ -849,9 +925,9 @@ const showOnlyActiveControls = ref(loadUIOnlyActiveState());
 const loadOpenSections = () => {
   try {
     const stored = localStorage.getItem('device_filters_open_sections');
-    return stored ? JSON.parse(stored) : { presets: true, situacao: false, connectivity: false, gps: false, estilo: false };
+    return stored ? JSON.parse(stored) : { presets: true, situacao: false, connectivity: false, gps: false, offline: false, estilo: false };
   } catch (error) {
-    return { presets: true, situacao: false, connectivity: false, gps: false, estilo: false };
+    return { presets: true, situacao: false, connectivity: false, gps: false, offline: false, estilo: false };
   }
 };
 
@@ -997,6 +1073,14 @@ const isPdfAvailable = computed(() => {
 // ETAPA 3A: Filtros de conectividade
 const connectivityFilter = ref(localStorage.getItem('device_connectivity_filter') || 'todos');
 const movingOnly = ref(localStorage.getItem('device_moving_only') === 'true');
+
+// FILTRO OFFLINE CONFIGURÁVEL (Cliente pediu)
+const offlineHoursThreshold = ref(parseInt(localStorage.getItem('device_offline_hours_threshold') || '24', 10));
+const timeFilter = ref(''); // Para chips rápidos: offline-1h, offline-2h, etc
+
+// MODO DE VISUALIZAÇÃO: list ou card
+const viewMode = ref(localStorage.getItem('device_view_mode') || 'list'); // 'list' | 'card'
+
 
 // ETAPA 5A: Presets de filtros
 const defaultPresets = [
@@ -1613,8 +1697,71 @@ const getDeviceConnectivity = (device) => {
 };
 
 const getDeviceMoving = (device) => {
-  if (!device.attributes) return false;
-  return (device.attributes.speed > 0) || (device.attributes.motion === true);
+  const position = store.getters['devices/getPosition'](device.id);
+  return !!position?.attributes?.motion;
+};
+
+// FUNÇÕES PARA FILTRO OFFLINE CONFIGURÁVEL
+const setOfflineHoursThreshold = (hours) => {
+  offlineHoursThreshold.value = hours;
+  debouncePersist('device_offline_hours_threshold', hours, 150);
+};
+
+const setTimeFilter = (cmd) => {
+  timeFilter.value = cmd;
+  switch (cmd) {
+    case 'offline-1h':
+      query.value = 'last:-1 horas';
+      break;
+    case 'offline-2h':
+      query.value = 'last:-2 horas';
+      break;
+    case 'offline-6h':
+      query.value = 'last:-6 horas';
+      break;
+    case 'offline-12h':
+      query.value = 'last:-12 horas';
+      break;
+    case 'offline-24h':
+      query.value = 'last:-24 horas';
+      break;
+    case 'custom':
+      // Usar threshold configurável
+      query.value = `last:-${offlineHoursThreshold.value} horas`;
+      break;
+  }
+};
+
+const clearTimeFilter = () => {
+  timeFilter.value = '';
+  if (/^last:/.test(String(query.value || ''))) query.value = '';
+};
+
+// Contar veículos offline além do threshold configurável
+const offlineExceedingThreshold = computed(() => {
+  const ordered = store.getters['devices/getOrderedDevices'] || [];
+  const thresholdMs = offlineHoursThreshold.value * 3600000; // horas para ms
+  let count = 0;
+  
+  for (const dk of ordered) {
+    const d = store.getters['devices/getDevice'](dk);
+    if (!d) continue;
+    
+    if (d.status === 'offline' && d.lastUpdate) {
+      const offlineTime = Date.now() - new Date(d.lastUpdate).getTime();
+      if (offlineTime > thresholdMs) {
+        count++;
+      }
+    }
+  }
+  
+  return count;
+});
+
+// FUNÇÃO PARA TOGGLE VIEW MODE
+const toggleViewMode = () => {
+  viewMode.value = viewMode.value === 'list' ? 'card' : 'list';
+  debouncePersist('device_view_mode', viewMode.value, 150);
 };
 
 // ETAPA 4A: Helpers para exportação CSV
@@ -3042,6 +3189,179 @@ onBeforeUnmount(() => {
 
 .gps-clear-btn i {
   font-size: 11px;
+}
+
+/* =========================== FILTROS OFFLINE =========================== */
+.offline-chips-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.offline-chip {
+  flex: 1;
+  min-width: 60px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 8px 6px;
+  background: #f5f7fa;
+  border: 1px solid #dcdfe6;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 11px;
+  color: #606266;
+}
+
+.offline-chip i {
+  font-size: 14px;
+}
+
+.offline-chip span {
+  font-weight: 600;
+  font-size: 10px;
+}
+
+.offline-chip:hover {
+  background: #ecf5ff;
+  border-color: #409EFF;
+  color: #409EFF;
+  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.2);
+}
+
+.offline-chip.active {
+  background: #409EFF;
+  border-color: #409EFF;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.3);
+}
+
+.offline-chip.clear {
+  background: rgba(245, 108, 108, 0.1);
+  border-color: rgba(245, 108, 108, 0.3);
+  color: #F56C6C;
+}
+
+.offline-chip.clear:hover {
+  background: rgba(245, 108, 108, 0.2);
+  border-color: #F56C6C;
+}
+
+.threshold-config {
+  padding: 12px;
+  background: #f9f9f9;
+  border-radius: 6px;
+  border: 1px solid #e4e7ed;
+}
+
+.threshold-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: #606266;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.threshold-input-group {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.threshold-input {
+  flex: 1;
+  padding: 6px 10px;
+  font-size: 13px;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  background: #fff;
+  color: #606266;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.threshold-input:focus {
+  border-color: #409EFF;
+  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.1);
+}
+
+.threshold-apply-btn {
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #fff;
+  background: #409EFF;
+  border: 1px solid #409EFF;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.threshold-apply-btn:hover {
+  background: #66b1ff;
+  border-color: #66b1ff;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(64, 158, 255, 0.3);
+}
+
+.threshold-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #909399;
+  padding: 6px 8px;
+  background: #fff;
+  border-radius: 4px;
+}
+
+.threshold-info i {
+  color: #409EFF;
+}
+
+/* KPI Offline Critical */
+.kpi-mini--offline-critical {
+  border-left-width: 4px;
+  border-left-color: #F56C6C;
+}
+
+.kpi-mini--offline-critical.active {
+  background: #fef2f2;
+  border-color: #F56C6C;
+}
+
+/* View Mode Button */
+.view-mode-btn {
+  background: #fff;
+  border-color: #dcdfe6;
+  color: #606266;
+}
+
+.view-mode-btn:hover {
+  background: #ecf5ff;
+  border-color: #409EFF;
+  color: #409EFF;
+}
+
+@media (max-width: 640px) {
+  .offline-chips-row {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  .threshold-input-group {
+    flex-direction: column;
+  }
 }
 
 @media (max-width: 640px) {
