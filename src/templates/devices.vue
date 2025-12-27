@@ -1287,7 +1287,6 @@ const exportToPdf = () => {
     // Preparar dados da tabela
     const tableData = list.map(device => {
       const connectivity = getDeviceConnectivity(device);
-      const moving = getDeviceMoving(device);
       const lastUpdate = device.lastUpdate || device.attributes?.lastUpdate || '';
       const speed = device.attributes?.speed ? `${Math.round(device.attributes.speed)} km/h` : '-';
       
@@ -1828,7 +1827,7 @@ const syncMapMarkers = () => {
 };
 
 // ETAPA 6C: Watcher otimizado baseado em IDs (sem deep watch)
-watch(visibleDeviceIds, (newIds, oldIds) => {
+watch(visibleDeviceIds, (newIds) => {
   // Proteger se lista estiver vazia
   if (!newIds || newIds.length === 0) {
     return;
