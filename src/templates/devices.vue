@@ -79,17 +79,15 @@
 
     <!-- ===== ETAPA 6A/8B/8C: KPI Mini-Cards (Admin-only, Global/Shown, Collapsible) ===== -->
     <div v-if="canSeeKpis" class="kpi-grid-compact" :class="{ 'kpi-collapsed': kpisCollapsed }">
-      <div class="kpi-mini" :class="{ active: connectivityFilter === 'online' }" @click="toggleConnectivityFilter('online')"
+      <div class="kpi-mini kpi-mini--online" :class="{ active: connectivityFilter === 'online' }" @click="toggleConnectivityFilter('online')"
         @mouseenter.stop="showTip($event, `Online: ${onlineCount}${onlineCount !== onlineCountGlobal ? ' / ' + onlineCountGlobal + ' total' : ''}`)" @mouseleave="hideTip">
-        <i class="kpi-mini__icon online fas fa-signal"></i>
         <div class="kpi-mini__content">
           <div class="kpi-mini__value">{{ onlineCount }}<span v-if="onlineCount !== onlineCountGlobal" class="kpi-mini__total"> / {{ onlineCountGlobal }}</span></div>
           <div class="kpi-mini__label">Online</div>
         </div>
       </div>
-      <div class="kpi-mini" :class="{ active: connectivityFilter === 'offline' }" @click="toggleConnectivityFilter('offline')"
+      <div class="kpi-mini kpi-mini--offline" :class="{ active: connectivityFilter === 'offline' }" @click="toggleConnectivityFilter('offline')"
         @mouseenter.stop="showTip($event, `Offline: ${offlineCount}${offlineCount !== offlineCountGlobal ? ' / ' + offlineCountGlobal + ' total' : ''}`)" @mouseleave="hideTip">
-        <i class="kpi-mini__icon offline fas fa-unlink"></i>
         <div class="kpi-mini__content">
           <div class="kpi-mini__value">{{ offlineCount }}<span v-if="offlineCount !== offlineCountGlobal" class="kpi-mini__total"> / {{ offlineCountGlobal }}</span></div>
           <div class="kpi-mini__label">Offline</div>
@@ -285,6 +283,62 @@
         </div>
       </div>
 
+      <!-- NOVA SEÇÃO: GPS Avançado (Collapsible) -->
+      <div v-if="!showOnlyActiveControls || gpsBrandFilter || gpsModelFilter || technologyFilter" class="section-collapsible">
+        <div class="section-collapsible__head" @click="toggleSection('gps')">
+          <div class="section-collapsible__title">
+            <i class="fas" :class="openSections.gps ? 'fa-chevron-down' : 'fa-chevron-right'"></i>
+            <span>GPS Avançado</span>
+          </div>
+          <div class="section-collapsible__hint">Marca, modelo e tecnologia</div>
+        </div>
+        <div v-show="openSections.gps" class="section-collapsible__body">
+          <div class="gps-filters-grid">
+            <!-- Filtro por Marca -->
+            <div class="gps-filter-item">
+              <label class="gps-filter-label">Marca</label>
+              <select v-model="gpsBrandFilter" @change="handleGpsBrandFilter($event.target.value)" 
+                      class="gps-select brand-select">
+                <option value="">Todas as Marcas</option>
+                <option v-for="brand in gpsBrands" :key="brand" :value="brand">{{ brand }}</option>
+              </select>
+            </div>
+            
+            <!-- Filtro por Modelo -->
+            <div class="gps-filter-item">
+              <label class="gps-filter-label">Modelo</label>
+              <select v-model="gpsModelFilter" @change="handleGpsModelFilter($event.target.value)" 
+                      class="gps-select model-select" :disabled="!gpsBrandFilter">
+                <option value="">Todos os Modelos</option>
+                <option v-for="model in commonGpsModels" :key="model" :value="model">{{ model }}</option>
+              </select>
+            </div>
+            
+            <!-- Filtro por Tecnologia -->
+            <div class="gps-filter-item">
+              <label class="gps-filter-label">Tecnologia</label>
+              <select v-model="technologyFilter" @change="handleTechnologyFilter($event.target.value)" 
+                      class="gps-select tech-select">
+                <option value="">Todas Tecnologias</option>
+                <option value="GSM">GSM</option>
+                <option value="3G">3G</option>
+                <option value="4G">4G</option>
+                <option value="Satellite">Satélite</option>
+                <option value="LoRa">LoRa</option>
+              </select>
+            </div>
+
+            <!-- Botão para limpar filtros GPS -->
+            <div v-if="gpsBrandFilter || gpsModelFilter || technologyFilter" class="gps-clear-btn-wrapper">
+              <button class="gps-clear-btn" @click="clearGpsFilters" 
+                      @mouseenter.stop="showTip($event, 'Limpar filtros GPS')" @mouseleave="hideTip">
+                <i class="fas fa-times"></i> Limpar GPS
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- ETAPA 6B/8B: Seção Estilo (Collapsible, Segmented Control) -->
       <div v-if="!showOnlyActiveControls || estilo !== 'cozy'" class="section-collapsible">
         <div class="section-collapsible__head" @click="toggleSection('estilo')">
@@ -423,6 +477,53 @@
                 </div>
                 <div class="segmented-btn" :class="{ active: movingOnly }" @click="toggleMoving">
                   <i class="fas fa-running"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- GPS Avançado -->
+          <div v-if="!showOnlyActiveControls || gpsBrandFilter || gpsModelFilter || technologyFilter" class="section-collapsible mobile">
+            <div class="section-collapsible__head" @click="toggleSection('gps')">
+              <div class="section-collapsible__title">
+                <i class="fas" :class="openSections.gps ? 'fa-chevron-down' : 'fa-chevron-right'"></i>
+                <span>GPS Avançado</span>
+              </div>
+            </div>
+            <div v-show="openSections.gps" class="section-collapsible__body">
+              <div class="gps-filters-grid">
+                <div class="gps-filter-item">
+                  <label class="gps-filter-label">Marca</label>
+                  <select v-model="gpsBrandFilter" @change="handleGpsBrandFilter($event.target.value)" 
+                          class="gps-select brand-select">
+                    <option value="">Todas as Marcas</option>
+                    <option v-for="brand in gpsBrands" :key="brand" :value="brand">{{ brand }}</option>
+                  </select>
+                </div>
+                <div class="gps-filter-item">
+                  <label class="gps-filter-label">Modelo</label>
+                  <select v-model="gpsModelFilter" @change="handleGpsModelFilter($event.target.value)" 
+                          class="gps-select model-select" :disabled="!gpsBrandFilter">
+                    <option value="">Todos os Modelos</option>
+                    <option v-for="model in commonGpsModels" :key="model" :value="model">{{ model }}</option>
+                  </select>
+                </div>
+                <div class="gps-filter-item">
+                  <label class="gps-filter-label">Tecnologia</label>
+                  <select v-model="technologyFilter" @change="handleTechnologyFilter($event.target.value)" 
+                          class="gps-select tech-select">
+                    <option value="">Todas Tecnologias</option>
+                    <option value="GSM">GSM</option>
+                    <option value="3G">3G</option>
+                    <option value="4G">4G</option>
+                    <option value="Satellite">Satélite</option>
+                    <option value="LoRa">LoRa</option>
+                  </select>
+                </div>
+                <div v-if="gpsBrandFilter || gpsModelFilter || technologyFilter" class="gps-clear-btn-wrapper">
+                  <button class="gps-clear-btn" @click="clearGpsFilters">
+                    <i class="fas fa-times"></i> Limpar GPS
+                  </button>
                 </div>
               </div>
             </div>
@@ -748,9 +849,9 @@ const showOnlyActiveControls = ref(loadUIOnlyActiveState());
 const loadOpenSections = () => {
   try {
     const stored = localStorage.getItem('device_filters_open_sections');
-    return stored ? JSON.parse(stored) : { presets: true, situacao: false, connectivity: false, estilo: false };
+    return stored ? JSON.parse(stored) : { presets: true, situacao: false, connectivity: false, gps: false, estilo: false };
   } catch (error) {
-    return { presets: true, situacao: false, connectivity: false, estilo: false };
+    return { presets: true, situacao: false, connectivity: false, gps: false, estilo: false };
   }
 };
 
@@ -2555,15 +2656,42 @@ onBeforeUnmount(() => {
   display:flex;align-items:center;gap:8px;padding:8px 10px;background:#fff;
   border:1px solid #e9eef6;border-radius:6px;cursor:pointer;
   transition:all .2s ease;box-shadow:0 1px 2px rgba(0,0,0,.03);
+  border-left-width:4px;
+}
+
+.kpi-mini--online{
+  border-left-color:#67c23a;
+}
+
+.kpi-mini--offline{
+  border-left-color:#f56c6c;
 }
 
 .kpi-mini:hover{
   border-color:#a0cfff;box-shadow:0 2px 6px rgba(64,158,255,.08);
 }
 
+.kpi-mini--online:hover{
+  border-left-color:#67c23a;
+}
+
+.kpi-mini--offline:hover{
+  border-left-color:#f56c6c;
+}
+
 .kpi-mini.active{
   border-color:#409EFF;background:#f0f9ff;
   box-shadow:0 0 0 2px rgba(64,158,255,.15);
+}
+
+.kpi-mini--online.active{
+  border-left-color:#67c23a;
+  background:#f0fdf4;
+}
+
+.kpi-mini--offline.active{
+  border-left-color:#f56c6c;
+  background:#fef2f2;
 }
 
 .kpi-mini.total{
@@ -2576,11 +2704,18 @@ onBeforeUnmount(() => {
 }
 
 .kpi-mini__icon{
-  font-size:18px;width:24px;text-align:center;flex-shrink:0;
+  font-size:20px;
+  width:28px;
+  height:28px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  flex-shrink:0;
 }
 
-.kpi-mini__icon.online{color:#67c23a;}
-.kpi-mini__icon.offline{color:#f56c6c;}
+.kpi-mini__icon.online{color:#67c23a !important;}
+.kpi-mini__icon.offline{color:#f56c6c !important;}
 .kpi-mini__icon.moving{color:#409EFF;}
 .kpi-mini__icon.ativo{color:#16a34a;}
 .kpi-mini__icon.estoque{color:#64748b;}
@@ -2825,6 +2960,98 @@ onBeforeUnmount(() => {
 
 .segmented-btn i{
   font-size:13px;
+}
+
+/* =========================== GPS AVANÇADO =========================== */
+.gps-filters-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+
+.gps-filter-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.gps-filter-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #606266;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.gps-select {
+  padding: 6px 10px;
+  font-size: 13px;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  background: #fff;
+  color: #606266;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  outline: none;
+}
+
+.gps-select:hover:not(:disabled) {
+  border-color: #409EFF;
+  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.1);
+}
+
+.gps-select:focus:not(:disabled) {
+  border-color: #409EFF;
+  box-shadow: 0 0 0 3px rgba(64, 158, 255, 0.15);
+}
+
+.gps-select:disabled {
+  background: #f5f7fa;
+  color: #c0c4cc;
+  cursor: not-allowed;
+}
+
+.gps-clear-btn-wrapper {
+  display: flex;
+  align-items: flex-end;
+  grid-column: span 2;
+}
+
+.gps-clear-btn {
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #F56C6C;
+  background: rgba(245, 108, 108, 0.1);
+  border: 1px solid rgba(245, 108, 108, 0.2);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.gps-clear-btn:hover {
+  background: rgba(245, 108, 108, 0.15);
+  border-color: #F56C6C;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(245, 108, 108, 0.2);
+}
+
+.gps-clear-btn i {
+  font-size: 11px;
+}
+
+@media (max-width: 640px) {
+  .gps-filters-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .gps-clear-btn-wrapper {
+    grid-column: span 1;
+  }
 }
 
 .filters-panel-header{
@@ -3668,6 +3895,254 @@ onBeforeUnmount(() => {
   .preset-item {
     gap: 6px;
     padding: 4px;
+  }
+}
+
+/* =========================== ANIMAÇÕES E MICRO-INTERAÇÕES =========================== */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(59, 130, 246, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.6);
+  }
+}
+
+@keyframes bounceIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes shimmer {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+
+/* Aplicar animações */
+.filters-accordion {
+  animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.section-collapsible {
+  animation: slideInRight 0.3s ease-out;
+  transition: all 0.3s ease;
+}
+
+.section-collapsible:hover {
+  transform: translateY(-2px);
+}
+
+/* Melhorias nos filtros */
+.segmented-btn {
+  position: relative;
+  overflow: hidden;
+}
+
+.segmented-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  transition: left 0.5s;
+}
+
+.segmented-btn:hover::before {
+  left: 100%;
+}
+
+.segmented-btn:hover {
+  transform: translateY(-2px) scale(1.02);
+}
+
+.segmented-btn.active {
+  animation: pulseGlow 2s infinite;
+}
+
+/* Melhorias nos selects GPS */
+.gps-select:focus:not(:disabled) {
+  animation: bounceIn 0.6s ease-out;
+}
+
+/* Micro-interações nos botões */
+.add-btn,
+.export-btn,
+.share-link-btn,
+.gps-clear-btn {
+  position: relative;
+  overflow: hidden;
+}
+
+.add-btn::after,
+.export-btn::after,
+.share-link-btn::after,
+.gps-clear-btn::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+.add-btn:active::after,
+.export-btn:active::after,
+.share-link-btn:active::after,
+.gps-clear-btn:active::after {
+  width: 300px;
+  height: 300px;
+}
+
+/* Loading states */
+.generating-report {
+  position: relative;
+  overflow: hidden;
+}
+
+.generating-report::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.3), transparent);
+  animation: shimmer 1.5s infinite;
+}
+
+/* Enhanced hover effects */
+.kpi-mini {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.kpi-mini:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.preset-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Search input animation */
+.search-input :deep(.el-input__wrapper):focus-within {
+  transform: scale(1.01);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1), 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* =========================== MELHORIAS MOBILE (≤420px) =========================== */
+@media (max-width:420px){
+  /* força TAMANHO/CÍRCULO e visibilidade */
+  .actions-group .el-button,
+  .actions-group .el-button.el-button--small,
+  .actions-group .add-btn,
+  .actions-group .export-btn,
+  .actions-group .share-link-btn {
+    display:inline-flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    width:32px !important;
+    height:32px !important;
+    min-width:32px !important;
+    padding:0 !important;
+    border-radius:50% !important;
+    opacity:1 !important;
+    visibility:visible !important;
+  }
+
+  /* mantém FUNDO dos CTAs no mobile (não ficam transparentes) */
+  .actions-group .add-btn{
+    background:var(--el-color-primary) !important;
+    border-color:var(--el-color-primary) !important;
+    color:#fff !important;
+    box-shadow:0 3px 8px rgba(0,110,255,.2) !important;
+  }
+  
+  .actions-group .export-btn{
+    background:var(--el-color-success) !important;
+    border-color:var(--el-color-success) !important;
+    color:#fff !important;
+    box-shadow:0 3px 8px rgba(103, 194, 58, 0.2) !important;
+  }
+  
+  .actions-group .share-link-btn{
+    background:#fff !important;
+    border-color:#dcdfe6 !important;
+    color:#606266 !important;
+    box-shadow:0 2px 4px rgba(0, 0, 0, 0.1) !important;
+  }
+
+  /* tamanho do ícone */
+  .actions-group .el-button i,
+  .actions-group .el-button .el-icon{
+    font-size:15px !important;
+    line-height:1 !important;
+  }
+  
+  /* Hover mobile */
+  .actions-group .add-btn:active {
+    transform: scale(0.95);
+  }
+  
+  .actions-group .export-btn:active {
+    transform: scale(0.95);
+  }
+  
+  .actions-group .share-link-btn:active {
+    transform: scale(0.95);
+  }
+}
+
+/* =========================== ACESSIBILIDADE =========================== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
 </style>
