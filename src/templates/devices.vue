@@ -795,7 +795,7 @@
     </div>
 
     <!-- VISUALIZAÇÃO EM LISTA (original) -->
-    <div v-else ref="realDevices" @scroll="realScroll($event)" style="overflow-x: hidden;overflow-y: scroll;height: calc(100vh - 230px);">
+    <div v-else ref="realDevices" @scroll="realScroll($event)" class="list-container" style="overflow-x: hidden;overflow-y: scroll;height: calc(100vh - 230px);">
       <div class="fakeScroll" :style="{height: (displayDevices.length*33)+'px'}">
 
         <div v-for="(group) in groupsForRender" :key="group.id" class="group-block">
@@ -2887,6 +2887,91 @@ onBeforeUnmount(() => {
 @media (max-width: 768px) {
   .kpi-grid-compact{
     grid-template-columns:repeat(2,1fr);
+    gap: 8px;
+  }
+  
+  .kpi-mini {
+    padding: 10px 8px;
+    gap: 6px;
+  }
+  
+  .kpi-mini__value {
+    font-size: 15px;
+  }
+  
+  .kpi-mini__label {
+    font-size: 11px;
+  }
+  
+  .kpi-mini__icon {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 420px) {
+  .kpi-grid-compact{
+    grid-template-columns:repeat(2,1fr);
+    gap: 6px;
+  }
+  
+  .kpi-mini {
+    padding: 8px 6px;
+    gap: 4px;
+    border-left-width: 3px;
+  }
+  
+  .kpi-mini__value {
+    font-size: 14px;
+  }
+  
+  .kpi-mini__label {
+    font-size: 10px;
+  }
+  
+  .kpi-mini__icon {
+    font-size: 14px;
+  }
+  
+  .kpi-mini__total {
+    font-size: 10px;
+  }
+}
+  
+  .kpi-mini__label {
+    font-size: 11px;
+  }
+  
+  .kpi-mini__icon {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 420px) {
+  .kpi-grid-compact{
+    grid-template-columns:repeat(2,1fr);
+    gap: 6px;
+  }
+  
+  .kpi-mini {
+    padding: 8px 6px;
+    gap: 4px;
+    border-left-width: 3px;
+  }
+  
+  .kpi-mini__value {
+    font-size: 14px;
+  }
+  
+  .kpi-mini__label {
+    font-size: 10px;
+  }
+  
+  .kpi-mini__icon {
+    font-size: 14px;
+  }
+  
+  .kpi-mini__total {
+    font-size: 10px;
   }
 }
 
@@ -3640,14 +3725,30 @@ onBeforeUnmount(() => {
 
 /* Responsivo - cards */
 @media (max-width: 768px) {
+  .cards-container {
+    padding: 8px;
+  }
+  
   .cards-grid {
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 12px;
+    gap: 10px;
   }
   
   .card-content {
     padding: 12px;
     padding-left: 16px;
+  }
+  
+  .card-header {
+    gap: 8px;
+  }
+  
+  .card-name {
+    font-size: 15px;
+  }
+  
+  .card-update {
+    font-size: 12px;
   }
   
   .card-icons {
@@ -3661,17 +3762,186 @@ onBeforeUnmount(() => {
   }
 }
 
-@media (max-width: 420px) {
+@media (max-width: 640px) {
+  .cards-container {
+    padding: 6px;
+    height: calc(100vh - 200px) !important;
+  }
+  
   .cards-grid {
     grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  
+  .device-card {
+    border-radius: 10px;
+  }
+  
+  .card-content {
+    padding: 10px;
+    padding-left: 14px;
+  }
+  
+  .card-status-bar {
+    width: 4px;
+  }
+}
+
+@media (max-width: 420px) {
+  .cards-container {
+    padding: 4px;
+    height: calc(100vh - 180px) !important;
+  }
+  
+  .cards-grid {
+    gap: 6px;
+  }
+  
+  .device-card {
+    border-radius: 8px;
+  }
+  
+  .card-content {
+    padding: 8px;
+    padding-left: 12px;
+  }
+  
+  .card-header {
+    margin-bottom: 6px;
   }
   
   .card-name {
-    font-size: 15px;
+    font-size: 14px;
+    line-height: 1.3;
   }
   
   .card-status-icon {
-    font-size: 18px;
+    font-size: 16px;
+  }
+  
+  .card-id {
+    font-size: 10px;
+    padding: 3px 6px;
+    margin-bottom: 6px;
+  }
+  
+  .card-update {
+    font-size: 11px;
+    margin-bottom: 8px;
+  }
+  
+  .card-icons {
+    gap: 4px;
+    padding-top: 8px;
+  }
+  
+  .card-icon {
+    width: 28px;
+    height: 28px;
+    font-size: 13px;
+  }
+  
+  .card-no-position {
+    padding: 8px;
+    font-size: 12px;
+  }
+}
+    font-size: 12px;
+  }
+  
+  .card-icons {
+    gap: 6px;
+  }
+  
+  .card-icon {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 640px) {
+  .cards-container {
+    padding: 6px;
+    height: calc(100vh - 200px) !important;
+  }
+  
+  .cards-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  
+  .device-card {
+    border-radius: 10px;
+  }
+  
+  .card-content {
+    padding: 10px;
+    padding-left: 14px;
+  }
+  
+  .card-status-bar {
+    width: 4px;
+  }
+}
+
+@media (max-width: 420px) {
+  .cards-container {
+    padding: 4px;
+    height: calc(100vh - 180px) !important;
+  }
+  
+  .cards-grid {
+    gap: 6px;
+  }
+  
+  .device-card {
+    border-radius: 8px;
+  }
+  
+  .card-content {
+    padding: 8px;
+    padding-left: 12px;
+  }
+  
+  .card-header {
+    margin-bottom: 6px;
+  }
+  
+  .card-name {
+    font-size: 14px;
+    line-height: 1.3;
+  }
+  
+  .card-status-icon {
+    font-size: 16px;
+  }
+  
+  .card-id {
+    font-size: 10px;
+    padding: 3px 6px;
+    margin-bottom: 6px;
+  }
+  
+  .card-update {
+    font-size: 11px;
+    margin-bottom: 8px;
+  }
+  
+  .card-icons {
+    gap: 4px;
+    padding-top: 8px;
+  }
+  
+  .card-icon {
+    width: 28px;
+    height: 28px;
+    font-size: 13px;
+  }
+  
+  .card-no-position {
+    padding: 8px;
+    font-size: 12px;
   }
 }
 
@@ -4234,14 +4504,134 @@ onBeforeUnmount(() => {
   padding: 6px 0 8px 0;
 }
 
+/* =========================== LISTA - MOBILE ADJUSTMENTS =========================== */
+@media (max-width: 640px) {
+  .list-container {
+    height: calc(100vh - 200px) !important;
+  }
+  
+  .deviceHead {
+    padding: 6px 8px !important;
+  }
+  
+  .deviceHead .name {
+    font-size: 11px !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .list-container {
+    height: calc(100vh - 180px) !important;
+  }
+  
+  .device {
+    padding: 6px 8px !important;
+    min-height: 28px !important;
+  }
+  
+  .device .name {
+    font-size: 12px !important;
+    padding: 2px 4px !important;
+  }
+  
+  .icons {
+    gap: 4px !important;
+  }
+  
+  .icons div {
+    width: 20px !important;
+    height: 20px !important;
+  }
+  
+  .icons div i {
+    font-size: 11px !important;
+  }
+  
+  .group-row {
+    padding: 8px 10px !important;
+  }
+  
+  .group-row__title {
+    font-size: 13px !important;
+  }
+  
+  .group-row__count {
+    font-size: 10px !important;
+    padding: 2px 6px !important;
+    min-width: 28px !important;
+  }
+  
+  .group-row__subtext {
+    font-size: 8px !important;
+  }
+}
+
 /* =========================== RESPONSIVIDADE =========================== */
+@media (max-width: 640px) {
+  .search-row {
+    gap: 8px;
+    padding: 8px 10px;
+  }
+  
+  .search-input {
+    font-size: 15px;
+  }
+  
+  .search-input :deep(.el-input__wrapper) {
+    height: 36px;
+    padding-left: 8px;
+    padding-right: 10px;
+  }
+  
+  .filter-toggle-button {
+    width: 32px;
+    height: 32px;
+  }
+  
+  .filter-toggle-button i {
+    font-size: 16px;
+  }
+  
+  .actions-group {
+    gap: 8px;
+  }
+  
+  .search-row .el-button {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    padding: 0 !important;
+  }
+  
+  .search-row .el-button i {
+    font-size: 16px;
+  }
+  
+  .view-mode-btn,
+  .export-btn,
+  .share-link-btn,
+  .add-btn {
+    font-size: 16px !important;
+  }
+}
+
 @media (max-width:420px){
-  .search-row{gap:6px;flex-wrap:nowrap !important;}
+  .search-row{gap:6px;flex-wrap:nowrap !important; padding: 6px 8px;}
   .search-input{font-size:14px;flex:1 1 auto;min-width:0;}
-  .search-input :deep(.el-input__wrapper){height:30px;padding-left:20px;padding-right:8px;}
+  .search-input :deep(.el-input__wrapper){height:34px;padding-left:8px;padding-right:8px;}
   .search-input :deep(.el-input__prefix){padding-left:2px;}
+  .filter-toggle-button {
+    width: 30px;
+    height: 30px;
+  }
+  .filter-toggle-button i {
+    font-size: 15px;
+  }
   .actions-group{gap:6px;flex-shrink:0;margin-left:auto;}
-  .search-row .el-button{width:30px;height:30px;min-width:30px;}
+  .search-row .el-button{width:34px !important;height:34px !important;min-width:34px !important; padding: 0 !important;}
+  .search-row .el-button i {
+    font-size: 15px;
+  }
 }
 
 /* =========================== MODO COMPACTO (ETAPA 2B) =========================== */
