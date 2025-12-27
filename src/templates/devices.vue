@@ -16,11 +16,33 @@
       </el-input>
 
       <div class="actions-group">
-        <el-button v-if="EXPORT_ENABLED && displayDevices.length > 0" class="export-btn" size="small" type="success"
-          @click="exportToCsv"
-          @mouseenter.stop="showTip($event, 'Exportar CSV')" @mouseleave="hideTip">
-          <i class="fas fa-file-csv"></i>
-        </el-button>
+        <div v-if="EXPORT_ENABLED && displayDevices.length > 0" class="export-dropdown-wrapper">
+          <el-button ref="exportBtnRef" class="export-btn" size="small" type="success"
+            @click="toggleExportMenu"
+            @mouseenter.stop="showTip($event, 'Exportar')" @mouseleave="hideTip">
+            <i class="fas fa-file-export"></i>
+          </el-button>
+          
+          <div v-if="showExportMenu" class="export-menu">
+            <div class="export-menu-item" @click="exportToCsv('filtered')">
+              <i class="fas fa-file-csv"></i>
+              <span>CSV (filtrados)</span>
+            </div>
+            <div class="export-menu-item" @click="exportToCsv('visible')">
+              <i class="fas fa-file-csv"></i>
+              <span>CSV (visíveis)</span>
+            </div>
+            <div v-if="isXlsxAvailable" class="export-menu-divider"></div>
+            <div v-if="isXlsxAvailable" class="export-menu-item" @click="exportToXlsx('filtered')">
+              <i class="fas fa-file-excel"></i>
+              <span>XLSX (filtrados)</span>
+            </div>
+            <div v-if="isXlsxAvailable" class="export-menu-item" @click="exportToXlsx('visible')">
+              <i class="fas fa-file-excel"></i>
+              <span>XLSX (visíveis)</span>
+            </div>
+          </div>
+        </div>
         <el-button class="add-btn" size="small" type="primary" :disabled="!store.getters['checkDeviceLimit']"
           v-if="store.getters.advancedPermissions(13) && (store.state.auth.deviceLimit === -1 || store.state.auth.deviceLimit > 0)"
           @click="(store.getters['checkDeviceLimit']) ? editDeviceRef.newDevice() : deviceLimitExceded()"
@@ -338,6 +360,13 @@ const query = ref(localStorage.getItem('device_query') || '');
 const estilo = ref(localStorage.getItem('device_estilo') || 'cozy');
 const situacaoFilter = ref('todos');
 const showFiltersPanel = ref(false);
+const showExportMenu = ref(false);
+const exportBtnRef = ref(null);
+
+// ETAPA 4B: Verificar disponibilidade de XLSX
+const isXlsxAvailable = computed(() => {
+  return typeof window !== 'undefined' && window.XLSX !== undefined;
+});
 
 // ETAPA 3A: Filtros de conectividade
 const connectivityFilter = ref(localStorage.getItem('device_connectivity_filter') || 'todos');
@@ -413,9 +442,13 @@ const resultSummary = computed(() => {
   return `Mostrando ${displayed} de ${total} dispositivos`;
 });
 
-// ETAPA 4A: Dataset para exportação (usa resultado final dos filtros)
-const exportDevices = computed(() => {
+// ETAPA 4B: Datasets para exportação
+const exportDevicesFiltered = computed(() => {
   return displayDevices.value;
+});
+
+const exportDevicesVisible = computed(() => {
+  return chunkedDisplayDevices.value;
 });
 
 const editDeviceRef = inject('edit-device');
@@ -423,6 +456,14 @@ const editDeviceRef = inject('edit-device');
 // UI handlers
 const toggleFiltersPanel = () => {
   showFiltersPanel.value = !showFiltersPanel.value;
+};
+
+const toggleExportMenu = () => {
+  showExportMenu.value = !showExportMenu.value;
+};
+
+const closeExportMenu = () => {
+  showExportMenu.value = false;
 };
 
 const clearAllFilters = () => {
@@ -578,8 +619,12 @@ const downloadCsv = (filename, csvText) => {
   }, 100);
 };
 
-const exportToCsv = () => {
-  if (exportDevices.value.length === 0) {
+const exportToCsv = (mode = 'filtered') => {
+  closeExportMenu();
+  
+  const list = mode === 'visible' ? exportDevicesVisible.value : exportDevicesFiltered.value;
+  
+  if (list.length === 0) {
     return;
   }
   
@@ -587,7 +632,7 @@ const exportToCsv = () => {
   const header = ['Nome', 'ID', 'UniqueId', 'Situação', 'Conectividade', 'Em Movimento', 'Velocidade', 'Última Atualização'].join(',');
   
   // Linhas de dados
-  const rows = exportDevices.value.map(device => toCsvRow(device));
+  const rows = list.map(device => toCsvRow(device));
   
   // CSV completo
   const csvContent = [header, ...rows].join('\n');
@@ -595,9 +640,64 @@ const exportToCsv = () => {
   // Nome do arquivo com timestamp
   const now = new Date();
   const timestamp = now.toISOString().slice(0, 16).replace('T', '_').replace(/:/g, '-');
-  const filename = `devices_export_${timestamp}.csv`;
+  const modeLabel = mode === 'visible' ? 'visiveis' : 'filtrados';
+  const filename = `devices_export_${modeLabel}_${timestamp}.csv`;
   
   downloadCsv(filename, csvContent);
+};
+
+// ETAPA 4B: Exportação XLSX
+const exportToXlsx = (mode = 'filtered') => {
+  closeExportMenu();
+  
+  if (!isXlsxAvailable.value) {
+    console.warn('XLSX library not available');
+    return;
+  }
+  
+  const list = mode === 'visible' ? exportDevicesVisible.value : exportDevicesFiltered.value;
+  
+  if (list.length === 0) {
+    return;
+  }
+  
+  try {
+    // Montar array de objetos para XLSX
+    const rows = list.map(device => {
+      const connectivity = getDeviceConnectivity(device);
+      const moving = getDeviceMoving(device);
+      const lastUpdate = device.lastUpdate || device.attributes?.lastUpdate || '';
+      
+      return {
+        'Nome': device.name || '',
+        'ID': device.id || '',
+        'UniqueId': device.uniqueId || '',
+        'Situação': device.attributes?.['situacao'] || '',
+        'Conectividade': connectivity || '',
+        'Em Movimento': moving ? 'Sim' : 'Não',
+        'Velocidade': device.attributes?.speed || '',
+        'Última Atualização': lastUpdate
+      };
+    });
+    
+    // Criar worksheet
+    const ws = window.XLSX.utils.json_to_sheet(rows);
+    
+    // Criar workbook
+    const wb = window.XLSX.utils.book_new();
+    window.XLSX.utils.book_append_sheet(wb, ws, 'Devices');
+    
+    // Nome do arquivo com timestamp
+    const now = new Date();
+    const timestamp = now.toISOString().slice(0, 16).replace('T', '_').replace(/:/g, '-');
+    const modeLabel = mode === 'visible' ? 'visiveis' : 'filtrados';
+    const filename = `devices_export_${modeLabel}_${timestamp}.xlsx`;
+    
+    // Download
+    window.XLSX.writeFile(wb, filename);
+  } catch (error) {
+    console.error('Error exporting to XLSX:', error);
+  }
 };
 
 // Debounce para otimizar recálculos
@@ -932,8 +1032,25 @@ watch(visibleDevicesForMap, () => {
   }, 80);
 }, { deep: true });
 
+// ETAPA 4B: Listener para fechar menu ao clicar fora
+const handleClickOutside = (event) => {
+  if (showExportMenu.value && exportBtnRef.value && !exportBtnRef.value.$el.contains(event.target)) {
+    const menu = document.querySelector('.export-menu');
+    if (menu && !menu.contains(event.target)) {
+      closeExportMenu();
+    }
+  }
+};
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside);
+});
+
 // ETAPA 2C: Cleanup no unmount
 onBeforeUnmount(() => {
+  // Remove listener de clique fora
+  document.removeEventListener('click', handleClickOutside);
+  
   // Remove todos os markers ainda visíveis
   prevVisibleIds.forEach(deviceId => {
     const device = store.getters['devices/getDevice'](deviceId);
@@ -1009,6 +1126,35 @@ onBeforeUnmount(() => {
   box-shadow:0 4px 8px rgba(103,194,58,.18);transition:transform .15s, box-shadow .15s;
 }
 .export-btn:hover{transform:translateY(-2px);box-shadow:0 6px 12px rgba(103,194,58,.28);}
+
+/* =========================== ETAPA 4B: EXPORT DROPDOWN =========================== */
+.export-dropdown-wrapper{position:relative;display:inline-block;}
+
+.export-menu{
+  position:absolute;top:calc(100% + 4px);right:0;background:#fff;
+  border:1px solid #e4e7ed;border-radius:6px;box-shadow:0 2px 12px rgba(0,0,0,.15);
+  min-width:160px;z-index:2000;padding:4px 0;animation:fadeIn .2s ease;
+}
+
+.export-menu-item{
+  display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;
+  font-size:12px;color:#606266;transition:all .15s ease;
+}
+
+.export-menu-item:hover{
+  background:#f5f7fa;color:#409EFF;
+}
+
+.export-menu-item i{
+  width:14px;font-size:12px;text-align:center;
+}
+
+.export-menu-item .fa-file-csv{color:#67c23a;}
+.export-menu-item .fa-file-excel{color:#409EFF;}
+
+.export-menu-divider{
+  height:1px;background:#e4e7ed;margin:4px 0;
+}
 
 /* =========================== PAINEL DE FILTROS =========================== */
 .filters-panel{
