@@ -73,6 +73,33 @@
           </div>
         </div>
       </div>
+
+      <!-- Linha 3: Conectividade (ETAPA 3A) -->
+      <div class="filters-row">
+        <div class="category-label"><span>Conectividade</span></div>
+        <div class="filters-group">
+          <div class="filter-icon medium" :class="{ active: connectivityFilter === 'todos' }" 
+            @click="connectivityFilter = 'todos'; localStorage.setItem('device_connectivity_filter', 'todos')"
+            @mouseenter.stop="showTip($event, 'Todos')" @mouseleave="hideTip">
+            <i class="fas fa-globe"></i>
+          </div>
+          <div class="filter-icon medium" :class="{ active: connectivityFilter === 'online' }" 
+            @click="connectivityFilter = 'online'; localStorage.setItem('device_connectivity_filter', 'online')"
+            @mouseenter.stop="showTip($event, 'Online')" @mouseleave="hideTip">
+            <i class="fas fa-check-circle"></i>
+          </div>
+          <div class="filter-icon medium" :class="{ active: connectivityFilter === 'offline' }" 
+            @click="connectivityFilter = 'offline'; localStorage.setItem('device_connectivity_filter', 'offline')"
+            @mouseenter.stop="showTip($event, 'Offline')" @mouseleave="hideTip">
+            <i class="fas fa-exclamation-circle"></i>
+          </div>
+          <div class="filter-icon small" :class="{ active: movingOnly }" 
+            @click="movingOnly = !movingOnly; localStorage.setItem('device_moving_only', movingOnly)"
+            @mouseenter.stop="showTip($event, 'Somente em movimento')" @mouseleave="hideTip">
+            <i class="fas fa-running"></i>
+          </div>
+        </div>
+      </div>
     </div>
 
   <div style="border: silver 1px solid; border-radius: 5px;margin-top: 12px;height: calc(100vh - 200px);">
@@ -292,10 +319,17 @@ const query = ref(localStorage.getItem('device_query') || '');
 const estilo = ref(localStorage.getItem('device_estilo') || 'cozy');
 const situacaoFilter = ref('todos');
 const showFiltersPanel = ref(false);
+
+// ETAPA 3A: Filtros de conectividade
+const connectivityFilter = ref(localStorage.getItem('device_connectivity_filter') || 'todos');
+const movingOnly = ref(localStorage.getItem('device_moving_only') === 'true');
+
 const activeFiltersCount = computed(() => {
   let count = 0;
   if (situacaoFilter.value !== 'todos') count++;
   if (estilo.value !== 'cozy') count++;
+  if (connectivityFilter.value !== 'todos') count++;
+  if (movingOnly.value) count++;
   return count;
 });
 
@@ -309,8 +343,12 @@ const toggleFiltersPanel = () => {
 const clearAllFilters = () => {
   situacaoFilter.value = 'todos';
   estilo.value = 'cozy';
+  connectivityFilter.value = 'todos';
+  movingOnly.value = false;
   filterDevices('todos');
   localStorage.removeItem('device_estilo');
+  localStorage.removeItem('device_connectivity_filter');
+  localStorage.removeItem('device_moving_only');
 };
 
 const setEstilo = (value) => {
@@ -373,6 +411,34 @@ const maxDevices = ref(0);
 // ETAPA 2C: Controle de sync de markers do mapa
 const prevVisibleIds = new Set();
 let syncDebounceTimer = null;
+
+// ETAPA 3A: Helpers para filtros de conectividade
+const getDeviceConnectivity = (device) => {
+  // Prioridade 1: device.status
+  if (device.status !== undefined && device.status !== null) {
+    return device.status;
+  }
+  
+  // Prioridade 2: device.attributes?.status
+  if (device.attributes && device.attributes.status !== undefined && device.attributes.status !== null) {
+    return device.attributes.status;
+  }
+  
+  // Prioridade 3: lastUpdate comparison (10 minutos = 600000ms)
+  const lastUpdate = device.lastUpdate || device.attributes?.lastUpdate;
+  if (lastUpdate) {
+    const tenMinutesAgo = Date.now() - 600000;
+    return new Date(lastUpdate).getTime() > tenMinutesAgo ? 'online' : 'offline';
+  }
+  
+  // Fallback final
+  return 'unknown';
+};
+
+const getDeviceMoving = (device) => {
+  if (!device.attributes) return false;
+  return (device.attributes.speed > 0) || (device.attributes.motion === true);
+};
 
 // Debounce para otimizar recálculos
 let recalcTimeout = null;
@@ -570,16 +636,34 @@ const recalcDevices = (situacao = null) => {
 
 
 
-// ETAPA 2A: Computed final que aplica filtro de situação
+// ETAPA 2A/3A: Computed final que aplica todos os filtros em cascata
 const displayDevices = computed(() => {
-  if (situacaoFilter.value === 'todos') {
-    return filteredDevices.value;
+  let result = filteredDevices.value;
+  
+  // Filtro de situação (ETAPA 2A)
+  if (situacaoFilter.value !== 'todos') {
+    result = result.filter((device) => {
+      const deviceSituacao = device.attributes?.['situacao'] ? device.attributes['situacao'].toLowerCase() : null;
+      return deviceSituacao === situacaoFilter.value;
+    });
   }
   
-  return filteredDevices.value.filter((device) => {
-    const deviceSituacao = device.attributes?.['situacao'] ? device.attributes['situacao'].toLowerCase() : null;
-    return deviceSituacao === situacaoFilter.value;
-  });
+  // Filtro de conectividade (ETAPA 3A)
+  if (connectivityFilter.value !== 'todos') {
+    result = result.filter((device) => {
+      const connectivity = getDeviceConnectivity(device);
+      return connectivity === connectivityFilter.value;
+    });
+  }
+  
+  // Filtro "somente em movimento" (ETAPA 3A)
+  if (movingOnly.value) {
+    result = result.filter((device) => {
+      return getDeviceMoving(device);
+    });
+  }
+  
+  return result;
 });
 
 const chunkedDisplayDevices = computed(()=>{
