@@ -148,8 +148,8 @@
       <div v-if="resultSummary" class="result-summary">{{ resultSummary }}</div>
     </div>
 
-    <!-- ===== Painel de Filtros Avançados (UI apenas, Accordion) ===== -->
-    <div v-if="showFiltersPanel" class="filters-accordion">
+    <!-- ===== Painel de Filtros Avançados (UI apenas, Accordion) - Desktop apenas (ETAPA 8D) ===== -->
+    <div v-if="!isMobile && showFiltersPanel" class="filters-accordion">
       <div class="filters-accordion__header">
         <div class="filters-accordion__title">
           <span>Filtros</span>
@@ -303,6 +303,148 @@
             <div class="segmented-btn" :class="{ active: estilo === 'compact' }" @click="setEstilo('compact')"
               @mouseenter.stop="showTip($event, 'Compacto')" @mouseleave="hideTip">
               <i class="fas fa-th"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== ETAPA 8D: Drawer Mobile para Filtros ===== -->
+    <div v-if="isMobile && filtersDrawerOpen" class="filters-drawer-backdrop" @click.self="closeDrawer">
+      <div class="filters-drawer">
+        <div class="filters-drawer__header">
+          <div class="filters-drawer__title">
+            <span>Filtros</span>
+            <span v-if="activeFiltersCount > 0" class="filter-count-badge">{{ activeFiltersCount }}</span>
+          </div>
+          <button class="filters-drawer__close" @click="closeDrawer" aria-label="Fechar">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        
+        <div class="filters-drawer__actions">
+          <label class="filters-ui-toggle-compact">
+            <input type="checkbox" v-model="showOnlyActiveControls" @change="saveUIOnlyActiveState">
+            <span class="toggle-label-compact">Somente ativos</span>
+          </label>
+          <button class="btn-clear-compact" :disabled="activeFiltersCount === 0" @click="clearAllFilters">
+            <i class="fas fa-trash-alt"></i>
+            <span>Limpar</span>
+          </button>
+        </div>
+        
+        <div class="filters-drawer__body">
+          <!-- Reutilizar as mesmas seções do accordion -->
+          <!-- Presets -->
+          <div class="section-collapsible mobile">
+            <div class="section-collapsible__head" @click="toggleSection('presets')">
+              <div class="section-collapsible__title">
+                <i class="fas" :class="openSections.presets ? 'fa-chevron-down' : 'fa-chevron-right'"></i>
+                <span>Presets</span>
+              </div>
+              <button class="save-preset-btn-compact" @click.stop="saveCurrentPreset">
+                <i class="fas fa-save"></i>
+              </button>
+            </div>
+            <div v-show="openSections.presets" class="section-collapsible__body">
+              <div class="presets-row">
+                <div v-for="preset in defaultPresets" :key="preset.id" class="preset-container">
+                  <div class="preset-btn default" @click="applyPreset(preset)">
+                    <i :class="preset.icon"></i>
+                    <span>{{ preset.name }}</span>
+                  </div>
+                  <button class="preset-favorite" :class="{ active: isFavorite(preset.id) }" @click="toggleFavorite(preset.id)">
+                    <i :class="isFavorite(preset.id) ? 'fas fa-star' : 'far fa-star'"></i>
+                  </button>
+                </div>
+              </div>
+              <div v-if="savedPresets.length > 0" class="saved-presets">
+                <div class="saved-presets-label">Salvos</div>
+                <div v-for="preset in savedPresets" :key="preset.id" class="preset-item">
+                  <button class="preset-favorite" :class="{ active: isFavorite(preset.id) }" @click="toggleFavorite(preset.id)">
+                    <i :class="isFavorite(preset.id) ? 'fas fa-star' : 'far fa-star'"></i>
+                  </button>
+                  <div class="preset-btn saved" @click="applyPreset(preset)">
+                    <i class="fas fa-bookmark"></i>
+                    <span>{{ preset.name }}</span>
+                  </div>
+                  <button class="preset-remove" @click="removePreset(preset.id)">
+                    <i class="fas fa-trash-alt"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Situação -->
+          <div v-if="!showOnlyActiveControls || situacaoFilter !== 'todos'" class="section-collapsible mobile">
+            <div class="section-collapsible__head" @click="toggleSection('situacao')">
+              <div class="section-collapsible__title">
+                <i class="fas" :class="openSections.situacao ? 'fa-chevron-down' : 'fa-chevron-right'"></i>
+                <span>Situação</span>
+              </div>
+            </div>
+            <div v-show="openSections.situacao" class="section-collapsible__body">
+              <div class="segmented-control">
+                <div class="segmented-btn" :class="{ active: situacaoFilter === 'todos' }" @click="filterDevices('todos')">
+                  <i class="fas fa-layer-group"></i>
+                </div>
+                <div class="segmented-btn" :class="{ active: situacaoFilter === 'ativo' }" @click="filterDevices('ativo')">
+                  <i class="fas fa-check-circle"></i>
+                </div>
+                <div class="segmented-btn" :class="{ active: situacaoFilter === 'estoque' }" @click="filterDevices('estoque')">
+                  <i class="fas fa-box-open"></i>
+                </div>
+                <div class="segmented-btn" :class="{ active: situacaoFilter === 'desativado' }" @click="filterDevices('desativado')">
+                  <i class="fas fa-ban"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Conectividade -->
+          <div v-if="!showOnlyActiveControls || connectivityFilter !== 'todos' || movingOnly" class="section-collapsible mobile">
+            <div class="section-collapsible__head" @click="toggleSection('connectivity')">
+              <div class="section-collapsible__title">
+                <i class="fas" :class="openSections.connectivity ? 'fa-chevron-down' : 'fa-chevron-right'"></i>
+                <span>Conectividade</span>
+              </div>
+            </div>
+            <div v-show="openSections.connectivity" class="section-collapsible__body">
+              <div class="segmented-control">
+                <div class="segmented-btn" :class="{ active: connectivityFilter === 'todos' }" @click="setConnectivityFilter('todos')">
+                  <i class="fas fa-globe"></i>
+                </div>
+                <div class="segmented-btn" :class="{ active: connectivityFilter === 'online' }" @click="setConnectivityFilter('online')">
+                  <i class="fas fa-check-circle"></i>
+                </div>
+                <div class="segmented-btn" :class="{ active: connectivityFilter === 'offline' }" @click="setConnectivityFilter('offline')">
+                  <i class="fas fa-exclamation-circle"></i>
+                </div>
+                <div class="segmented-btn" :class="{ active: movingOnly }" @click="toggleMoving">
+                  <i class="fas fa-running"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Estilo -->
+          <div v-if="!showOnlyActiveControls || estilo !== 'cozy'" class="section-collapsible mobile">
+            <div class="section-collapsible__head" @click="toggleSection('estilo')">
+              <div class="section-collapsible__title">
+                <i class="fas" :class="openSections.estilo ? 'fa-chevron-down' : 'fa-chevron-right'"></i>
+                <span>Estilo</span>
+              </div>
+            </div>
+            <div v-show="openSections.estilo" class="section-collapsible__body">
+              <div class="segmented-control">
+                <div class="segmented-btn" :class="{ active: estilo === 'cozy' }" @click="setEstilo('cozy')">
+                  <i class="fas fa-mug-hot"></i>
+                </div>
+                <div class="segmented-btn" :class="{ active: estilo === 'compact' }" @click="setEstilo('compact')">
+                  <i class="fas fa-th"></i>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -580,6 +722,14 @@ const kpisCollapsed = ref(false);
 const scrollContainerRef = ref(null);
 let scrollAnimationFrame = null;
 
+// ETAPA 8D-A: Deteção de mobile com matchMedia
+const isMobile = ref(false);
+const mediaQueryList = typeof window !== 'undefined' ? window.matchMedia('(max-width: 768px)') : null;
+let resizeAnimationFrame = null;
+
+// ETAPA 8D-B: Estado do drawer mobile
+const filtersDrawerOpen = ref(false);
+
 // ETAPA 6C: Salvar com debounce
 const saveUIOnlyActiveState = () => {
   debouncePersist('device_filters_ui_only_active', showOnlyActiveControls.value, 150);
@@ -614,6 +764,51 @@ const handleScrollForKpis = () => {
     }
     
     scrollAnimationFrame = null;
+  });
+};
+
+// ETAPA 8D-B: Funções para controlar drawer mobile
+const openDrawer = () => {
+  filtersDrawerOpen.value = true;
+  // Forçar KPIs colapsados para economizar espaço
+  if (isMobile.value) {
+    kpisCollapsed.value = true;
+  }
+  // Bloquear scroll do body
+  if (typeof document !== 'undefined') {
+    document.body.style.overflow = 'hidden';
+  }
+};
+
+const closeDrawer = () => {
+  filtersDrawerOpen.value = false;
+  // Restaurar scroll do body
+  if (typeof document !== 'undefined') {
+    document.body.style.overflow = '';
+  }
+};
+
+const handleEscKey = (event) => {
+  if (event.key === 'Escape' && filtersDrawerOpen.value) {
+    closeDrawer();
+  }
+};
+
+// ETAPA 8D-A: Handler de resize com rAF debounce
+const handleMediaChange = () => {
+  if (resizeAnimationFrame) {
+    cancelAnimationFrame(resizeAnimationFrame);
+  }
+  
+  resizeAnimationFrame = requestAnimationFrame(() => {
+    if (mediaQueryList) {
+      isMobile.value = mediaQueryList.matches;
+      // Fechar drawer ao mudar para desktop
+      if (!isMobile.value && filtersDrawerOpen.value) {
+        closeDrawer();
+      }
+    }
+    resizeAnimationFrame = null;
   });
 };
 
@@ -938,7 +1133,17 @@ const editDeviceRef = inject('edit-device');
 
 // UI handlers
 const toggleFiltersPanel = () => {
-  showFiltersPanel.value = !showFiltersPanel.value;
+  if (isMobile.value) {
+    // Mobile: abrir drawer
+    if (filtersDrawerOpen.value) {
+      closeDrawer();
+    } else {
+      openDrawer();
+    }
+  } else {
+    // Desktop: toggle accordion inline
+    showFiltersPanel.value = !showFiltersPanel.value;
+  }
 };
 
 const toggleExportMenu = () => {
@@ -2004,6 +2209,13 @@ onMounted(() => {
       container.addEventListener('scroll', handleScrollForKpis);
     }
   }, 300);
+  
+  // ETAPA 8D-A/B: Listeners para mobile e ESC
+  if (mediaQueryList) {
+    isMobile.value = mediaQueryList.matches;
+    mediaQueryList.addEventListener('change', handleMediaChange);
+  }
+  document.addEventListener('keydown', handleEscKey);
 });
 
 // ETAPA 6C: Cleanup no unmount (map + persist timers)
@@ -2036,6 +2248,19 @@ onBeforeUnmount(() => {
   }
   if (scrollAnimationFrame) {
     cancelAnimationFrame(scrollAnimationFrame);
+  }
+  
+  // ETAPA 8D: Cleanup drawer e mobile listeners
+  if (mediaQueryList) {
+    mediaQueryList.removeEventListener('change', handleMediaChange);
+  }
+  document.removeEventListener('keydown', handleEscKey);
+  if (resizeAnimationFrame) {
+    cancelAnimationFrame(resizeAnimationFrame);
+  }
+  // Garantir que body overflow seja restaurado
+  if (typeof document !== 'undefined') {
+    document.body.style.overflow = '';
   }
 });
 
@@ -2845,5 +3070,270 @@ onBeforeUnmount(() => {
 
 .is-compact .fakeScroll {
   /* altura da linha compacta: 26px */
+}
+
+/* =========================== ETAPA 8D: MOBILE DRAWER =========================== */
+/* Backdrop com fade suave */
+.filters-drawer-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  animation: backdropFadeIn 0.3s ease-out;
+}
+
+@keyframes backdropFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Drawer desliza de baixo com bounce sutil */
+.filters-drawer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  max-height: 85vh;
+  background: #ffffff;
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+  animation: drawerSlideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+@keyframes drawerSlideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Header fixo do drawer */
+.filters-drawer__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--el-border-color-light);
+  flex-shrink: 0;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+}
+
+.filters-drawer__title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}
+
+.filters-drawer__close {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--el-text-color-regular);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  font-size: 16px;
+}
+
+.filters-drawer__close:hover {
+  background: rgba(0, 0, 0, 0.1);
+  transform: scale(1.1);
+}
+
+/* Ações compactas (Somente ativos + Limpar) */
+.filters-drawer__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+  flex-shrink: 0;
+  background: #fafafa;
+}
+
+.filters-ui-toggle-compact {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--el-text-color-regular);
+  cursor: pointer;
+  user-select: none;
+}
+
+.filters-ui-toggle-compact input {
+  cursor: pointer;
+  width: 14px;
+  height: 14px;
+}
+
+.toggle-label-compact {
+  font-weight: 500;
+}
+
+.btn-clear-compact {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border: none;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #f56c6c 0%, #e84749 100%);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 4px rgba(245, 108, 108, 0.3);
+}
+
+.btn-clear-compact:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(245, 108, 108, 0.4);
+}
+
+.btn-clear-compact:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Corpo com scroll */
+.filters-drawer__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 16px 16px;
+  overscroll-behavior: contain;
+}
+
+/* Seções colapsáveis mobile (densidade reduzida) */
+.section-collapsible.mobile {
+  background: #ffffff;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+
+.section-collapsible.mobile .section-collapsible__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  cursor: pointer;
+  background: #fafafa;
+  transition: all 0.2s;
+  user-select: none;
+}
+
+.section-collapsible.mobile .section-collapsible__head:active {
+  background: #f0f0f0;
+}
+
+.section-collapsible.mobile .section-collapsible__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}
+
+.section-collapsible.mobile .section-collapsible__title i {
+  font-size: 11px;
+  transition: transform 0.2s;
+  color: var(--el-color-primary);
+}
+
+.section-collapsible.mobile .section-collapsible__body {
+  padding: 12px;
+  background: #ffffff;
+}
+
+/* Botão salvar preset compacto */
+.save-preset-btn-compact {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  background: linear-gradient(135deg, #67c23a 0%, #529b2e 100%);
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  font-size: 12px;
+  box-shadow: 0 2px 4px rgba(103, 194, 58, 0.3);
+}
+
+.save-preset-btn-compact:hover {
+  transform: scale(1.08);
+  box-shadow: 0 3px 6px rgba(103, 194, 58, 0.4);
+}
+
+/* Ajustes de densidade mobile */
+@media (max-width: 768px) {
+  .section-collapsible.mobile .section-collapsible__head {
+    padding: 8px 10px;
+  }
+  
+  .section-collapsible.mobile .section-collapsible__title {
+    font-size: 12px;
+    gap: 6px;
+  }
+  
+  .section-collapsible.mobile .section-collapsible__body {
+    padding: 10px;
+  }
+  
+  .segmented-control {
+    gap: 4px;
+  }
+  
+  .segmented-btn {
+    padding: 6px 8px;
+    font-size: 11px;
+  }
+  
+  .preset-container {
+    gap: 4px;
+  }
+  
+  .preset-btn {
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+  
+  .saved-presets-label {
+    font-size: 10px;
+    padding: 4px 8px;
+  }
+  
+  .preset-item {
+    gap: 6px;
+    padding: 4px;
+  }
 }
 </style>
