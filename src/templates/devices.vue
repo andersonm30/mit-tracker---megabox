@@ -41,6 +41,11 @@
               <i class="fas fa-file-excel"></i>
               <span>XLSX (visíveis)</span>
             </div>
+            <div v-if="isPdfAvailable" class="export-menu-divider"></div>
+            <div v-if="isPdfAvailable" class="export-menu-item" @click="exportToPdf()">
+              <i class="fas fa-file-pdf"></i>
+              <span>PDF Executivo</span>
+            </div>
           </div>
         </div>
         <el-button class="add-btn" size="small" type="primary" :disabled="!store.getters['checkDeviceLimit']"
@@ -501,6 +506,8 @@ import KT from '../tarkan/func/kt.js';
 
 // ETAPA 4A: Feature flag para exportação
 const EXPORT_ENABLED = true;
+// ETAPA 7A: Feature flag para exportação PDF
+const EXPORT_PDF_ENABLED = true;
 
 const store = useStore();
 
@@ -553,6 +560,11 @@ const saveUIOnlyActiveState = () => {
 // ETAPA 4B: Verificar disponibilidade de XLSX
 const isXlsxAvailable = computed(() => {
   return typeof window !== 'undefined' && window.XLSX !== undefined;
+});
+
+// ETAPA 7A: Verificar disponibilidade de jsPDF
+const isPdfAvailable = computed(() => {
+  return EXPORT_PDF_ENABLED && typeof window !== 'undefined' && (window.jspdf !== undefined || window.jsPDF !== undefined);
 });
 
 // ETAPA 3A: Filtros de conectividade
@@ -1132,6 +1144,211 @@ const exportToXlsx = (mode = 'filtered') => {
   }
 };
 
+// ETAPA 7A: Exportação PDF Executiva
+const formatDate = (dateStr) => {
+  if (!dateStr) return 'N/A';
+  try {
+    const date = new Date(dateStr);
+    return date.toLocaleString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  } catch (e) {
+    return dateStr;
+  }
+};
+
+const formatFiltersSummary = () => {
+  const parts = [];
+  
+  if (query.value) {
+    parts.push(`Busca: "${query.value}"`);
+  }
+  
+  if (situacaoFilter.value !== 'todos') {
+    parts.push(`Situação: ${situacaoFilter.value}`);
+  }
+  
+  if (connectivityFilter.value !== 'todos') {
+    parts.push(`Conectividade: ${connectivityFilter.value}`);
+  }
+  
+  if (movingOnly.value) {
+    parts.push('Apenas em movimento');
+  }
+  
+  if (estilo.value !== 'cozy') {
+    parts.push(`Exibição: ${estilo.value}`);
+  }
+  
+  return parts.length > 0 ? parts.join(' | ') : 'Nenhum filtro aplicado';
+};
+
+const exportToPdf = () => {
+  closeExportMenu();
+  
+  if (!isPdfAvailable.value) {
+    console.warn('jsPDF library not available');
+    return;
+  }
+  
+  try {
+    // Usar displayDevices (resultado final dos filtros)
+    const list = displayDevices.value.slice(0, 200);
+    const hasMore = displayDevices.value.length > 200;
+    
+    if (list.length === 0) {
+      return;
+    }
+    
+    // Inicializar jsPDF
+    const jsPDF = window.jspdf?.jsPDF || window.jsPDF;
+    const doc = new jsPDF();
+    
+    // Configurações
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    let yPos = 20;
+    
+    // Título
+    doc.setFontSize(18);
+    doc.setFont(undefined, 'bold');
+    doc.text('Relatório de Dispositivos', pageWidth / 2, yPos, { align: 'center' });
+    yPos += 10;
+    
+    // Data/hora
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'normal');
+    const now = new Date();
+    const dateStr = now.toLocaleString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    doc.text(`Gerado em: ${dateStr}`, pageWidth / 2, yPos, { align: 'center' });
+    yPos += 15;
+    
+    // Filtros aplicados
+    doc.setFontSize(11);
+    doc.setFont(undefined, 'bold');
+    doc.text('Filtros aplicados:', 14, yPos);
+    yPos += 6;
+    
+    doc.setFontSize(9);
+    doc.setFont(undefined, 'normal');
+    const filterText = formatFiltersSummary();
+    const splitFilters = doc.splitTextToSize(filterText, pageWidth - 28);
+    doc.text(splitFilters, 14, yPos);
+    yPos += splitFilters.length * 5 + 5;
+    
+    // KPIs
+    doc.setFontSize(11);
+    doc.setFont(undefined, 'bold');
+    doc.text('Resumo:', 14, yPos);
+    yPos += 7;
+    
+    doc.setFontSize(9);
+    doc.setFont(undefined, 'normal');
+    doc.text(`Total de dispositivos: ${totalShown.value}`, 14, yPos);
+    yPos += 5;
+    doc.text(`Online: ${onlineCount.value}`, 14, yPos);
+    yPos += 5;
+    doc.text(`Offline: ${offlineCount.value}`, 14, yPos);
+    yPos += 5;
+    doc.text(`Em movimento: ${movingCount.value}`, 14, yPos);
+    yPos += 10;
+    
+    // Aviso se houver mais registros
+    if (hasMore) {
+      doc.setFontSize(8);
+      doc.setTextColor(200, 0, 0);
+      doc.text(`Nota: Exibindo apenas os primeiros 200 de ${displayDevices.value.length} dispositivos`, 14, yPos);
+      doc.setTextColor(0, 0, 0);
+      yPos += 8;
+    }
+    
+    // Tabela
+    doc.setFontSize(11);
+    doc.setFont(undefined, 'bold');
+    doc.text('Dispositivos:', 14, yPos);
+    yPos += 7;
+    
+    // Preparar dados da tabela
+    const tableData = list.map(device => {
+      const connectivity = getDeviceConnectivity(device);
+      const moving = getDeviceMoving(device);
+      const lastUpdate = device.lastUpdate || device.attributes?.lastUpdate || '';
+      const speed = device.attributes?.speed ? `${Math.round(device.attributes.speed)} km/h` : '-';
+      
+      return [
+        device.name || '',
+        device.attributes?.['situacao'] || '-',
+        connectivity || '-',
+        speed,
+        formatDate(lastUpdate)
+      ];
+    });
+    
+    // Usar autoTable se disponível
+    if (typeof doc.autoTable === 'function') {
+      doc.autoTable({
+        startY: yPos,
+        head: [['Nome', 'Situação', 'Conectividade', 'Velocidade', 'Última Atualização']],
+        body: tableData,
+        theme: 'grid',
+        styles: { fontSize: 8, cellPadding: 2 },
+        headStyles: { fillColor: [64, 158, 255], fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [245, 245, 245] },
+        margin: { top: 10, left: 14, right: 14 }
+      });
+    } else {
+      // Renderização manual simples
+      doc.setFontSize(8);
+      const colWidths = [60, 30, 30, 25, 40];
+      const startX = 14;
+      
+      // Header
+      doc.setFont(undefined, 'bold');
+      doc.text('Nome', startX, yPos);
+      doc.text('Situação', startX + colWidths[0], yPos);
+      doc.text('Conectividade', startX + colWidths[0] + colWidths[1], yPos);
+      doc.text('Velocidade', startX + colWidths[0] + colWidths[1] + colWidths[2], yPos);
+      doc.text('Última Atualização', startX + colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3], yPos);
+      yPos += 5;
+      
+      // Linhas
+      doc.setFont(undefined, 'normal');
+      for (const row of tableData) {
+        if (yPos > pageHeight - 20) {
+          doc.addPage();
+          yPos = 20;
+        }
+        
+        doc.text(row[0].substring(0, 25), startX, yPos);
+        doc.text(row[1], startX + colWidths[0], yPos);
+        doc.text(row[2], startX + colWidths[0] + colWidths[1], yPos);
+        doc.text(row[3], startX + colWidths[0] + colWidths[1] + colWidths[2], yPos);
+        doc.text(row[4], startX + colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3], yPos);
+        yPos += 5;
+      }
+    }
+    
+    // Nome do arquivo com timestamp
+    const timestamp = now.toISOString().slice(0, 16).replace('T', '_').replace(/:/g, '-');
+    const filename = `devices_report_${timestamp}.pdf`;
+    
+    // Download
+    doc.save(filename);
+  } catch (error) {
+    console.error('Error exporting to PDF:', error);
+  }
+};
+
 // Debounce para otimizar recálculos
 let recalcTimeout = null;
 const debouncedRecalc = (situacao = null, delay = 150) => {
@@ -1699,6 +1916,7 @@ onBeforeUnmount(() => {
 
 .export-menu-item .fa-file-csv{color:#67c23a;}
 .export-menu-item .fa-file-excel{color:#409EFF;}
+.export-menu-item .fa-file-pdf{color:#f56c6c;}
 
 .export-menu-divider{
   height:1px;background:#e4e7ed;margin:4px 0;
