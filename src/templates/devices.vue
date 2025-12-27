@@ -159,33 +159,39 @@
       <div v-if="resultSummary" class="result-summary">{{ resultSummary }}</div>
     </div>
 
-    <!-- ===== Painel de Filtros Avançados (UI apenas) ===== -->
-    <div v-if="showFiltersPanel" class="filters-panel">
-      <div class="filters-panel-header">
-        <h4>Filtros Avançados</h4>
-        <div class="header-actions">
-          <label class="filters-ui-toggle">
+    <!-- ===== Painel de Filtros Avançados (UI apenas, Accordion) ===== -->
+    <div v-if="showFiltersPanel" class="filters-accordion">
+      <div class="filters-accordion__header">
+        <div class="filters-accordion__title">
+          <span>Filtros</span>
+          <span v-if="activeFiltersCount > 0" class="filter-count-badge">{{ activeFiltersCount }}</span>
+        </div>
+        <div class="filters-accordion__actions">
+          <label class="filters-ui-toggle-compact">
             <input type="checkbox" v-model="showOnlyActiveControls" @change="saveUIOnlyActiveState">
-            <span class="toggle-label">Somente ativos</span>
+            <span class="toggle-label-compact">Somente ativos</span>
           </label>
-          <el-button type="text" @click="clearAllFilters" class="btn-clear" :disabled="activeFiltersCount === 0"
-            @mouseenter.stop="showTip($event, activeFiltersCount === 0 ? 'Nenhum filtro ativo' : 'Limpar todos os filtros')" @mouseleave="hideTip">
-            <i class="fas fa-trash-alt"></i> Limpar
-          </el-button>
+          <button class="btn-clear-compact" :disabled="activeFiltersCount === 0" @click="clearAllFilters"
+            @mouseenter.stop="showTip($event, activeFiltersCount === 0 ? 'Nenhum filtro ativo' : 'Limpar')" @mouseleave="hideTip">
+            <i class="fas fa-trash-alt"></i>
+          </button>
         </div>
       </div>
 
-      <!-- ETAPA 6B: Seção Presets (sempre visível) -->
-      <div class="filter-section">
-        <div class="filter-section__head">
-          <div class="filter-section__title">Presets</div>
-          <el-button type="text" @click="saveCurrentPreset" class="save-preset-btn"
-            @mouseenter.stop="showTip($event, 'Salvar filtro atual')" @mouseleave="hideTip">
+      <!-- ETAPA 6B/8B: Seção Presets (Collapsible) -->
+      <div class="section-collapsible">
+        <div class="section-collapsible__head" @click="toggleSection('presets')">
+          <div class="section-collapsible__title">
+            <i class="fas" :class="openSections.presets ? 'fa-chevron-down' : 'fa-chevron-right'"></i>
+            <span>Presets</span>
+          </div>
+          <button class="save-preset-btn-compact" @click.stop="saveCurrentPreset"
+            @mouseenter.stop="showTip($event, 'Salvar')" @mouseleave="hideTip">
             <i class="fas fa-save"></i>
-          </el-button>
+          </button>
         </div>
         
-        <div class="filter-section__body">
+        <div v-show="openSections.presets" class="section-collapsible__body">
           <!-- Presets padrão -->
           <div class="presets-row">
           <div v-for="preset in defaultPresets" :key="preset.id" class="preset-container">
@@ -224,79 +230,88 @@
         </div>
       </div>
 
-      <!-- ETAPA 6B: Seção Situação -->
-      <div v-if="!showOnlyActiveControls || situacaoFilter !== 'todos'" class="filter-section">
-        <div class="filter-section__head">
-          <div class="filter-section__title">Situação</div>
-          <div class="filter-section__hint">Status operacional do veículo</div>
+      <!-- ETAPA 6B/8B: Seção Situação (Collapsible, Segmented Control) -->
+      <div v-if="!showOnlyActiveControls || situacaoFilter !== 'todos'" class="section-collapsible">
+        <div class="section-collapsible__head" @click="toggleSection('situacao')">
+          <div class="section-collapsible__title">
+            <i class="fas" :class="openSections.situacao ? 'fa-chevron-down' : 'fa-chevron-right'"></i>
+            <span>Situação</span>
+          </div>
+          <div class="section-collapsible__hint">Status operacional</div>
         </div>
-        <div class="filter-section__body">
-          <div class="filters-group situacao-filters">
-          <div class="filter-icon small" :class="{ active: situacaoFilter === 'todos' }" @click="filterDevices('todos')"
+        <div v-show="openSections.situacao" class="section-collapsible__body">
+          <div class="segmented-control">
+          <div class="segmented-btn" :class="{ active: situacaoFilter === 'todos' }" @click="filterDevices('todos')"
             @mouseenter.stop="showTip($event, 'Todos')" @mouseleave="hideTip">
             <i class="fas fa-layer-group"></i>
           </div>
-          <div class="filter-icon small" :class="{ active: situacaoFilter === 'ativo' }" @click="filterDevices('ativo')"
+          <div class="segmented-btn" :class="{ active: situacaoFilter === 'ativo' }" @click="filterDevices('ativo')"
             @mouseenter.stop="showTip($event, 'Ativos')" @mouseleave="hideTip">
             <i class="fas fa-check-circle"></i>
           </div>
-          <div class="filter-icon small" :class="{ active: situacaoFilter === 'estoque' }"
+          <div class="segmented-btn" :class="{ active: situacaoFilter === 'estoque' }"
             @click="filterDevices('estoque')" @mouseenter.stop="showTip($event, 'Estoque')" @mouseleave="hideTip">
             <i class="fas fa-box-open"></i>
           </div>
-          <div class="filter-icon small" :class="{ active: situacaoFilter === 'desativado' }"
+          <div class="segmented-btn" :class="{ active: situacaoFilter === 'desativado' }"
             @click="filterDevices('desativado')" @mouseenter.stop="showTip($event, 'Desativados')" @mouseleave="hideTip">
             <i class="fas fa-ban"></i>
           </div>
-        </div>
+          </div>
         </div>
       </div>
 
-      <!-- ETAPA 6B: Seção Conectividade -->
-      <div v-if="!showOnlyActiveControls || connectivityFilter !== 'todos' || movingOnly" class="filter-section">
-        <div class="filter-section__head">
-          <div class="filter-section__title">Conectividade & Movimento</div>
-          <div class="filter-section__hint">Estado de conexão e movimentação</div>
+      <!-- ETAPA 6B/8B: Seção Conectividade (Collapsible, Segmented Control) -->
+      <div v-if="!showOnlyActiveControls || connectivityFilter !== 'todos' || movingOnly" class="section-collapsible">
+        <div class="section-collapsible__head" @click="toggleSection('connectivity')">
+          <div class="section-collapsible__title">
+            <i class="fas" :class="openSections.connectivity ? 'fa-chevron-down' : 'fa-chevron-right'"></i>
+            <span>Conectividade</span>
+          </div>
+          <div class="section-collapsible__hint">Conexão e movimento</div>
         </div>
-        <div class="filter-section__body">
-          <div class="filters-group">
-            <div class="filter-icon small" :class="{ active: connectivityFilter === 'todos' }" 
+        <div v-show="openSections.connectivity" class="section-collapsible__body">
+          <div class="segmented-control">
+            <div class="segmented-btn" :class="{ active: connectivityFilter === 'todos' }" 
               @click="setConnectivityFilter('todos')"
               @mouseenter.stop="showTip($event, 'Todos')" @mouseleave="hideTip">
               <i class="fas fa-globe"></i>
             </div>
-            <div class="filter-icon small" :class="{ active: connectivityFilter === 'online' }" 
+            <div class="segmented-btn" :class="{ active: connectivityFilter === 'online' }" 
               @click="setConnectivityFilter('online')"
               @mouseenter.stop="showTip($event, 'Online')" @mouseleave="hideTip">
               <i class="fas fa-check-circle"></i>
             </div>
-            <div class="filter-icon small" :class="{ active: connectivityFilter === 'offline' }" 
+            <div class="segmented-btn" :class="{ active: connectivityFilter === 'offline' }" 
               @click="setConnectivityFilter('offline')"
               @mouseenter.stop="showTip($event, 'Offline')" @mouseleave="hideTip">
               <i class="fas fa-exclamation-circle"></i>
             </div>
-            <div class="filter-icon small" :class="{ active: movingOnly }" 
+            <div class="segmented-btn" :class="{ active: movingOnly }" 
               @click="toggleMoving"
-              @mouseenter.stop="showTip($event, 'Somente em movimento')" @mouseleave="hideTip">
+              @mouseenter.stop="showTip($event, 'Movimento')" @mouseleave="hideTip">
               <i class="fas fa-running"></i>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- ETAPA 6B: Seção Estilo -->
-      <div v-if="!showOnlyActiveControls || estilo !== 'cozy'" class="filter-section">
-        <div class="filter-section__head">
-          <div class="filter-section__title">Estilo de Visualização</div>
-          <div class="filter-section__hint">Densidade da lista</div>
+      <!-- ETAPA 6B/8B: Seção Estilo (Collapsible, Segmented Control) -->
+      <div v-if="!showOnlyActiveControls || estilo !== 'cozy'" class="section-collapsible">
+        <div class="section-collapsible__head" @click="toggleSection('estilo')">
+          <div class="section-collapsible__title">
+            <i class="fas" :class="openSections.estilo ? 'fa-chevron-down' : 'fa-chevron-right'"></i>
+            <span>Estilo</span>
+          </div>
+          <div class="section-collapsible__hint">Densidade da lista</div>
         </div>
-        <div class="filter-section__body">
-          <div class="filters-group">
-            <div class="filter-icon small" :class="{ active: estilo === 'cozy' }" @click="setEstilo('cozy')"
+        <div v-show="openSections.estilo" class="section-collapsible__body">
+          <div class="segmented-control">
+            <div class="segmented-btn" :class="{ active: estilo === 'cozy' }" @click="setEstilo('cozy')"
               @mouseenter.stop="showTip($event, 'Conforto')" @mouseleave="hideTip">
               <i class="fas fa-mug-hot"></i>
             </div>
-            <div class="filter-icon small" :class="{ active: estilo === 'compact' }" @click="setEstilo('compact')"
+            <div class="segmented-btn" :class="{ active: estilo === 'compact' }" @click="setEstilo('compact')"
               @mouseenter.stop="showTip($event, 'Compacto')" @mouseleave="hideTip">
               <i class="fas fa-th"></i>
             </div>
@@ -559,9 +574,31 @@ const loadUIOnlyActiveState = () => {
 
 const showOnlyActiveControls = ref(loadUIOnlyActiveState());
 
+// ETAPA 8B: Accordion state para seções de filtros
+const loadOpenSections = () => {
+  try {
+    const stored = localStorage.getItem('device_filters_open_sections');
+    return stored ? JSON.parse(stored) : { presets: true, situacao: false, connectivity: false, estilo: false };
+  } catch (error) {
+    return { presets: true, situacao: false, connectivity: false, estilo: false };
+  }
+};
+
+const openSections = ref(loadOpenSections());
+
 // ETAPA 6C: Salvar com debounce
 const saveUIOnlyActiveState = () => {
   debouncePersist('device_filters_ui_only_active', showOnlyActiveControls.value, 150);
+};
+
+// ETAPA 8B: Funções para controlar accordion de filtros
+const toggleSection = (section) => {
+  openSections.value[section] = !openSections.value[section];
+  saveOpenSections();
+};
+
+const saveOpenSections = () => {
+  debouncePersist('device_filters_open_sections', JSON.stringify(openSections.value), 150);
 };
 
 // ETAPA 4B: Verificar disponibilidade de XLSX
@@ -742,6 +779,12 @@ const favoritesList = computed(() => {
     if (!aIsDefault && bIsDefault) return 1;
     return 0;
   });
+});
+
+// ETAPA 8B: Computed para verificar permissão de admin (KPIs visíveis apenas para admin)
+const canSeeKpis = computed(() => {
+  // TODO: Validar se store.state.auth.administrator é o campo correto após testes
+  return store.state.auth?.administrator === true;
 });
 
 // ETAPA 6A: KPI Summary Computeds
@@ -2035,6 +2078,67 @@ onBeforeUnmount(() => {
   font-weight:600;
 }
 
+/* =========================== ETAPA 8B: KPI MINI-CARDS COMPACTOS =========================== */
+.kpi-grid-compact{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:6px;
+  margin-bottom:10px;padding:0;
+}
+
+@media (max-width: 768px) {
+  .kpi-grid-compact{
+    grid-template-columns:repeat(2,1fr);
+  }
+}
+
+.kpi-mini{
+  display:flex;align-items:center;gap:8px;padding:8px 10px;background:#fff;
+  border:1px solid #e9eef6;border-radius:6px;cursor:pointer;
+  transition:all .2s ease;box-shadow:0 1px 2px rgba(0,0,0,.03);
+}
+
+.kpi-mini:hover{
+  border-color:#a0cfff;box-shadow:0 2px 6px rgba(64,158,255,.08);
+}
+
+.kpi-mini.active{
+  border-color:#409EFF;background:#f0f9ff;
+  box-shadow:0 0 0 2px rgba(64,158,255,.15);
+}
+
+.kpi-mini.total{
+  cursor:default;background:#f9fafb;
+  border-color:#e5e7eb;
+}
+
+.kpi-mini.total:hover{
+  box-shadow:0 1px 2px rgba(0,0,0,.03);border-color:#e5e7eb;
+}
+
+.kpi-mini__icon{
+  font-size:18px;width:24px;text-align:center;flex-shrink:0;
+}
+
+.kpi-mini__icon.online{color:#67c23a;}
+.kpi-mini__icon.offline{color:#f56c6c;}
+.kpi-mini__icon.moving{color:#409EFF;}
+.kpi-mini__icon.ativo{color:#16a34a;}
+.kpi-mini__icon.estoque{color:#64748b;}
+.kpi-mini__icon.desativado{color:#ef4444;}
+.kpi-mini.total .kpi-mini__icon{color:#6b7280;}
+
+.kpi-mini__content{
+  display:flex;flex-direction:column;gap:1px;flex:1;min-width:0;
+}
+
+.kpi-mini__value{
+  font-size:16px;font-weight:700;color:#303133;line-height:1.2;
+}
+
+.kpi-mini__label{
+  font-size:10px;color:#909399;font-weight:500;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+
 .add-btn{
   background:var(--el-color-primary);border-color:var(--el-color-primary);color:#fff;
   box-shadow:0 4px 8px rgba(0,110,255,.18);transition:transform .15s, box-shadow .15s;
@@ -2096,6 +2200,142 @@ onBeforeUnmount(() => {
 .filters-panel{
   background:#f8f9fa;border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,.1);margin-top:5px;margin-bottom:8px;padding:8px;
   transition:all .3s ease;animation:fadeIn .3s ease;
+}
+
+/* =========================== ETAPA 8B: FILTERS ACCORDION (COMPACTO) =========================== */
+.filters-accordion{
+  background:#fafbfc;border-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,.06);
+  margin-top:5px;margin-bottom:8px;padding:8px;
+  transition:all .3s ease;animation:fadeIn .3s ease;
+}
+
+.filters-accordion__header{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:6px 8px;margin-bottom:8px;border-bottom:1px solid #e9eef6;
+}
+
+.filters-accordion__title{
+  display:flex;align-items:center;gap:6px;
+  font-size:13px;font-weight:600;color:#303133;
+}
+
+.filter-count-badge{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-width:18px;height:18px;padding:0 5px;
+  background:#409EFF;color:#fff;border-radius:9px;
+  font-size:10px;font-weight:700;line-height:1;
+}
+
+.filters-accordion__actions{
+  display:flex;align-items:center;gap:8px;
+}
+
+.filters-ui-toggle-compact{
+  display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none;
+}
+
+.filters-ui-toggle-compact input[type="checkbox"]{
+  width:13px;height:13px;cursor:pointer;accent-color:#409EFF;
+}
+
+.toggle-label-compact{
+  font-size:10px;color:#606266;font-weight:500;
+}
+
+.filters-ui-toggle-compact:hover .toggle-label-compact{
+  color:#409EFF;
+}
+
+.btn-clear-compact{
+  background:transparent;border:none;color:#f56c6c;
+  font-size:11px;padding:4px 6px;cursor:pointer;border-radius:4px;
+  transition:all .2s ease;
+}
+
+.btn-clear-compact:hover:not(:disabled){
+  background:rgba(245,108,108,.1);
+}
+
+.btn-clear-compact:disabled{
+  color:#c0c4cc;cursor:not-allowed;opacity:.5;
+}
+
+/* =========================== SECTION COLLAPSIBLE =========================== */
+.section-collapsible{
+  background:#fff;border-radius:5px;padding:8px 10px;margin-bottom:6px;
+  border:1px solid #e9eef6;transition:all .2s ease;
+}
+
+.section-collapsible:hover{
+  border-color:#d4dce9;
+}
+
+.section-collapsible__head{
+  display:flex;justify-content:space-between;align-items:center;
+  cursor:pointer;user-select:none;padding:2px 0;
+}
+
+.section-collapsible__title{
+  display:flex;align-items:center;gap:6px;
+  font-size:11px;font-weight:600;color:#409EFF;flex:1;
+}
+
+.section-collapsible__title i{
+  font-size:10px;transition:transform .2s ease;
+}
+
+.section-collapsible__hint{
+  font-size:9px;color:#909399;font-style:italic;opacity:.8;
+  margin-left:auto;margin-right:8px;
+}
+
+.section-collapsible__body{
+  padding-top:8px;
+  animation:slideDown .25s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity:0;transform:translateY(-4px);
+  }
+  to {
+    opacity:1;transform:translateY(0);
+  }
+}
+
+.save-preset-btn-compact{
+  background:transparent;border:none;color:#409EFF;
+  font-size:12px;padding:2px 6px;cursor:pointer;border-radius:3px;
+  transition:all .2s ease;
+}
+
+.save-preset-btn-compact:hover{
+  background:rgba(64,158,255,.1);
+}
+
+/* =========================== SEGMENTED CONTROL (MINI) =========================== */
+.segmented-control{
+  display:flex;gap:4px;flex-wrap:wrap;
+}
+
+.segmented-btn{
+  flex:1;min-width:50px;display:flex;align-items:center;justify-content:center;
+  padding:6px 10px;background:#f5f7fa;border:1px solid #dcdfe6;
+  border-radius:4px;cursor:pointer;transition:all .2s ease;
+  font-size:14px;color:#606266;
+}
+
+.segmented-btn:hover{
+  background:#ecf5ff;border-color:#b3d8ff;color:#409EFF;
+}
+
+.segmented-btn.active{
+  background:#ecf5ff;border-color:#409EFF;color:#409EFF;
+  box-shadow:0 0 0 2px rgba(64,158,255,.1);font-weight:600;
+}
+
+.segmented-btn i{
+  font-size:13px;
 }
 
 .filters-panel-header{
