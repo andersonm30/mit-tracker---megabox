@@ -16,6 +16,11 @@
       </el-input>
 
       <div class="actions-group">
+        <el-button v-if="EXPORT_ENABLED && displayDevices.length > 0" class="export-btn" size="small" type="success"
+          @click="exportToCsv"
+          @mouseenter.stop="showTip($event, 'Exportar CSV')" @mouseleave="hideTip">
+          <i class="fas fa-file-csv"></i>
+        </el-button>
         <el-button class="add-btn" size="small" type="primary" :disabled="!store.getters['checkDeviceLimit']"
           v-if="store.getters.advancedPermissions(13) && (store.state.auth.deviceLimit === -1 || store.state.auth.deviceLimit > 0)"
           @click="(store.getters['checkDeviceLimit']) ? editDeviceRef.newDevice() : deviceLimitExceded()"
@@ -319,6 +324,9 @@ import {useStore} from "vuex"
 
 import KT from '../tarkan/func/kt.js';
 
+// ETAPA 4A: Feature flag para exportação
+const EXPORT_ENABLED = true;
+
 const store = useStore();
 
 const markerContext = inject('markerContext');
@@ -403,6 +411,11 @@ const resultSummary = computed(() => {
   }
   
   return `Mostrando ${displayed} de ${total} dispositivos`;
+});
+
+// ETAPA 4A: Dataset para exportação (usa resultado final dos filtros)
+const exportDevices = computed(() => {
+  return displayDevices.value;
 });
 
 const editDeviceRef = inject('edit-device');
@@ -510,6 +523,81 @@ const getDeviceConnectivity = (device) => {
 const getDeviceMoving = (device) => {
   if (!device.attributes) return false;
   return (device.attributes.speed > 0) || (device.attributes.motion === true);
+};
+
+// ETAPA 4A: Helpers para exportação CSV
+const escapeCsv = (value) => {
+  if (value === null || value === undefined) {
+    return '';
+  }
+  
+  const stringValue = String(value);
+  
+  // Verifica se precisa escapar (contém vírgula, aspas ou quebra de linha)
+  if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n') || stringValue.includes('\r')) {
+    // Duplica aspas duplas e envolve em aspas
+    return '"' + stringValue.replace(/"/g, '""') + '"';
+  }
+  
+  return stringValue;
+};
+
+const toCsvRow = (device) => {
+  const connectivity = getDeviceConnectivity(device);
+  const moving = getDeviceMoving(device);
+  const lastUpdate = device.lastUpdate || device.attributes?.lastUpdate || '';
+  
+  return [
+    escapeCsv(device.name),
+    escapeCsv(device.id),
+    escapeCsv(device.uniqueId),
+    escapeCsv(device.attributes?.['situacao'] || ''),
+    escapeCsv(connectivity),
+    escapeCsv(moving ? 'Sim' : 'Não'),
+    escapeCsv(device.attributes?.speed || ''),
+    escapeCsv(lastUpdate)
+  ].join(',');
+};
+
+const downloadCsv = (filename, csvText) => {
+  const blob = new Blob([csvText], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  
+  link.setAttribute('href', url);
+  link.setAttribute('download', filename);
+  link.style.visibility = 'hidden';
+  
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  
+  // Revogar URL após uso
+  setTimeout(() => {
+    URL.revokeObjectURL(url);
+  }, 100);
+};
+
+const exportToCsv = () => {
+  if (exportDevices.value.length === 0) {
+    return;
+  }
+  
+  // Header CSV
+  const header = ['Nome', 'ID', 'UniqueId', 'Situação', 'Conectividade', 'Em Movimento', 'Velocidade', 'Última Atualização'].join(',');
+  
+  // Linhas de dados
+  const rows = exportDevices.value.map(device => toCsvRow(device));
+  
+  // CSV completo
+  const csvContent = [header, ...rows].join('\n');
+  
+  // Nome do arquivo com timestamp
+  const now = new Date();
+  const timestamp = now.toISOString().slice(0, 16).replace('T', '_').replace(/:/g, '-');
+  const filename = `devices_export_${timestamp}.csv`;
+  
+  downloadCsv(filename, csvContent);
 };
 
 // Debounce para otimizar recálculos
@@ -915,6 +1003,12 @@ onBeforeUnmount(() => {
   box-shadow:0 4px 8px rgba(0,110,255,.18);transition:transform .15s, box-shadow .15s;
 }
 .add-btn:hover{transform:translateY(-2px);box-shadow:0 6px 12px rgba(0,110,255,.28);}
+
+.export-btn{
+  background:#67c23a;border-color:#67c23a;color:#fff;
+  box-shadow:0 4px 8px rgba(103,194,58,.18);transition:transform .15s, box-shadow .15s;
+}
+.export-btn:hover{transform:translateY(-2px);box-shadow:0 6px 12px rgba(103,194,58,.28);}
 
 /* =========================== PAINEL DE FILTROS =========================== */
 .filters-panel{
