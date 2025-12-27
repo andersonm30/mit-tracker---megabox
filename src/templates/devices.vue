@@ -48,6 +48,12 @@
             </div>
           </div>
         </div>
+        <el-button class="share-link-btn" size="small" 
+          @click="copyShareLink"
+          @mouseenter.stop="showTip($event, shareLinkCopied ? 'Link copiado!' : 'Copiar link com filtros')" 
+          @mouseleave="hideTip">
+          <i :class="shareLinkCopied ? 'fas fa-check' : 'fas fa-link'"></i>
+        </el-button>
         <el-button class="add-btn" size="small" type="primary" :disabled="!store.getters['checkDeviceLimit']"
           v-if="store.getters.advancedPermissions(13) && (store.state.auth.deviceLimit === -1 || store.state.auth.deviceLimit > 0)"
           @click="(store.getters['checkDeviceLimit']) ? editDeviceRef.newDevice() : deviceLimitExceded()"
@@ -1349,6 +1355,152 @@ const exportToPdf = () => {
   }
 };
 
+// ETAPA 7B: Deep link de filtros
+const shareLinkCopied = ref(false);
+
+const buildDevicesShareUrl = () => {
+  try {
+    const url = new URL(window.location.href);
+    const params = new URLSearchParams();
+    
+    // Adicionar parâmetros apenas se diferentes do padrão
+    if (query.value) {
+      params.set('q', query.value.substring(0, 80).trim());
+    }
+    
+    if (situacaoFilter.value !== 'todos') {
+      params.set('sit', situacaoFilter.value);
+    }
+    
+    if (connectivityFilter.value !== 'todos') {
+      params.set('con', connectivityFilter.value);
+    }
+    
+    if (movingOnly.value) {
+      params.set('mov', '1');
+    }
+    
+    if (estilo.value !== 'cozy') {
+      params.set('sty', estilo.value);
+    }
+    
+    if (showOnlyActiveControls.value) {
+      params.set('ui', '1');
+    }
+    
+    url.search = params.toString();
+    return url.toString();
+  } catch (error) {
+    console.error('Error building share URL:', error);
+    return window.location.href;
+  }
+};
+
+const copyShareLink = async () => {
+  const shareUrl = buildDevicesShareUrl();
+  
+  try {
+    // Tentar usar Clipboard API
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(shareUrl);
+      
+      // Feedback visual
+      shareLinkCopied.value = true;
+      setTimeout(() => {
+        shareLinkCopied.value = false;
+      }, 1200);
+    } else {
+      // Fallback: prompt
+      window.prompt('Copie o link abaixo:', shareUrl);
+    }
+  } catch (error) {
+    console.warn('Clipboard copy failed, using fallback:', error);
+    window.prompt('Copie o link abaixo:', shareUrl);
+  }
+};
+
+const applyFiltersFromUrl = () => {
+  try {
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    // Se não houver nenhum parâmetro reconhecido, não fazer nada
+    const hasParams = urlParams.has('q') || urlParams.has('sit') || urlParams.has('con') || 
+                     urlParams.has('mov') || urlParams.has('sty') || urlParams.has('ui');
+    
+    if (!hasParams) {
+      return;
+    }
+    
+    // Query (busca)
+    if (urlParams.has('q')) {
+      const q = urlParams.get('q').substring(0, 80).trim();
+      if (q) {
+        query.value = q;
+        debouncePersist('device_query', q, 50);
+      }
+    }
+    
+    // Situação
+    if (urlParams.has('sit')) {
+      const sit = urlParams.get('sit');
+      const validSituacao = ['todos', 'ativo', 'estoque', 'desativado'];
+      if (validSituacao.includes(sit)) {
+        situacaoFilter.value = sit;
+      }
+    }
+    
+    // Conectividade
+    if (urlParams.has('con')) {
+      const con = urlParams.get('con');
+      const validConnectivity = ['todos', 'online', 'offline'];
+      if (validConnectivity.includes(con)) {
+        connectivityFilter.value = con;
+        debouncePersist('device_connectivity_filter', con, 50);
+      }
+    }
+    
+    // Movimento
+    if (urlParams.has('mov')) {
+      const mov = urlParams.get('mov');
+      movingOnly.value = mov === '1';
+      debouncePersist('device_moving_only', movingOnly.value, 50);
+    }
+    
+    // Estilo
+    if (urlParams.has('sty')) {
+      const sty = urlParams.get('sty');
+      const validEstilo = ['cozy', 'compact'];
+      if (validEstilo.includes(sty)) {
+        estilo.value = sty;
+        debouncePersist('device_estilo', sty, 50);
+      }
+    }
+    
+    // UI-only toggle
+    if (urlParams.has('ui')) {
+      const ui = urlParams.get('ui');
+      showOnlyActiveControls.value = ui === '1';
+      debouncePersist('device_filters_ui_only_active', showOnlyActiveControls.value, 50);
+    }
+    
+    // Abrir painel de filtros se houver filtros aplicados
+    if (hasParams) {
+      showFiltersPanel.value = true;
+    }
+    
+    // Aplicar filtro de situação (dispara recálculo)
+    filterDevices(situacaoFilter.value);
+    
+    // Limpar URL (opcional, para não ficar poluída)
+    if (window.history && window.history.replaceState) {
+      const cleanUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, cleanUrl);
+    }
+  } catch (error) {
+    console.error('Error applying filters from URL:', error);
+  }
+};
+
 // Debounce para otimizar recálculos
 let recalcTimeout = null;
 const debouncedRecalc = (situacao = null, delay = 150) => {
@@ -1703,6 +1855,9 @@ const handleClickOutside = (event) => {
 
 onMounted(() => {
   document.addEventListener('click', handleClickOutside);
+  
+  // ETAPA 7B: Aplicar filtros da URL (deep link)
+  applyFiltersFromUrl();
 });
 
 // ETAPA 6C: Cleanup no unmount (map + persist timers)
@@ -1891,6 +2046,21 @@ onBeforeUnmount(() => {
   box-shadow:0 4px 8px rgba(103,194,58,.18);transition:transform .15s, box-shadow .15s;
 }
 .export-btn:hover{transform:translateY(-2px);box-shadow:0 6px 12px rgba(103,194,58,.28);}
+
+.share-link-btn{
+  background:#409EFF;border-color:#409EFF;color:#fff;
+  box-shadow:0 4px 8px rgba(64,158,255,.18);transition:all .15s;
+}
+.share-link-btn:hover{transform:translateY(-2px);box-shadow:0 6px 12px rgba(64,158,255,.28);}
+.share-link-btn i.fa-check{
+  animation:checkPulse .3s ease;
+}
+
+@keyframes checkPulse{
+  0%{transform:scale(1)}
+  50%{transform:scale(1.2)}
+  100%{transform:scale(1)}
+}
 
 /* =========================== ETAPA 4B: EXPORT DROPDOWN =========================== */
 .export-dropdown-wrapper{position:relative;display:inline-block;}
