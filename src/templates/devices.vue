@@ -457,7 +457,10 @@
         <span class="counter-primary">Mostrando {{ displayDevices.length }}</span>
         <span class="counter-secondary"> de {{ totalGlobal }} dispositivos</span>
         <span v-if="groupMode === 'grouped' && groupCount > 0" class="counter-groups">
-          • {{ groupCount }} grupos
+          • {{ groupCount }} {{ groupCount === 1 ? 'grupo' : 'grupos' }}
+        </span>
+        <span v-if="groupMode === 'grouped' && groupsWithResults > 0" class="counter-results">
+          • {{ groupsWithResults }} com resultados
         </span>
       </div>
       <button class="group-toggle-btn" :class="{ active: groupMode === 'grouped' }" @click="toggleGroupMode"
@@ -527,19 +530,27 @@
     <div ref="realDevices" @scroll="realScroll($event)" style="overflow-x: hidden;overflow-y: scroll;height: calc(100vh - 230px);">
       <div class="fakeScroll" :style="{height: (displayDevices.length*33)+'px'}">
 
-        <div v-for="(group) in groupsForRender" :key="group.id">
-          <!-- ETAPA 9A: Header de grupo com contador e accordion -->
-          <div v-if="group.id !== -1" class="group-header" @click="toggleGroupCollapse(group.id)">
-            <div class="group-header-left">
-              <i class="fas group-chevron" :class="collapsedGroups[group.id] ? 'fa-chevron-right' : 'fa-chevron-down'"></i>
-              <i class="far fa-object-group"></i>
-              <span class="group-name">{{ group.name }}</span>
+        <div v-for="(group) in groupsForRender" :key="group.id" class="group-block">
+          <!-- ETAPA 9A/9B PREMIUM: Header de grupo elegante com accordion e contadores -->
+          <button 
+            v-if="group.id !== -1" 
+            class="group-row" 
+            :class="{ 'is-open': !collapsedGroups[group.id] }"
+            @click="toggleGroupCollapse(group.id)"
+            :aria-expanded="!collapsedGroups[group.id]"
+            :aria-label="`Grupo ${group.name}, ${group.total} dispositivos, ${group.rendered} exibidos`">
+            <i class="fas fa-chevron-right group-row__chev" :class="{ 'rot': !collapsedGroups[group.id] }"></i>
+            <i class="fas fa-layer-group group-row__icon"></i>
+            <span class="group-row__title">{{ group.name }}</span>
+            <div class="group-row__stats">
+              <span class="group-row__count">{{ group.total }}</span>
+              <span v-if="collapsedGroups[group.id]" class="group-row__subtext">recolhido</span>
+              <span v-else class="group-row__subtext">{{ group.rendered }} de {{ group.total }}</span>
             </div>
-            <span class="group-count-badge">{{ group.count }}</span>
-          </div>
+          </button>
 
           <!-- Devices do grupo (oculto se collapsed) -->
-          <template v-if="group.id === -1 || !collapsedGroups[group.id]">
+          <div v-if="group.id === -1 || !collapsedGroups[group.id]" class="group-body">
 
           <div v-for="(device) in group.devices" :key="device.id" class="device" :class="{'isDisabled': device.disabled}" @click="markerClick(device.id)" @contextmenu.prevent="markerContext($event,device.id)" :set="position = store.getters['devices/getPosition'](device.id)">                      
           <div v-if="store.getters['isAdmin']" class="name" style="width: 90px;box-sizing: border-box;overflow: hidden;white-space: nowrap;text-align: center; flex: 1 1 15%" >{{device.id}}</div>            
@@ -657,7 +668,7 @@
             </div>
           </div>
         </div>
-          </template>
+          </div>
         </div>
       </div>
     </div>
@@ -1127,34 +1138,48 @@ const devicesByGroup = computed(() => {
 
 const groupsForRender = computed(() => {
   if (groupMode.value === 'flat') {
-    return [{ id: -1, name: '', count: displayDevices.value.length, devices: chunkedDisplayDevices.value }];
+    return [{ 
+      id: -1, 
+      name: '', 
+      total: displayDevices.value.length,
+      rendered: chunkedDisplayDevices.value.length,
+      count: displayDevices.value.length, 
+      devices: chunkedDisplayDevices.value 
+    }];
   }
   
   const grouped = devicesByGroup.value;
   const groups = [];
   
-  // Sem grupo sempre primeiro
+  // Sem grupo sempre primeiro (se tiver itens)
   if (grouped[0] && grouped[0].length > 0) {
+    const isCollapsed = collapsedGroups.value[0];
     groups.push({
       id: 0,
       name: 'Sem grupo',
+      total: grouped[0].length,
+      rendered: isCollapsed ? 0 : grouped[0].length,
       count: grouped[0].length,
       devices: grouped[0]
     });
   }
   
-  // Demais grupos ordenados por nome
+  // Demais grupos ordenados por nome (ocultar grupos com 0 itens)
   Object.keys(grouped)
     .filter(id => id !== '0')
+    .filter(id => grouped[id].length > 0) // ETAPA 9B: ocultar grupos vazios
     .sort((a, b) => {
       const nameA = groupNameMap.value[a] || `Grupo ${a}`;
       const nameB = groupNameMap.value[b] || `Grupo ${b}`;
       return nameA.localeCompare(nameB);
     })
     .forEach(groupId => {
+      const isCollapsed = collapsedGroups.value[groupId];
       groups.push({
         id: parseInt(groupId),
         name: groupNameMap.value[groupId] || `Grupo ${groupId}`,
+        total: grouped[groupId].length,
+        rendered: isCollapsed ? 0 : grouped[groupId].length,
         count: grouped[groupId].length,
         devices: grouped[groupId]
       });
@@ -1166,6 +1191,12 @@ const groupsForRender = computed(() => {
 const groupCount = computed(() => {
   if (groupMode.value === 'flat') return 0;
   return groupsForRender.value.filter(g => g.id !== -1).length;
+});
+
+// ETAPA 9B: Contar grupos com resultados (total > 0)
+const groupsWithResults = computed(() => {
+  if (groupMode.value === 'flat') return 0;
+  return groupsForRender.value.filter(g => g.id !== -1 && g.total > 0).length;
 });
 
 const onlineCount = computed(() => {
@@ -3174,6 +3205,13 @@ onBeforeUnmount(() => {
   margin-left: 4px;
 }
 
+.counter-results {
+  color: #67c23a;
+  font-size: 11px;
+  font-weight: 600;
+  margin-left: 4px;
+}
+
 .group-toggle-btn {
   display: inline-flex;
   align-items: center;
@@ -3213,58 +3251,129 @@ onBeforeUnmount(() => {
   font-size: 12px;
 }
 
-/* Header de grupo com accordion */
-.group-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
-  border-top: 1px solid var(--el-border-color-lighter);
-  border-bottom: 1px solid var(--el-border-color-lighter);
-  padding: 6px 10px;
-  cursor: pointer;
-  transition: all 0.2s;
-  user-select: none;
+/* Header de grupo PREMIUM (ETAPA 9A BÔNUS) */
+.group-block {
+  margin-bottom: 8px;
 }
 
-.group-header:hover {
-  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
-}
-
-.group-header-left {
+.group-row {
   display: flex;
   align-items: center;
   gap: 8px;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid #e9eef6;
+  border-radius: 10px;
+  background: #fbfcfe;
+  transition: transform 0.12s ease, box-shadow 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+  user-select: none;
+  cursor: pointer;
+  font-family: inherit;
+  width: 100%;
+  text-align: left;
+  margin-bottom: 6px;
+}
+
+.group-row:hover {
+  background: #ffffff;
+  border-color: #dbe7fb;
+  box-shadow: 0 6px 18px rgba(31, 45, 61, 0.06);
+  transform: translateY(-1px);
+}
+
+.group-row:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(64, 158, 255, 0.18);
+}
+
+.group-row.is-open {
+  border-color: #cfe3ff;
+  box-shadow: 0 0 0 3px rgba(64, 158, 255, 0.10);
+  background: #f7fbff;
+}
+
+.group-row.is-open:hover {
+  transform: translateY(0);
+  box-shadow: 0 0 0 3px rgba(64, 158, 255, 0.15), 0 4px 12px rgba(31, 45, 61, 0.08);
+}
+
+.group-row__chev {
+  font-size: 11px;
+  color: #909399;
+  transition: transform 0.18s ease, color 0.15s ease;
+  flex-shrink: 0;
+}
+
+.group-row__chev.rot {
+  transform: rotate(90deg);
+  color: #409eff;
+}
+
+.group-row__icon {
+  font-size: 13px;
+  color: #606266;
+  flex-shrink: 0;
+  transition: color 0.15s ease;
+}
+
+.group-row.is-open .group-row__icon {
+  color: #409eff;
+}
+
+.group-row__title {
   font-size: 12px;
   font-weight: 600;
-  color: var(--el-text-color-primary);
+  color: #303133;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.group-chevron {
-  font-size: 10px;
-  transition: transform 0.2s;
-  color: var(--el-color-primary);
-  width: 10px;
+.group-row__stats {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
-.group-name {
-  font-weight: 600;
-  color: #374151;
-}
-
-.group-count-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 22px;
-  height: 18px;
-  padding: 0 6px;
-  background: linear-gradient(135deg, var(--el-color-primary) 0%, #764ba2 100%);
-  color: #ffffff;
-  border-radius: 10px;
-  font-size: 10px;
+.group-row__count {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #ecf5ff;
+  color: #409eff;
+  border: 1px solid #d9ecff;
   font-weight: 700;
-  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.2);
+  min-width: 34px;
+  text-align: center;
+  transition: all 0.15s ease;
+}
+
+.group-row__subtext {
+  font-size: 9px;
+  color: #909399;
+  font-weight: 500;
+  text-align: right;
+  line-height: 1;
+}
+
+.group-row:hover .group-row__count {
+  background: #e1f0ff;
+  border-color: #b3d8ff;
+}
+
+.group-row.is-open .group-row__count {
+  background: linear-gradient(135deg, #409eff 0%, #6bb0ff 100%);
+  color: #ffffff;
+  border-color: transparent;
+  box-shadow: 0 2px 6px rgba(64, 158, 255, 0.25);
+}
+
+.group-body {
+  padding: 6px 0 8px 0;
 }
 
 /* =========================== RESPONSIVIDADE =========================== */
