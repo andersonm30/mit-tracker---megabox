@@ -66,6 +66,77 @@
       </div>
     </div>
 
+    <!-- ===== ETAPA 6A: KPI Summary Cards ===== -->
+    <div class="kpi-cards-row">
+      <div class="kpi-card" :class="{ active: connectivityFilter === 'online' }" 
+        @click="toggleConnectivityFilter('online')"
+        @mouseenter.stop="showTip($event, 'Filtrar por Online')" @mouseleave="hideTip">
+        <i class="fas fa-check-circle kpi-icon online"></i>
+        <div class="kpi-content">
+          <div class="kpi-value">{{ onlineCount }}</div>
+          <div class="kpi-label">Online</div>
+        </div>
+      </div>
+      
+      <div class="kpi-card" :class="{ active: connectivityFilter === 'offline' }" 
+        @click="toggleConnectivityFilter('offline')"
+        @mouseenter.stop="showTip($event, 'Filtrar por Offline')" @mouseleave="hideTip">
+        <i class="fas fa-exclamation-circle kpi-icon offline"></i>
+        <div class="kpi-content">
+          <div class="kpi-value">{{ offlineCount }}</div>
+          <div class="kpi-label">Offline</div>
+        </div>
+      </div>
+      
+      <div class="kpi-card" :class="{ active: movingOnly }" 
+        @click="toggleMovingFilter"
+        @mouseenter.stop="showTip($event, 'Filtrar em movimento')" @mouseleave="hideTip">
+        <i class="fas fa-running kpi-icon moving"></i>
+        <div class="kpi-content">
+          <div class="kpi-value">{{ movingCount }}</div>
+          <div class="kpi-label">Em movimento</div>
+        </div>
+      </div>
+      
+      <div class="kpi-card" :class="{ active: situacaoFilter === 'ativo' }" 
+        @click="toggleSituacaoFilter('ativo')"
+        @mouseenter.stop="showTip($event, 'Filtrar por Ativos')" @mouseleave="hideTip">
+        <i class="fas fa-check-circle kpi-icon ativo"></i>
+        <div class="kpi-content">
+          <div class="kpi-value">{{ ativoCount }}</div>
+          <div class="kpi-label">Ativos</div>
+        </div>
+      </div>
+      
+      <div class="kpi-card" :class="{ active: situacaoFilter === 'estoque' }" 
+        @click="toggleSituacaoFilter('estoque')"
+        @mouseenter.stop="showTip($event, 'Filtrar por Estoque')" @mouseleave="hideTip">
+        <i class="fas fa-box-open kpi-icon estoque"></i>
+        <div class="kpi-content">
+          <div class="kpi-value">{{ estoqueCount }}</div>
+          <div class="kpi-label">Estoque</div>
+        </div>
+      </div>
+      
+      <div class="kpi-card" :class="{ active: situacaoFilter === 'desativado' }" 
+        @click="toggleSituacaoFilter('desativado')"
+        @mouseenter.stop="showTip($event, 'Filtrar por Desativados')" @mouseleave="hideTip">
+        <i class="fas fa-ban kpi-icon desativado"></i>
+        <div class="kpi-content">
+          <div class="kpi-value">{{ desativadoCount }}</div>
+          <div class="kpi-label">Desativados</div>
+        </div>
+      </div>
+      
+      <div class="kpi-card total">
+        <i class="fas fa-layer-group kpi-icon"></i>
+        <div class="kpi-content">
+          <div class="kpi-value">{{ totalShown }}</div>
+          <div class="kpi-label">Total</div>
+        </div>
+      </div>
+    </div>
+
     <!-- ===== ETAPA 3B: Chips de filtros ativos ===== -->
     <div v-if="activeFilterChips.length > 0" class="active-filters-chips">
       <div v-for="chip in activeFilterChips" :key="chip.key" class="filter-chip">
@@ -603,6 +674,50 @@ const favoritesList = computed(() => {
   });
 });
 
+// ETAPA 6A: KPI Summary Computeds
+const totalShown = computed(() => {
+  return displayDevices.value.length;
+});
+
+const onlineCount = computed(() => {
+  return displayDevices.value.filter(device => {
+    return getDeviceConnectivity(device) === 'online';
+  }).length;
+});
+
+const offlineCount = computed(() => {
+  return displayDevices.value.filter(device => {
+    return getDeviceConnectivity(device) === 'offline';
+  }).length;
+});
+
+const movingCount = computed(() => {
+  return displayDevices.value.filter(device => {
+    return getDeviceMoving(device);
+  }).length;
+});
+
+const ativoCount = computed(() => {
+  return displayDevices.value.filter(device => {
+    const situacao = device.attributes?.['situacao']?.toLowerCase();
+    return situacao === 'ativo';
+  }).length;
+});
+
+const estoqueCount = computed(() => {
+  return displayDevices.value.filter(device => {
+    const situacao = device.attributes?.['situacao']?.toLowerCase();
+    return situacao === 'estoque';
+  }).length;
+});
+
+const desativadoCount = computed(() => {
+  return displayDevices.value.filter(device => {
+    const situacao = device.attributes?.['situacao']?.toLowerCase();
+    return situacao === 'desativado';
+  }).length;
+});
+
 // ETAPA 4B: Datasets para exportação
 const exportDevicesFiltered = computed(() => {
   return displayDevices.value;
@@ -713,6 +828,32 @@ const toggleFavorite = (presetId) => {
     favoritePresetIds.value.push(presetId);
   }
   saveFavorites(favoritePresetIds.value);
+};
+
+// ETAPA 6A: Quick toggle filters dos KPI cards
+const toggleConnectivityFilter = (value) => {
+  if (connectivityFilter.value === value) {
+    connectivityFilter.value = 'todos';
+    localStorage.removeItem('device_connectivity_filter');
+  } else {
+    connectivityFilter.value = value;
+    localStorage.setItem('device_connectivity_filter', value);
+  }
+};
+
+const toggleMovingFilter = () => {
+  movingOnly.value = !movingOnly.value;
+  localStorage.setItem('device_moving_only', movingOnly.value);
+};
+
+const toggleSituacaoFilter = (value) => {
+  if (situacaoFilter.value === value) {
+    situacaoFilter.value = 'todos';
+    filterDevices('todos');
+  } else {
+    situacaoFilter.value = value;
+    filterDevices(value);
+  }
 };
 
 const setEstilo = (value) => {
@@ -1389,6 +1530,69 @@ onBeforeUnmount(() => {
 }
 
 .quick-preset-unfav i{font-size:7px;}
+
+/* =========================== ETAPA 6A: KPI SUMMARY CARDS =========================== */
+.kpi-cards-row{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;
+  margin-bottom:12px;padding:0;
+}
+
+@media (max-width: 768px) {
+  .kpi-cards-row{
+    grid-template-columns:repeat(2,1fr);
+  }
+}
+
+.kpi-card{
+  display:flex;align-items:center;gap:10px;padding:12px;background:#fff;
+  border:2px solid #e4e7ed;border-radius:8px;cursor:pointer;
+  transition:all .2s ease;box-shadow:0 1px 3px rgba(0,0,0,.06);
+}
+
+.kpi-card:hover{
+  border-color:#409EFF;transform:translateY(-2px);
+  box-shadow:0 4px 8px rgba(64,158,255,.15);
+}
+
+.kpi-card.active{
+  border-color:#409EFF;background:linear-gradient(135deg,#ecf5ff 0%,#f0f9ff 100%);
+  box-shadow:0 4px 12px rgba(64,158,255,.25);
+}
+
+.kpi-card.total{
+  cursor:default;background:linear-gradient(135deg,#f3f4f6 0%,#e5e7eb 100%);
+  border-color:#d1d5db;
+}
+
+.kpi-card.total:hover{
+  transform:none;border-color:#d1d5db;
+  box-shadow:0 1px 3px rgba(0,0,0,.06);
+}
+
+.kpi-icon{
+  font-size:24px;width:32px;text-align:center;flex-shrink:0;
+}
+
+.kpi-icon.online{color:#67c23a;}
+.kpi-icon.offline{color:#f56c6c;}
+.kpi-icon.moving{color:#409EFF;}
+.kpi-icon.ativo{color:#16a34a;}
+.kpi-icon.estoque{color:#64748b;}
+.kpi-icon.desativado{color:#ef4444;}
+.kpi-card.total .kpi-icon{color:#6b7280;}
+
+.kpi-content{
+  display:flex;flex-direction:column;gap:2px;flex:1;
+}
+
+.kpi-value{
+  font-size:20px;font-weight:700;color:#303133;line-height:1;
+}
+
+.kpi-label{
+  font-size:11px;color:#909399;text-transform:uppercase;letter-spacing:0.5px;
+  font-weight:600;
+}
 
 .add-btn{
   background:var(--el-color-primary);border-color:var(--el-color-primary);color:#fff;
