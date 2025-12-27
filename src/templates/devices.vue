@@ -249,22 +249,22 @@
         <div class="filter-section__body">
           <div class="filters-group">
             <div class="filter-icon small" :class="{ active: connectivityFilter === 'todos' }" 
-              @click="connectivityFilter = 'todos'; localStorage.setItem('device_connectivity_filter', 'todos')"
+              @click="setConnectivityFilter('todos')"
               @mouseenter.stop="showTip($event, 'Todos')" @mouseleave="hideTip">
               <i class="fas fa-globe"></i>
             </div>
             <div class="filter-icon small" :class="{ active: connectivityFilter === 'online' }" 
-              @click="connectivityFilter = 'online'; localStorage.setItem('device_connectivity_filter', 'online')"
+              @click="setConnectivityFilter('online')"
               @mouseenter.stop="showTip($event, 'Online')" @mouseleave="hideTip">
               <i class="fas fa-check-circle"></i>
             </div>
             <div class="filter-icon small" :class="{ active: connectivityFilter === 'offline' }" 
-              @click="connectivityFilter = 'offline'; localStorage.setItem('device_connectivity_filter', 'offline')"
+              @click="setConnectivityFilter('offline')"
               @mouseenter.stop="showTip($event, 'Offline')" @mouseleave="hideTip">
               <i class="fas fa-exclamation-circle"></i>
             </div>
             <div class="filter-icon small" :class="{ active: movingOnly }" 
-              @click="movingOnly = !movingOnly; localStorage.setItem('device_moving_only', movingOnly)"
+              @click="toggleMoving"
               @mouseenter.stop="showTip($event, 'Somente em movimento')" @mouseleave="hideTip">
               <i class="fas fa-running"></i>
             </div>
@@ -504,6 +504,23 @@ const EXPORT_ENABLED = true;
 
 const store = useStore();
 
+// ETAPA 6C: Helper para debounce de persistência no localStorage
+const persistTimers = {};
+const debouncePersist = (key, value, delay = 200) => {
+  if (persistTimers[key]) {
+    clearTimeout(persistTimers[key]);
+  }
+  
+  persistTimers[key] = setTimeout(() => {
+    try {
+      localStorage.setItem(key, value);
+    } catch (e) {
+      console.warn('Failed to persist', key, e);
+    }
+    delete persistTimers[key];
+  }, delay);
+};
+
 const markerContext = inject('markerContext');
 const markerClick = inject('markerClick');
 
@@ -528,12 +545,9 @@ const loadUIOnlyActiveState = () => {
 
 const showOnlyActiveControls = ref(loadUIOnlyActiveState());
 
+// ETAPA 6C: Salvar com debounce
 const saveUIOnlyActiveState = () => {
-  try {
-    localStorage.setItem('device_filters_ui_only_active', showOnlyActiveControls.value);
-  } catch (error) {
-    console.error('Error saving UI-only active state:', error);
-  }
+  debouncePersist('device_filters_ui_only_active', showOnlyActiveControls.value, 150);
 };
 
 // ETAPA 4B: Verificar disponibilidade de XLSX
@@ -609,7 +623,7 @@ const loadSavedPresets = () => {
 
 const savedPresets = ref(loadSavedPresets());
 
-// ETAPA 5B: Favoritos
+// ETAPA 5B: Favoritos (ETAPA 6C: com debounce persist)
 const loadFavorites = () => {
   try {
     const stored = localStorage.getItem('device_filter_favorites');
@@ -621,11 +635,7 @@ const loadFavorites = () => {
 };
 
 const saveFavorites = (favorites) => {
-  try {
-    localStorage.setItem('device_filter_favorites', JSON.stringify(favorites));
-  } catch (error) {
-    console.error('Error saving favorites:', error);
-  }
+  debouncePersist('device_filter_favorites', JSON.stringify(favorites), 200);
 };
 
 const favoritePresetIds = ref(loadFavorites());
@@ -805,11 +815,11 @@ const applyPreset = (preset) => {
   query.value = filters.query || '';
   estilo.value = filters.estilo || 'cozy';
   
-  // Atualizar localStorage
-  localStorage.setItem('device_estilo', estilo.value);
-  localStorage.setItem('device_connectivity_filter', connectivityFilter.value);
-  localStorage.setItem('device_moving_only', movingOnly.value);
-  localStorage.setItem('device_query', query.value);
+  // ETAPA 6C: Atualizar localStorage com debounce (múltiplas mudanças em batch)
+  debouncePersist('device_estilo', estilo.value, 200);
+  debouncePersist('device_connectivity_filter', connectivityFilter.value, 200);
+  debouncePersist('device_moving_only', movingOnly.value, 200);
+  debouncePersist('device_query', query.value, 200);
   
   // Aplicar filtro de situação
   filterDevices(situacaoFilter.value);
@@ -835,12 +845,7 @@ const saveCurrentPreset = () => {
   };
   
   savedPresets.value.push(newPreset);
-  
-  try {
-    localStorage.setItem('device_filter_presets', JSON.stringify(savedPresets.value));
-  } catch (error) {
-    console.error('Error saving preset:', error);
-  }
+  debouncePersist('device_filter_presets', JSON.stringify(savedPresets.value), 200);
 };
 
 const removePreset = (presetId) => {
@@ -850,11 +855,7 @@ const removePreset = (presetId) => {
   favoritePresetIds.value = favoritePresetIds.value.filter(id => id !== presetId);
   saveFavorites(favoritePresetIds.value);
   
-  try {
-    localStorage.setItem('device_filter_presets', JSON.stringify(savedPresets.value));
-  } catch (error) {
-    console.error('Error removing preset:', error);
-  }
+  debouncePersist('device_filter_presets', JSON.stringify(savedPresets.value), 200);
 };
 
 // ETAPA 5B: Gerenciamento de favoritos
@@ -871,20 +872,20 @@ const toggleFavorite = (presetId) => {
   saveFavorites(favoritePresetIds.value);
 };
 
-// ETAPA 6A: Quick toggle filters dos KPI cards
+// ETAPA 6A: Quick toggle filters dos KPI cards (ETAPA 6C: com debounce persist)
 const toggleConnectivityFilter = (value) => {
   if (connectivityFilter.value === value) {
     connectivityFilter.value = 'todos';
     localStorage.removeItem('device_connectivity_filter');
   } else {
     connectivityFilter.value = value;
-    localStorage.setItem('device_connectivity_filter', value);
+    debouncePersist('device_connectivity_filter', value, 150);
   }
 };
 
 const toggleMovingFilter = () => {
   movingOnly.value = !movingOnly.value;
-  localStorage.setItem('device_moving_only', movingOnly.value);
+  debouncePersist('device_moving_only', movingOnly.value, 150);
 };
 
 const toggleSituacaoFilter = (value) => {
@@ -899,11 +900,22 @@ const toggleSituacaoFilter = (value) => {
 
 const setEstilo = (value) => {
   estilo.value = value;
-  localStorage.setItem('device_estilo', value);
+  debouncePersist('device_estilo', value, 150);
 };
 
 const onClearInput = () => {
   query.value = '';
+};
+
+// ETAPA 6C: Helpers para clicks inline (evitar localStorage direto no template)
+const setConnectivityFilter = (value) => {
+  connectivityFilter.value = value;
+  debouncePersist('device_connectivity_filter', value, 100);
+};
+
+const toggleMoving = () => {
+  movingOnly.value = !movingOnly.value;
+  debouncePersist('device_moving_only', movingOnly.value, 100);
 };
 
 // const editGroupRef = inject('edit-group');
@@ -1176,9 +1188,9 @@ onMounted(()=>{
   }, 1000);
 });
 
-// Debounce na busca por texto (usuário digitando)
+// ETAPA 6C: Debounce na busca por texto com persistência otimizada
 watch(query,()=>{
-  localStorage.setItem('device_query', query.value);
+  debouncePersist('device_query', query.value, 300);
   debouncedRecalc(null, 300);
 });
 
@@ -1246,8 +1258,8 @@ const filterDevices = (situacao) => {
 
 
 const recalcDevices = (situacao = null) => {
-  localStorage.setItem('device_query', query.value);
-
+  // ETAPA 6C: localStorage já é persistido pelo watch do query (com debounce)
+  
   const r = query.value.toLowerCase().matchAll(/(.*?):(?<sinal>\+|-|=)(?<tempo>\d*) (?<filtro>dias|minutos|horas|segundos)/gi);
   const s = r.next();
 
@@ -1391,6 +1403,11 @@ const visibleDevicesForMap = computed(() => {
   return chunkedDisplayDevices.value;
 });
 
+// ETAPA 6C: Computed de IDs para watch otimizado (evita deep watch)
+const visibleDeviceIds = computed(() => {
+  return visibleDevicesForMap.value.map(d => d.id);
+});
+
 // ETAPA 2C: Helpers para manipular markers (reutiliza lógica baseline)
 const safeIconRemove = (icon) => {
   if (!icon) return;
@@ -1441,8 +1458,13 @@ const syncMapMarkers = () => {
   nowIds.forEach(id => prevVisibleIds.add(id));
 };
 
-// ETAPA 2C: Watcher com debounce
-watch(visibleDevicesForMap, () => {
+// ETAPA 6C: Watcher otimizado baseado em IDs (sem deep watch)
+watch(visibleDeviceIds, (newIds, oldIds) => {
+  // Proteger se lista estiver vazia
+  if (!newIds || newIds.length === 0) {
+    return;
+  }
+  
   if (syncDebounceTimer) {
     clearTimeout(syncDebounceTimer);
   }
@@ -1450,7 +1472,7 @@ watch(visibleDevicesForMap, () => {
   syncDebounceTimer = setTimeout(() => {
     syncMapMarkers();
   }, 80);
-}, { deep: true });
+});
 
 // ETAPA 4B: Listener para fechar menu ao clicar fora
 const handleClickOutside = (event) => {
@@ -1466,7 +1488,7 @@ onMounted(() => {
   document.addEventListener('click', handleClickOutside);
 });
 
-// ETAPA 2C: Cleanup no unmount
+// ETAPA 6C: Cleanup no unmount (map + persist timers)
 onBeforeUnmount(() => {
   // Remove listener de clique fora
   document.removeEventListener('click', handleClickOutside);
@@ -1480,9 +1502,15 @@ onBeforeUnmount(() => {
   });
   prevVisibleIds.clear();
   
+  // Limpar timer de sync do mapa
   if (syncDebounceTimer) {
     clearTimeout(syncDebounceTimer);
   }
+  
+  // ETAPA 6C: Limpar todos os timers de persistência pendentes
+  Object.keys(persistTimers).forEach(key => {
+    clearTimeout(persistTimers[key]);
+  });
 });
 
 
