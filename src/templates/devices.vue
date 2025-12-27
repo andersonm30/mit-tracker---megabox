@@ -77,73 +77,62 @@
       </div>
     </div>
 
-    <!-- ===== ETAPA 6A: KPI Summary Cards ===== -->
-    <div class="kpi-cards-row">
-      <div class="kpi-card" :class="{ active: connectivityFilter === 'online' }" 
-        @click="toggleConnectivityFilter('online')"
-        @mouseenter.stop="showTip($event, 'Filtrar por Online')" @mouseleave="hideTip">
-        <i class="fas fa-check-circle kpi-icon online"></i>
-        <div class="kpi-content">
-          <div class="kpi-value">{{ onlineCount }}</div>
-          <div class="kpi-label">Online</div>
+    <!-- ===== ETAPA 6A/8B/8C: KPI Mini-Cards (Admin-only, Global/Shown, Collapsible) ===== -->
+    <div v-if="canSeeKpis" class="kpi-grid-compact" :class="{ 'kpi-collapsed': kpisCollapsed }">
+      <div class="kpi-mini" :class="{ active: connectivityFilter === 'online' }" @click="toggleConnectivityFilter('online')"
+        @mouseenter.stop="showTip($event, `Online: ${onlineCount}${onlineCount !== onlineCountGlobal ? ' / ' + onlineCountGlobal + ' total' : ''}`)" @mouseleave="hideTip">
+        <i class="kpi-mini__icon online fas fa-signal"></i>
+        <div class="kpi-mini__content">
+          <div class="kpi-mini__value">{{ onlineCount }}<span v-if="onlineCount !== onlineCountGlobal" class="kpi-mini__total"> / {{ onlineCountGlobal }}</span></div>
+          <div class="kpi-mini__label">Online</div>
         </div>
       </div>
-      
-      <div class="kpi-card" :class="{ active: connectivityFilter === 'offline' }" 
-        @click="toggleConnectivityFilter('offline')"
-        @mouseenter.stop="showTip($event, 'Filtrar por Offline')" @mouseleave="hideTip">
-        <i class="fas fa-exclamation-circle kpi-icon offline"></i>
-        <div class="kpi-content">
-          <div class="kpi-value">{{ offlineCount }}</div>
-          <div class="kpi-label">Offline</div>
+      <div class="kpi-mini" :class="{ active: connectivityFilter === 'offline' }" @click="toggleConnectivityFilter('offline')"
+        @mouseenter.stop="showTip($event, `Offline: ${offlineCount}${offlineCount !== offlineCountGlobal ? ' / ' + offlineCountGlobal + ' total' : ''}`)" @mouseleave="hideTip">
+        <i class="kpi-mini__icon offline fas fa-unlink"></i>
+        <div class="kpi-mini__content">
+          <div class="kpi-mini__value">{{ offlineCount }}<span v-if="offlineCount !== offlineCountGlobal" class="kpi-mini__total"> / {{ offlineCountGlobal }}</span></div>
+          <div class="kpi-mini__label">Offline</div>
         </div>
       </div>
-      
-      <div class="kpi-card" :class="{ active: movingOnly }" 
-        @click="toggleMovingFilter"
-        @mouseenter.stop="showTip($event, 'Filtrar em movimento')" @mouseleave="hideTip">
-        <i class="fas fa-running kpi-icon moving"></i>
-        <div class="kpi-content">
-          <div class="kpi-value">{{ movingCount }}</div>
-          <div class="kpi-label">Em movimento</div>
+      <div class="kpi-mini" :class="{ active: movingOnly }" @click="toggleMovingFilter"
+        @mouseenter.stop="showTip($event, `Em movimento: ${movingCount}${movingCount !== movingCountGlobal ? ' / ' + movingCountGlobal + ' total' : ''}`)" @mouseleave="hideTip">
+        <i class="kpi-mini__icon moving fas fa-location-arrow"></i>
+        <div class="kpi-mini__content">
+          <div class="kpi-mini__value">{{ movingCount }}<span v-if="movingCount !== movingCountGlobal" class="kpi-mini__total"> / {{ movingCountGlobal }}</span></div>
+          <div class="kpi-mini__label">Movimento</div>
         </div>
       </div>
-      
-      <div class="kpi-card" :class="{ active: situacaoFilter === 'ativo' }" 
-        @click="toggleSituacaoFilter('ativo')"
-        @mouseenter.stop="showTip($event, 'Filtrar por Ativos')" @mouseleave="hideTip">
-        <i class="fas fa-check-circle kpi-icon ativo"></i>
-        <div class="kpi-content">
-          <div class="kpi-value">{{ ativoCount }}</div>
-          <div class="kpi-label">Ativos</div>
+      <div class="kpi-mini" :class="{ active: situacaoFilter === 'ativo' }" @click="toggleSituacaoFilter('ativo')"
+        @mouseenter.stop="showTip($event, `Ativo: ${ativoCount}${ativoCount !== ativoCountGlobal ? ' / ' + ativoCountGlobal + ' total' : ''}`)" @mouseleave="hideTip">
+        <i class="kpi-mini__icon ativo fas fa-check-circle"></i>
+        <div class="kpi-mini__content">
+          <div class="kpi-mini__value">{{ ativoCount }}<span v-if="ativoCount !== ativoCountGlobal" class="kpi-mini__total"> / {{ ativoCountGlobal }}</span></div>
+          <div class="kpi-mini__label">Ativo</div>
         </div>
       </div>
-      
-      <div class="kpi-card" :class="{ active: situacaoFilter === 'estoque' }" 
-        @click="toggleSituacaoFilter('estoque')"
-        @mouseenter.stop="showTip($event, 'Filtrar por Estoque')" @mouseleave="hideTip">
-        <i class="fas fa-box-open kpi-icon estoque"></i>
-        <div class="kpi-content">
-          <div class="kpi-value">{{ estoqueCount }}</div>
-          <div class="kpi-label">Estoque</div>
+      <div class="kpi-mini" :class="{ active: situacaoFilter === 'estoque' }" @click="toggleSituacaoFilter('estoque')"
+        @mouseenter.stop="showTip($event, `Estoque: ${estoqueCount}${estoqueCount !== estoqueCountGlobal ? ' / ' + estoqueCountGlobal + ' total' : ''}`)" @mouseleave="hideTip">
+        <i class="kpi-mini__icon estoque fas fa-box"></i>
+        <div class="kpi-mini__content">
+          <div class="kpi-mini__value">{{ estoqueCount }}<span v-if="estoqueCount !== estoqueCountGlobal" class="kpi-mini__total"> / {{ estoqueCountGlobal }}</span></div>
+          <div class="kpi-mini__label">Estoque</div>
         </div>
       </div>
-      
-      <div class="kpi-card" :class="{ active: situacaoFilter === 'desativado' }" 
-        @click="toggleSituacaoFilter('desativado')"
-        @mouseenter.stop="showTip($event, 'Filtrar por Desativados')" @mouseleave="hideTip">
-        <i class="fas fa-ban kpi-icon desativado"></i>
-        <div class="kpi-content">
-          <div class="kpi-value">{{ desativadoCount }}</div>
-          <div class="kpi-label">Desativados</div>
+      <div class="kpi-mini" :class="{ active: situacaoFilter === 'desativado' }" @click="toggleSituacaoFilter('desativado')"
+        @mouseenter.stop="showTip($event, `Desativado: ${desativadoCount}${desativadoCount !== desativadoCountGlobal ? ' / ' + desativadoCountGlobal + ' total' : ''}`)" @mouseleave="hideTip">
+        <i class="kpi-mini__icon desativado fas fa-times-circle"></i>
+        <div class="kpi-mini__content">
+          <div class="kpi-mini__value">{{ desativadoCount }}<span v-if="desativadoCount !== desativadoCountGlobal" class="kpi-mini__total"> / {{ desativadoCountGlobal }}</span></div>
+          <div class="kpi-mini__label">Desativado</div>
         </div>
       </div>
-      
-      <div class="kpi-card total">
-        <i class="fas fa-layer-group kpi-icon"></i>
-        <div class="kpi-content">
-          <div class="kpi-value">{{ totalShown }}</div>
-          <div class="kpi-label">Total</div>
+      <div class="kpi-mini total"
+        @mouseenter.stop="showTip($event, `Total exibido: ${totalShown}${totalShown !== totalGlobal ? ' de ' + totalGlobal : ''}`)" @mouseleave="hideTip">
+        <i class="kpi-mini__icon fas fa-layer-group"></i>
+        <div class="kpi-mini__content">
+          <div class="kpi-mini__value">{{ totalShown }}<span v-if="totalShown !== totalGlobal" class="kpi-mini__total"> / {{ totalGlobal }}</span></div>
+          <div class="kpi-mini__label">Total</div>
         </div>
       </div>
     </div>
@@ -586,6 +575,11 @@ const loadOpenSections = () => {
 
 const openSections = ref(loadOpenSections());
 
+// ETAPA 8C: Estado para collapse dos KPIs no scroll
+const kpisCollapsed = ref(false);
+const scrollContainerRef = ref(null);
+let scrollAnimationFrame = null;
+
 // ETAPA 6C: Salvar com debounce
 const saveUIOnlyActiveState = () => {
   debouncePersist('device_filters_ui_only_active', showOnlyActiveControls.value, 150);
@@ -599,6 +593,28 @@ const toggleSection = (section) => {
 
 const saveOpenSections = () => {
   debouncePersist('device_filters_open_sections', JSON.stringify(openSections.value), 150);
+};
+
+// ETAPA 8C-C: Handler de scroll para auto-collapse dos KPIs
+const handleScrollForKpis = () => {
+  if (scrollAnimationFrame) {
+    cancelAnimationFrame(scrollAnimationFrame);
+  }
+  
+  scrollAnimationFrame = requestAnimationFrame(() => {
+    if (!scrollContainerRef.value) return;
+    
+    const scrollTop = scrollContainerRef.value.scrollTop;
+    
+    // Auto-collapse: scroll > 40px => collapse, < 10px => expand
+    if (scrollTop > 40 && !kpisCollapsed.value) {
+      kpisCollapsed.value = true;
+    } else if (scrollTop < 10 && kpisCollapsed.value) {
+      kpisCollapsed.value = false;
+    }
+    
+    scrollAnimationFrame = null;
+  });
 };
 
 // ETAPA 4B: Verificar disponibilidade de XLSX
@@ -781,19 +797,58 @@ const favoritesList = computed(() => {
   });
 });
 
-// ETAPA 8B: Computed para verificar permissão de admin (KPIs visíveis apenas para admin)
-const canSeeKpis = computed(() => {
-  // TODO: Validar se store.state.auth.administrator é o campo correto após testes
-  return store.state.auth?.administrator === true;
+// ETAPA 8C-A: Helper robusto para detectar admin (múltiplos caminhos)
+const isAdminUser = computed(() => {
+  // Tentar múltiplos caminhos conhecidos (ordem de prioridade)
+  if (store.state.auth?.administrator !== undefined) {
+    return !!store.state.auth.administrator;
+  }
+  if (store.state.session?.user?.administrator !== undefined) {
+    return !!store.state.session.user.administrator;
+  }
+  try {
+    const sessionUser = store.getters['session/user'];
+    if (sessionUser?.administrator !== undefined) {
+      return !!sessionUser.administrator;
+    }
+  } catch (e) {}
+  try {
+    if (store.getters['auth/isAdmin'] !== undefined) {
+      return !!store.getters['auth/isAdmin'];
+    }
+  } catch (e) {}
+  try {
+    if (store.getters['session/isAdmin'] !== undefined) {
+      return !!store.getters['session/isAdmin'];
+    }
+  } catch (e) {}
+  if (store.state.user?.administrator !== undefined) {
+    return !!store.state.user.administrator;
+  }
+  // TODO: Verificar qual caminho está ativo no store após testes de produção
+  // Fallback seguro: não mostrar KPIs se não conseguir determinar permissão
+  return false;
 });
 
-// ETAPA 6A: KPI Summary Computeds
+const canSeeKpis = computed(() => isAdminUser.value);
+
+// ETAPA 6A/8C-B: KPI Summary Computeds (Shown = filtrado atual, Global = base antes de situacao/connectivity filters)
 const totalShown = computed(() => {
   return displayDevices.value.length;
 });
 
+const totalGlobal = computed(() => {
+  return filteredDevices.value.length;
+});
+
 const onlineCount = computed(() => {
   return displayDevices.value.filter(device => {
+    return getDeviceConnectivity(device) === 'online';
+  }).length;
+});
+
+const onlineCountGlobal = computed(() => {
+  return filteredDevices.value.filter(device => {
     return getDeviceConnectivity(device) === 'online';
   }).length;
 });
@@ -804,14 +859,33 @@ const offlineCount = computed(() => {
   }).length;
 });
 
+const offlineCountGlobal = computed(() => {
+  return filteredDevices.value.filter(device => {
+    return getDeviceConnectivity(device) === 'offline';
+  }).length;
+});
+
 const movingCount = computed(() => {
   return displayDevices.value.filter(device => {
     return getDeviceMoving(device);
   }).length;
 });
 
+const movingCountGlobal = computed(() => {
+  return filteredDevices.value.filter(device => {
+    return getDeviceMoving(device);
+  }).length;
+});
+
 const ativoCount = computed(() => {
   return displayDevices.value.filter(device => {
+    const situacao = device.attributes?.['situacao']?.toLowerCase();
+    return situacao === 'ativo';
+  }).length;
+});
+
+const ativoCountGlobal = computed(() => {
+  return filteredDevices.value.filter(device => {
     const situacao = device.attributes?.['situacao']?.toLowerCase();
     return situacao === 'ativo';
   }).length;
@@ -824,8 +898,22 @@ const estoqueCount = computed(() => {
   }).length;
 });
 
+const estoqueCountGlobal = computed(() => {
+  return filteredDevices.value.filter(device => {
+    const situacao = device.attributes?.['situacao']?.toLowerCase();
+    return situacao === 'estoque';
+  }).length;
+});
+
 const desativadoCount = computed(() => {
   return displayDevices.value.filter(device => {
+    const situacao = device.attributes?.['situacao']?.toLowerCase();
+    return situacao === 'desativado';
+  }).length;
+});
+
+const desativadoCountGlobal = computed(() => {
+  return filteredDevices.value.filter(device => {
     const situacao = device.attributes?.['situacao']?.toLowerCase();
     return situacao === 'desativado';
   }).length;
@@ -1901,6 +1989,15 @@ onMounted(() => {
   
   // ETAPA 7B: Aplicar filtros da URL (deep link)
   applyFiltersFromUrl();
+  
+  // ETAPA 8C-C: Listener para auto-collapse KPIs no scroll
+  setTimeout(() => {
+    const container = document.querySelector('.devices-page > div[style*="border"]');
+    if (container) {
+      scrollContainerRef.value = container;
+      container.addEventListener('scroll', handleScrollForKpis);
+    }
+  }, 300);
 });
 
 // ETAPA 6C: Cleanup no unmount (map + persist timers)
@@ -1926,6 +2023,14 @@ onBeforeUnmount(() => {
   Object.keys(persistTimers).forEach(key => {
     clearTimeout(persistTimers[key]);
   });
+  
+  // ETAPA 8C-C: Limpar scroll listener e animation frame
+  if (scrollContainerRef.value) {
+    scrollContainerRef.value.removeEventListener('scroll', handleScrollForKpis);
+  }
+  if (scrollAnimationFrame) {
+    cancelAnimationFrame(scrollAnimationFrame);
+  }
 });
 
 
@@ -1942,6 +2047,9 @@ onBeforeUnmount(() => {
 .search-row{
   display:flex;align-items:center;gap:8px;margin-bottom:12px;width:100%;
   flex-wrap:nowrap;
+  /* ETAPA 8C-C: Sticky header */
+  position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.95);
+  backdrop-filter:blur(8px);padding:8px 0;margin-top:-8px;
 }
 
 .search-input{flex:1 1 auto;min-width:0;}
@@ -2137,6 +2245,34 @@ onBeforeUnmount(() => {
 .kpi-mini__label{
   font-size:10px;color:#909399;font-weight:500;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+
+.kpi-mini__total{
+  font-size:12px;color:#909399;font-weight:400;margin-left:2px;
+}
+
+/* ETAPA 8C-C: Collapsed state (reduz altura) */
+.kpi-grid-compact.kpi-collapsed{
+  max-height:32px;overflow:hidden;opacity:0.6;
+  transition:max-height .3s ease, opacity .3s ease;
+}
+
+.kpi-grid-compact.kpi-collapsed:hover{
+  opacity:0.9;
+}
+
+.kpi-mini__total{
+  font-size:12px;color:#909399;font-weight:400;margin-left:2px;
+}
+
+/* ETAPA 8C-C: Collapsed state (reduz altura) */
+.kpi-grid-compact.kpi-collapsed{
+  max-height:32px;overflow:hidden;opacity:0.6;
+  transition:max-height .3s ease, opacity .3s ease;
+}
+
+.kpi-grid-compact.kpi-collapsed:hover{
+  opacity:0.9;
 }
 
 .add-btn{
