@@ -72,6 +72,42 @@
         </el-button>
       </div>
 
+      <!-- ETAPA 5A: Presets rápidos -->
+      <div class="presets-section">
+        <div class="presets-header">
+          <span class="presets-title">Presets</span>
+          <el-button type="text" @click="saveCurrentPreset" class="save-preset-btn"
+            @mouseenter.stop="showTip($event, 'Salvar filtro atual')" @mouseleave="hideTip">
+            <i class="fas fa-save"></i>
+          </el-button>
+        </div>
+        
+        <!-- Presets padrão -->
+        <div class="presets-row">
+          <div v-for="preset in defaultPresets" :key="preset.id" 
+            class="preset-btn default" @click="applyPreset(preset)"
+            @mouseenter.stop="showTip($event, preset.name)" @mouseleave="hideTip">
+            <i :class="preset.icon"></i>
+            <span>{{ preset.name }}</span>
+          </div>
+        </div>
+        
+        <!-- Presets salvos -->
+        <div v-if="savedPresets.length > 0" class="saved-presets">
+          <div class="saved-presets-label">Salvos</div>
+          <div v-for="preset in savedPresets" :key="preset.id" class="preset-item">
+            <div class="preset-btn saved" @click="applyPreset(preset)">
+              <i class="fas fa-bookmark"></i>
+              <span>{{ preset.name }}</span>
+            </div>
+            <button class="preset-remove" @click="removePreset(preset.id)"
+              @mouseenter.stop="showTip($event, 'Remover preset')" @mouseleave="hideTip">
+              <i class="fas fa-trash-alt"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- Linha 1: Situação -->
       <div class="filters-row primary-row">
         <div class="category-label">
@@ -372,6 +408,70 @@ const isXlsxAvailable = computed(() => {
 const connectivityFilter = ref(localStorage.getItem('device_connectivity_filter') || 'todos');
 const movingOnly = ref(localStorage.getItem('device_moving_only') === 'true');
 
+// ETAPA 5A: Presets de filtros
+const defaultPresets = [
+  {
+    id: 'preset_offline',
+    name: 'Offline',
+    icon: 'fas fa-exclamation-circle',
+    filters: {
+      situacaoFilter: 'todos',
+      connectivityFilter: 'offline',
+      movingOnly: false,
+      query: '',
+      estilo: 'cozy'
+    }
+  },
+  {
+    id: 'preset_moving',
+    name: 'Em movimento',
+    icon: 'fas fa-running',
+    filters: {
+      situacaoFilter: 'todos',
+      connectivityFilter: 'todos',
+      movingOnly: true,
+      query: '',
+      estilo: 'cozy'
+    }
+  },
+  {
+    id: 'preset_ativo',
+    name: 'Ativos',
+    icon: 'fas fa-check-circle',
+    filters: {
+      situacaoFilter: 'ativo',
+      connectivityFilter: 'todos',
+      movingOnly: false,
+      query: '',
+      estilo: 'cozy'
+    }
+  },
+  {
+    id: 'preset_estoque',
+    name: 'Estoque',
+    icon: 'fas fa-box-open',
+    filters: {
+      situacaoFilter: 'estoque',
+      connectivityFilter: 'todos',
+      movingOnly: false,
+      query: '',
+      estilo: 'cozy'
+    }
+  }
+];
+
+const loadSavedPresets = () => {
+  try {
+    const stored = localStorage.getItem('device_filter_presets');
+    return stored ? JSON.parse(stored) : [];
+  } catch (error) {
+    console.error('Error loading presets:', error);
+    return [];
+  }
+};
+
+const savedPresets = ref(loadSavedPresets());
+
 const activeFiltersCount = computed(() => {
   let count = 0;
   if (situacaoFilter.value !== 'todos') count++;
@@ -475,6 +575,65 @@ const clearAllFilters = () => {
   localStorage.removeItem('device_estilo');
   localStorage.removeItem('device_connectivity_filter');
   localStorage.removeItem('device_moving_only');
+};
+
+// ETAPA 5A: Funções de presets
+const applyPreset = (preset) => {
+  const filters = preset.filters;
+  
+  // Aplicar todos os filtros do preset
+  situacaoFilter.value = filters.situacaoFilter || 'todos';
+  connectivityFilter.value = filters.connectivityFilter || 'todos';
+  movingOnly.value = filters.movingOnly || false;
+  query.value = filters.query || '';
+  estilo.value = filters.estilo || 'cozy';
+  
+  // Atualizar localStorage
+  localStorage.setItem('device_estilo', estilo.value);
+  localStorage.setItem('device_connectivity_filter', connectivityFilter.value);
+  localStorage.setItem('device_moving_only', movingOnly.value);
+  localStorage.setItem('device_query', query.value);
+  
+  // Aplicar filtro de situação
+  filterDevices(situacaoFilter.value);
+};
+
+const saveCurrentPreset = () => {
+  const name = window.prompt('Nome do preset:');
+  
+  if (!name || name.trim() === '') {
+    return;
+  }
+  
+  const newPreset = {
+    id: 'preset_custom_' + Date.now(),
+    name: name.trim(),
+    filters: {
+      situacaoFilter: situacaoFilter.value,
+      connectivityFilter: connectivityFilter.value,
+      movingOnly: movingOnly.value,
+      query: query.value,
+      estilo: estilo.value
+    }
+  };
+  
+  savedPresets.value.push(newPreset);
+  
+  try {
+    localStorage.setItem('device_filter_presets', JSON.stringify(savedPresets.value));
+  } catch (error) {
+    console.error('Error saving preset:', error);
+  }
+};
+
+const removePreset = (presetId) => {
+  savedPresets.value = savedPresets.value.filter(p => p.id !== presetId);
+  
+  try {
+    localStorage.setItem('device_filter_presets', JSON.stringify(savedPresets.value));
+  } catch (error) {
+    console.error('Error removing preset:', error);
+  }
 };
 
 const setEstilo = (value) => {
@@ -1167,6 +1326,81 @@ onBeforeUnmount(() => {
 .filters-panel-header h4{margin:0;font-size:12px;font-weight:600;color:#333;}
 .clear-all-btn{font-size:10px;color:#F56C6C;padding:0;height:auto;}
 .clear-all-btn:hover{opacity:.8;}
+
+/* =========================== ETAPA 5A: PRESETS =========================== */
+.presets-section{
+  background:#fff;border-radius:6px;padding:8px;margin-bottom:8px;
+  border:1px solid #e4e7ed;
+}
+
+.presets-header{
+  display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;
+}
+
+.presets-title{
+  font-size:11px;font-weight:600;color:#606266;text-transform:uppercase;letter-spacing:0.5px;
+}
+
+.save-preset-btn{
+  font-size:11px;color:#409EFF;padding:0;height:auto;
+}
+.save-preset-btn:hover{opacity:.8;}
+
+.presets-row{
+  display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px;
+}
+
+.preset-btn{
+  display:inline-flex;align-items:center;gap:4px;padding:5px 10px;
+  border-radius:12px;font-size:11px;cursor:pointer;transition:all .2s ease;
+  border:1px solid #e4e7ed;background:#f9fafb;
+}
+
+.preset-btn:hover{
+  border-color:#409EFF;background:#ecf5ff;color:#409EFF;transform:translateY(-1px);
+  box-shadow:0 2px 4px rgba(64,158,255,.15);
+}
+
+.preset-btn.default{
+  color:#606266;
+}
+
+.preset-btn.default i{
+  font-size:10px;
+}
+
+.preset-btn.saved{
+  background:#fff;color:#409EFF;border-color:#409EFF;
+}
+
+.saved-presets{
+  margin-top:8px;padding-top:8px;border-top:1px solid #e4e7ed;
+}
+
+.saved-presets-label{
+  font-size:10px;color:#909399;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px;
+}
+
+.preset-item{
+  display:flex;align-items:center;gap:4px;margin-bottom:4px;
+}
+
+.preset-item .preset-btn{
+  flex:1;
+}
+
+.preset-remove{
+  background:none;border:none;padding:4px 6px;cursor:pointer;
+  color:#F56C6C;transition:all .2s ease;border-radius:4px;
+}
+
+.preset-remove:hover{
+  background:#fee;transform:scale(1.1);
+}
+
+.preset-remove i{
+  font-size:10px;
+}
 
 /* =========================== ETAPA 3B: CHIPS DE FILTROS ATIVOS =========================== */
 .active-filters-chips{
