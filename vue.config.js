@@ -1,3 +1,4 @@
+// eslint-disable-next-line no-unused-vars
 const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
 
 module.exports = {
@@ -30,7 +31,8 @@ module.exports = {
 
     configureWebpack:{
         plugins: [
-            new BundleAnalyzerPlugin()
+            // Desabilitado em dev - habilitar apenas para análise de bundle
+            // new BundleAnalyzerPlugin()
         ],
         resolve: {
             alias: {
@@ -41,9 +43,16 @@ module.exports = {
 
     devServer: {
         port: 8083,
-        disableHostCheck: true,
+        host: '0.0.0.0',
+        disableHostCheck: true, // Voltar para opção compatível com webpack-dev-server v3
         proxy: {
             '/api': {
+                target: 'http://localhost/back-end',
+                changeOrigin: true,
+                secure: false
+            },
+            // Proxy para /tarkan/* para evitar CORS em desenvolvimento
+            '/tarkan': {
                 target: 'http://localhost/back-end',
                 changeOrigin: true,
                 secure: false

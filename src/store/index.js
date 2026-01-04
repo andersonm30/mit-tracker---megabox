@@ -12,11 +12,14 @@ import drivers from './modules/drivers'
 import calendars from './modules/calendars'
 import maintenance from './modules/maintenance'
 import reports from './modules/reports'
+// import routes from './modules/routes' // TEMPORARIAMENTE COMENTADO PARA DEBUG
 
 import i18n from '../lang/';
 
 //import router from '../routes.js';
 import {ElMessageBox} from "element-plus/es/components/message-box";
+
+// console.log('[store/index.js] 🔵 Criando Vuex store...');
 
 // Create a new index instance.
 const store = createStore({
@@ -104,8 +107,6 @@ const store = createStore({
                     return false;
                 }else if(state.auth.administrator){
                     return true;
-                }else if(!state.server.isPlus){
-                    return true;
                 }else if(state.server.serverInfo.attributes['tarkan.enableAdvancedPerms'] && state.permissions!==false){
 
                     return state.permissions[a] && parseInt(state.permissions[a]) === 1;
@@ -190,7 +191,7 @@ const store = createStore({
                     i18n.global.locale = auth.attributes['tarkan.lang'];
                 }
 
-                if (state.auth && state.server.isPlus && state.server.serverInfo.attributes['tarkan.enableAdvancedPerms']) {
+                if (state.auth && state.server.serverInfo.attributes['tarkan.enableAdvancedPerms']) {
                     if (auth.attributes['tarkan.advancedPerms']) {
 
                         const p1 = parseInt(auth.attributes['tarkan.advancedPerms'].substring(0, 8), 16).toString(2).padStart(32, '0');
@@ -211,15 +212,22 @@ const store = createStore({
             state.auth.map = value;
         },
         setMapPref(state,value){
-          if(!state.mapPref[value]){
-              state.mapPref[value] = true;
-          }else{
-              state.mapPref[value] = !state.mapPref[value];
+          // Suporta dois formatos:
+          // 1. String simples: toggle automático (ex: 'name')
+          // 2. Array [key, value]: seta valor específico (ex: ['clustered', true])
+          if(Array.isArray(value)){
+              const [key, val] = value;
+              state.mapPref[key] = val;
+          } else {
+              // Toggle automático para compatibilidade
+              if(state.mapPref[value] === undefined){
+                  state.mapPref[value] = true;
+              }else{
+                  state.mapPref[value] = !state.mapPref[value];
+              }
           }
 
           window.localStorage.setItem('mapPref',JSON.stringify(state.mapPref));
-
-
         }, 
         setPushToken(state, value) {
             state.pushToken = value;
@@ -308,20 +316,30 @@ const store = createStore({
         },
         async loadUserData(context,waitDevice){
 
+            try {
+                // Tentar carregar posições e devices em paralelo, mas continuar mesmo se uma falhar
+                await Promise.allSettled([
+                    context.dispatch('devices/positions'),
+                    context.dispatch('devices/load',waitDevice)
+                ]).then(results => {
+                    results.forEach((result, index) => {
+                        if (result.status === 'rejected') {
+                            const name = index === 0 ? 'positions' : 'load';
+                            console.warn(`⚠️ [loadUserData] ${name} falhou:`, result.reason);
+                        }
+                    });
+                });
 
-            await Promise.all([context.dispatch('devices/positions'),
-                                context.dispatch('devices/load',waitDevice)]);
+                context.dispatch('devices/connectWs');
 
-            context.dispatch('devices/connectWs');
+                store.dispatch("loadUserDataExtra");
 
-
-            store.dispatch("loadUserDataExtra");
-
-
-
-            setInterval(()=>{
-                context.commit("setTime",new Date().getTime());
-            },1000);
+                setInterval(()=>{
+                    context.commit("setTime",new Date().getTime());
+                },1000);
+            } catch (err) {
+                console.error('❌ [loadUserData] Erro crítico:', err);
+            }
         },
         checkSession(context){
             return new Promise((resolve,reject)=>{
@@ -418,7 +436,10 @@ const store = createStore({
         calendars,
         maintenance,
         reports
+        // routes // TEMPORARIAMENTE COMENTADO PARA DEBUG
     }
 })
+
+// console.log('[store/index.js] ✅ Vuex store criado com módulos:', Object.keys(store.state));
 
 export default store;

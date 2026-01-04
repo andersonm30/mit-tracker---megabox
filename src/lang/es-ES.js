@@ -206,6 +206,36 @@ const messages = {
                 deviceInactive: 'Dispositivo Inactivo'
             }
         },
+        report: {
+            selectType: 'Seleccione tipo de informe',
+            history: 'Historial',
+            resume: 'Resumen',
+            stops: 'Paradas',
+            travels: 'Viajes',
+            events: 'Eventos',
+            load: 'Cargar',
+            export: 'Exportar',
+            showMarkers: 'Mostrar Marcadores',
+            // History/Routes translations
+            visualization: 'Visualización',
+            routeColor: 'Color',
+            colorBlue: 'Azul Predeterminado',
+            colorOrange: 'Naranja',
+            colorGreen: 'Verde',
+            colorRed: 'Rojo',
+            colorPurple: 'Morado',
+            colorYellow: 'Amarillo',
+            colorTurquoise: 'Turquesa',
+            colorPink: 'Rosa',
+            routeStart: 'Inicio',
+            routeEnd: 'Fin',
+            graphic: 'Gráfico',
+            maxSpeed: 'Velocidad Máxima',
+            avgSpeedMoving: 'Velocidad Media (en movimiento)',
+            movingTime: 'Tiempo en Movimiento',
+            stoppedTime: 'Tiempo Parado',
+            accelerations: 'Aceleraciones'
+        },
         login: {
             username: 'Acesso',
             password: 'Contraseña',
@@ -375,6 +405,36 @@ const messages = {
             add: 'Registrar Mantenimiento',
             remove: 'Remover',
             edit: 'Editar'
+        },
+        map: {
+            preferences: 'Preferencias del Mapa',
+            showCluster: 'Agrupar Vehículos',
+            showGroups: 'Mostrar Grupos',
+            showGeofences: 'Mostrar Geocercas',
+            showGeofenceNames: 'Nombres de Geocercas',
+            showNames: 'Mostrar Nombres',
+            showPlates: 'Mostrar Placas',
+            showStatus: 'Mostrar Estado',
+            showPrecision: 'Mostrar Precisión GPS',
+            layers: 'Tipo de Mapa',
+            refresh: 'Actualizar Mapa',
+            search: {
+                toggle: 'Buscar Dispositivo',
+                enabled: 'Búsqueda activada - Escribe el nombre',
+                disabled: 'Búsqueda desactivada',
+                placeholder: 'Buscar dispositivo...',
+                notFound: 'No encontrado'
+            },
+            whatsappAssistant: 'Asistente Virtual'
+        },
+        playback: {
+            play: 'Reproducir',
+            pause: 'Pausar',
+            stop: 'Parar',
+            restart: 'Reiniciar',
+            forward: 'Avanzar',
+            backward: 'Retroceder',
+            speed: 'Velocidad'
         }
 
 };

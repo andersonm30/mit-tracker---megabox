@@ -138,7 +138,7 @@
         </template>
 
 
-          <template v-if="store.state.server.isPlus && store.state.server.serverInfo.attributes['tarkan.enableAdvancedPerms'] && !formData.administrator">
+          <template v-if="store.state.server.serverInfo.attributes['tarkan.enableAdvancedPerms'] && !formData.administrator">
             <div style="display: flex;margin-bottom: 3px;padding: 7px;border-radius: 3px;background: var(--el-color-info-light); align-content: space-between;justify-content: space-between">
 
               <div style="font-weight: bold;font-size: 16px;">{{$t('user.advanced.devices')}}</div>
@@ -1518,7 +1518,7 @@ const doSave = () => {
         return false;
     }
 
-    if (store.state.server.isPlus && !formData.value.administrator && store.state.server.serverInfo.attributes['tarkan.enableAdvancedPerms']) {
+    if (!formData.value.administrator && store.state.server.serverInfo.attributes['tarkan.enableAdvancedPerms']) {
         const perms = permData.value.join("");
         const permsHex1 = parseInt(perms.substring(0, 32), 2).toString(16).padStart(8, '0');
         const permsHex2 = parseInt(perms.substring(32, 64), 2).toString(16).padStart(8, '0');

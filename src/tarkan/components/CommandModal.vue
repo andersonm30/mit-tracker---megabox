@@ -1,147 +1,141 @@
 <template>
-  <el-dialog
+  <el-dialog 
+    :lock-scroll="true" 
     v-model="isVisible"
-    :title="KT('device.custom_command')"
-    width="480px"
     :before-close="handleClose"
-    custom-class="command-modal"
     :close-on-click-modal="false"
-    :close-on-press-escape="false"
+    :close-on-press-escape="true"
     destroy-on-close
-    top="2vh"
+    append-to-body
+    width="520px"
+    top="10vh"
+    custom-class="command-modal-dialog"
   >
-    <div class="modal-content">
+    <template #header>
+      <div class="command-modal-header">
+        <div class="modal-title">
+          <i class="fas fa-terminal"></i> 
+          {{ KT('device.custom_command') }}
+        </div>
+        <button class="close-btn" @click="handleClose" type="button">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+    </template>
+
+    <div class="command-modal-body">
       <!-- Device Info -->
-      <div class="device-info">
-        <div class="device-header">
-          <i class="fas fa-microchip"></i>
+      <div class="device-info-card">
+        <div class="device-main-info">
+          <i class="fas fa-microchip device-icon"></i>
           <span class="device-name">{{ device?.name }}</span>
-          <span class="device-status" :class="device?.status">{{ device?.status }}</span>
+          <span class="device-status-badge" :class="device?.status">{{ device?.status?.toUpperCase() }}</span>
         </div>
         
-        <div class="device-details">
-          <div class="device-detail-item" v-if="devicePhone">
-            <i class="fas fa-mobile-alt"></i>
-            <span class="detail-label">Telefone:</span>
-            <span class="detail-value">{{ devicePhone }}</span>
-          </div>
-          
-          <div class="device-detail-item" v-if="deviceImei">
+        <div class="device-details-row">
+          <div class="detail-item" v-if="deviceImei">
             <i class="fas fa-barcode"></i>
-            <span class="detail-label">IMEI:</span>
-            <span class="detail-value">{{ deviceImei }}</span>
+            <span class="label">IMEI:</span>
+            <span class="value">{{ deviceImei }}</span>
+          </div>
+          <div class="detail-item" v-if="devicePhone">
+            <i class="fas fa-mobile-alt"></i>
+            <span class="label">{{ KT('device.phone_label') }}:</span>
+            <span class="value">{{ devicePhone }}</span>
           </div>
         </div>
       </div>
 
       <!-- Command Input -->
-      <div class="command-section">
-        <label class="form-label">{{ KT('device.enter_command') }}</label>
+      <div class="form-section">
+        <label class="section-label">{{ KT('device.enter_command') }}</label>
         <el-input
           v-model="command"
           :placeholder="KT('device.type_command')"
           size="large"
-          class="command-input"
           @keyup.enter="sendCommand"
         />
       </div>
 
       <!-- Method Selection -->
-      <div class="method-section">
-        <label class="form-label">{{ KT('device.transmission_method') }}</label>
-        <div class="method-options">
-          <div class="method-switch-container">
-            <div class="method-option" :class="{ active: selectedMethod === 'gprs' }" @click="selectedMethod = 'gprs'">
-              <i class="fas fa-wifi" :class="{ active: selectedMethod === 'gprs' }"></i>
-              <span>GPRS</span>
-            </div>
-            <div class="method-divider"></div>
-            <div class="method-option" :class="{ active: selectedMethod === 'sms', disabled: !smsAvailable }" @click="smsAvailable && (selectedMethod = 'sms')">
-              <i class="fas fa-sms" :class="{ active: selectedMethod === 'sms' }"></i>
-              <span>SMS</span>
-              <span v-if="!smsAvailable" class="disabled-reason">(No configurado)</span>
-            </div>
-          </div>
+      <div class="form-section">
+        <label class="section-label">{{ KT('device.transmission_method') }}</label>
+        <div class="method-buttons">
+          <el-button 
+            :type="selectedMethod === 'gprs' ? 'primary' : 'default'"
+            @click="selectedMethod = 'gprs'"
+            size="large"
+          >
+            <i class="fas fa-wifi"></i> GPRS
+          </el-button>
+          <el-button 
+            :type="selectedMethod === 'sms' ? 'primary' : 'default'"
+            :disabled="!smsAvailable"
+            @click="smsAvailable && (selectedMethod = 'sms')"
+            size="large"
+          >
+            <i class="fas fa-sms"></i> SMS
+            <span v-if="!smsAvailable" class="disabled-text">({{ KT('device.not_configured') }})</span>
+          </el-button>
         </div>
         
         <!-- Method Description -->
-        <div class="method-description">
-          <div v-if="selectedMethod === 'gprs'" class="method-info gprs">
-            <i class="fas fa-info-circle"></i>
-            <span>{{ KT('device.gprs_description') }}</span>
-          </div>
-          <div v-if="selectedMethod === 'sms' && smsAvailable" class="method-info sms">
-            <i class="fas fa-info-circle"></i>
-            <span>{{ KT('device.sms_description') }}</span>
-          </div>
+        <div class="method-hint">
+          <i class="fas fa-info-circle"></i>
+          <span v-if="selectedMethod === 'gprs'">{{ KT('device.gprs_description') }}</span>
+          <span v-else-if="selectedMethod === 'sms' && smsAvailable">{{ KT('device.sms_description') }}</span>
         </div>
       </div>
 
       <!-- Response Section -->
       <div v-if="showResponse" class="response-section">
-        <div class="response-header">
+        <div class="response-title">
           <i class="fas fa-reply"></i>
-          <span>Resposta do Comando</span>
+          {{ KT('device.command_response') }}
         </div>
-        <div class="response-content">
-          <div v-if="responseLoading" class="response-loading">
-            <i class="fas fa-spinner fa-spin"></i>
-            <span>Aguardando resposta...</span>
+        
+        <div v-if="responseLoading" class="response-loading">
+          <i class="fas fa-spinner fa-spin"></i>
+          <span>{{ KT('device.waiting_response') }}</span>
+        </div>
+        
+        <div v-else-if="responseData" class="response-result">
+          <div class="result-status" :class="responseData.success ? 'success' : 'error'">
+            <i :class="responseData.success ? 'fas fa-check-circle' : 'fas fa-times-circle'"></i>
+            <span>{{ responseData.success ? KT('device.sent_success') : KT('device.send_error') }}</span>
           </div>
-          <div v-else-if="responseData" class="response-data">
-            <div class="response-status" :class="responseData.success ? 'success' : 'error'">
-              <i :class="responseData.success ? 'fas fa-check-circle' : 'fas fa-times-circle'"></i>
-              <span>{{ responseData.success ? 'Enviado com sucesso' : 'Erro no envio' }}</span>
-            </div>
-            <div class="response-details">
-              <div class="response-item">
-                <strong>Método:</strong> {{ responseData.method }}
-              </div>
-              <div class="response-item" v-if="responseData.messageId">
-                <strong>ID da Mensagem:</strong> {{ responseData.messageId }}
-              </div>
-              <div class="response-item" v-if="responseData.description">
-                <strong>Descrição:</strong> {{ responseData.description }}
-              </div>
-              <div class="response-item" v-if="responseData.cost">
-                <strong>Custo:</strong> R$ {{ responseData.cost }}
-              </div>
-            </div>
+          <div class="result-details">
+            <p><strong>{{ KT('device.method_label') }}:</strong> {{ responseData.method }}</p>
+            <p v-if="responseData.messageId"><strong>{{ KT('device.message_id') }}:</strong> {{ responseData.messageId }}</p>
+            <p v-if="responseData.description"><strong>{{ KT('device.description_label') }}:</strong> {{ responseData.description }}</p>
+            <p v-if="responseData.cost"><strong>{{ KT('device.cost_label') }}:</strong> R$ {{ responseData.cost }}</p>
           </div>
         </div>
         
-        <!-- Device Response Notification -->
-        <div v-if="deviceResponse && showResponse && deviceResponse.result" class="device-response-notification">
-          <div class="response-status success">
+        <!-- Device Response -->
+        <div v-if="deviceResponse && deviceResponse.result" class="device-response-card">
+          <div class="result-status success">
             <i class="fas fa-check-circle"></i>
-            <span>Resposta do Dispositivo</span>
+            <span>{{ KT('device.device_response') }}</span>
           </div>
-          <div class="response-details">
-            <div class="response-item">
-              <strong>Resultado:</strong> {{ deviceResponse.result || 'Sin resultado específico' }}
-            </div>
-            <div class="response-item" v-if="deviceResponse.detail">
-              <strong>Detalle:</strong> {{ deviceResponse.detail }}
-            </div>
-            <div class="response-item time-item">
-              <strong>Hora:</strong> <span class="time-value">{{ formatResponseTime(deviceResponse.timestamp) }}</span>
-            </div>
+          <div class="result-details">
+            <p><strong>{{ KT('device.result_label') }}:</strong> {{ deviceResponse.result || KT('device.no_result') }}</p>
+            <p v-if="deviceResponse.detail"><strong>{{ KT('device.detail_label') }}:</strong> {{ deviceResponse.detail }}</p>
+            <p><strong>{{ KT('device.time_label') }}:</strong> {{ formatResponseTime(deviceResponse.timestamp) }}</p>
           </div>
         </div>
         
-        
-        <!-- Info about device responses - solo si no hay respuesta -->
-        <div v-if="!deviceResponse" class="device-response-info">
+        <div v-if="!deviceResponse" class="response-info-hint">
           <i class="fas fa-info-circle"></i>
-          <span>Algunos dispositivos pueden no reportar el resultado del comando</span>
+          <span>{{ KT('device.device_response_info') }}</span>
         </div>
       </div>
     </div>
 
     <template #footer>
-      <div class="modal-footer">
-        <el-button @click="handleClose" size="large">
-          {{ showResponse ? 'Fechar' : KT('Cancel') }}
+      <div class="command-modal-footer">
+        <el-button type="danger" plain @click="handleClose" size="large">
+          {{ showResponse ? KT('device.close') : KT('Cancel') }}
         </el-button>
         <el-button 
           v-if="!showResponse"
@@ -161,7 +155,7 @@
           size="large"
         >
           <i class="fas fa-plus"></i>
-          Enviar Outro Comando
+          {{ KT('device.send_another') }}
         </el-button>
       </div>
     </template>
@@ -336,14 +330,8 @@ export default {
 
     // Computed properties
     const isVisible = computed({
-      get: () => {
-        console.log('CommandModal isVisible getter:', props.modelValue);
-        return props.modelValue;
-      },
-      set: (value) => {
-        console.log('CommandModal isVisible setter:', value);
-        emit('update:modelValue', value);
-      }
+      get: () => props.modelValue,
+      set: (value) => emit('update:modelValue', value)
     })
 
     const devicePhone = computed(() => props.device?.attributes?.phone)
@@ -663,102 +651,136 @@ export default {
 }
 </script>
 
-<style scoped>
-.command-modal :deep(.el-dialog) {
-  max-height: 85vh;
-  display: flex;
-  flex-direction: column;
+<style>
+/* Dialog Container */
+.command-modal-dialog {
+  border-radius: 12px !important;
   overflow: hidden;
 }
 
-.command-modal :deep(.el-dialog__header) {
-  flex-shrink: 0;
-  padding: 12px 20px;
+/* Esconder botão close padrão do Element Plus - usamos o nosso personalizado */
+.command-modal-dialog .el-dialog__headerbtn {
+  display: none !important;
 }
 
-.command-modal :deep(.el-dialog__body) {
-  flex: 1;
-  padding: 0 20px;
-  overflow-y: auto;
-  max-height: calc(85vh - 140px);
-  min-height: 300px;
+.command-modal-dialog .el-dialog__header {
+  padding: 0 !important;
+  margin: 0 !important;
+  margin-right: 0 !important;
 }
 
-.command-modal :deep(.el-dialog__footer) {
-  flex-shrink: 0;
-  padding: 16px 20px;
-  background: white;
-  border-top: 1px solid #ebeef5;
-  box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
-  text-align: center;
+.command-modal-dialog .el-dialog__body {
+  padding: 0 !important;
 }
 
-.modal-content {
+.command-modal-dialog .el-dialog__footer {
+  padding: 0 !important;
+}
+
+/* Header do Modal */
+.command-modal-header {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 8px 0;
-}
-
-/* ESTILOS UNIFICADOS PARA TODAS LAS SECCIONES */
-.device-info,
-.command-section,
-.method-section,
-.response-section {
-  background: #f8fafc;
-  border-radius: 6px;
-  padding: 12px 16px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   margin: 0;
 }
 
-/* Estilos específicos solo para device-info */
-.device-info {
-  border-left: 3px solid #409eff; /* Mantener el borde azul característico */
-}
-
-.device-header {
+.command-modal-header .modal-title {
+  color: white;
+  font-size: 17px;
+  font-weight: 600;
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: 10px;
+}
+
+.command-modal-header .close-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.command-modal-header .close-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.command-modal-header .close-btn i {
+  font-size: 14px;
+}
+
+/* Body do Modal */
+.command-modal-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Card de Info do Dispositivo */
+.device-info-card {
+  background: #f8fafc;
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  border-left: 4px solid #409eff;
+}
+
+.device-main-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.device-icon {
+  color: #409eff;
+  font-size: 20px;
 }
 
 .device-name {
   font-weight: 600;
-  font-size: 14px;
+  font-size: 16px;
   color: #303133;
 }
 
-.device-status {
-  padding: 3px 10px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 500;
+.device-status-badge {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
   text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-.device-status.online {
-  background: #f0f9ff;
-  color: #059669;
-  border: 1px solid #a7f3d0;
+.device-status-badge.online {
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #bbf7d0;
 }
 
-.device-status.offline {
+.device-status-badge.offline {
   background: #fef2f2;
   color: #dc2626;
   border: 1px solid #fecaca;
 }
 
-.device-details {
+.device-details-row {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-top: 8px;
+  flex-wrap: wrap;
+  gap: 20px;
 }
 
-.device-detail-item {
+.detail-item {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -766,279 +788,193 @@ export default {
   color: #606266;
 }
 
-.device-detail-item i {
+.detail-item i {
   color: #409eff;
-  width: 18px;
-  flex-shrink: 0;
 }
 
-.detail-label {
+.detail-item .label {
   font-weight: 500;
-  color: #606266;
-  min-width: 70px;
 }
 
-.detail-value {
+.detail-item .value {
   color: #303133;
   font-family: 'Courier New', monospace;
-  font-size: 13px;
 }
 
-/* Estilos para command-section y method-section */
-.command-section,
-.method-section {
+/* Seções do Formulário */
+.form-section {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
-.form-label {
+.section-label {
   font-weight: 600;
   color: #303133;
   font-size: 14px;
-  margin-bottom: 4px; /* Pequeño margen para separar del input */
 }
 
-.command-input :deep(.el-input__wrapper) {
-  border-radius: 8px;
-}
-
-.method-options {
+/* Botões de Método */
+.method-buttons {
   display: flex;
-  justify-content: center;
+  gap: 12px;
 }
 
-.method-switch-container {
-  display: flex;
-  background: #f1f5f9;
-  border-radius: 10px;
-  padding: 3px;
-  border: 1px solid #e2e8f0;
-  width: 100%;
-  max-width: 280px;
-}
-
-.method-option {
+.method-buttons .el-button {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 10px 14px; /* Aumentado ligeramente */
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  background: transparent;
-  color: #64748b;
-  font-weight: 500;
-  position: relative;
-  font-size: 13px;
+  gap: 8px;
 }
 
-.method-option:hover:not(.disabled) {
-  background: rgba(255, 255, 255, 0.7);
-  color: #475569;
-}
-
-.method-option.active {
-  background: white;
-  color: #1e293b;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  font-weight: 600;
-}
-
-.method-option.disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.method-option i {
-  font-size: 16px;
-  color: inherit;
-  transition: color 0.2s ease;
-}
-
-.method-option i.active {
-  color: #3b82f6;
-}
-
-.method-divider {
-  width: 1px;
-  background: #e2e8f0;
-  margin: 8px 0;
-}
-
-.disabled-reason {
-  font-size: 10px;
+.method-buttons .disabled-text {
+  font-size: 11px;
   opacity: 0.7;
   margin-left: 4px;
 }
 
-.method-description {
-  margin-top: 8px;
-}
-
-.method-info {
+.method-hint {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
-  border-radius: 4px;
-  font-size: 12px;
-}
-
-.method-info.gprs {
+  padding: 10px 14px;
   background: #f0f9ff;
-  color: #0369a1;
+  border-radius: 6px;
   border: 1px solid #bae6fd;
+  font-size: 13px;
+  color: #0369a1;
 }
 
-.method-info.sms {
-  background: #fef3c7;
-  color: #d97706;
-  border: 1px solid #fde68a;
+.method-hint i {
+  color: #0ea5e9;
 }
 
-.modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
+/* Seção de Resposta */
+.response-section {
+  background: #f8fafc;
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid #e2e8f0;
 }
 
-.modal-footer .el-button {
-  min-width: 110px;
-}
-
-/* Response Section Styles */
-.response-header {
+.response-title {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
+  gap: 10px;
   font-weight: 600;
   color: #374151;
-  font-size: 14px;
+  font-size: 15px;
+  margin-bottom: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e5e7eb;
 }
 
-.response-header i {
+.response-title i {
   color: #6366f1;
 }
 
 .response-loading {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 12px;
-  padding: 16px 0;
+  padding: 20px;
   color: #6b7280;
   font-size: 14px;
 }
 
 .response-loading i {
   color: #3b82f6;
+  font-size: 20px;
 }
 
-.response-data {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+.response-result,
+.device-response-card {
+  background: white;
+  border-radius: 6px;
+  padding: 14px;
+  border: 1px solid #e5e7eb;
+  margin-bottom: 12px;
 }
 
-.response-status {
+.result-status {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
-  border-radius: 4px;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 6px;
   font-weight: 500;
-  font-size: 11px;
-  line-height: 1.2;
-  min-height: auto;
+  font-size: 13px;
+  margin-bottom: 12px;
 }
 
-.response-status.success {
+.result-status.success {
   background: #dcfce7;
   color: #166534;
-  border: 1px solid #bbf7d0;
 }
 
-.response-status.error {
+.result-status.error {
   background: #fef2f2;
   color: #dc2626;
-  border: 1px solid #fecaca;
 }
 
-.response-details {
+.result-status i {
+  font-size: 16px;
+}
+
+.result-details {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
-.response-item {
+.result-details p {
+  margin: 0;
+  font-size: 13px;
+  color: #374151;
+  padding: 6px 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.result-details p:last-child {
+  border-bottom: none;
+}
+
+.result-details strong {
+  color: #1f2937;
+  margin-right: 8px;
+}
+
+.response-info-hint {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 10px;
-  background: white;
-  border-radius: 4px;
-  border: 1px solid #e5e7eb;
-  font-size: 12px;
-}
-
-.response-item.time-item {
-  padding: 4px 10px;
-  font-size: 11px;
-}
-
-.time-value {
-  font-family: 'Courier New', monospace;
-  font-size: 10px;
-  color: #6b7280;
-  white-space: nowrap;
-}
-
-.response-item strong {
-  color: #374151;
-  min-width: 100px;
-}
-
-/* Device Response Notification Styles */
-.device-response-notification {
-  background: #f8fafc;
+  padding: 10px 14px;
+  background: #fefce8;
   border-radius: 6px;
-  padding: 12px 16px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
-  margin-top: 12px;
-  animation: slideIn 0.3s ease-out;
-}
-
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.device-response-info {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  background: #f9fafb;
-  border-radius: 4px;
-  border: 1px solid #e5e7eb;
-  font-size: 11px;
-  color: #6b7280;
-  margin-top: 8px;
-}
-
-.device-response-info i {
-  color: #9ca3af;
-  flex-shrink: 0;
+  border: 1px solid #fde68a;
   font-size: 12px;
+  color: #854d0e;
+}
+
+.response-info-hint i {
+  color: #eab308;
+}
+
+/* Footer do Modal */
+.command-modal-footer {
+  border-top: #e0e0e0 1px solid;
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.command-modal-footer .el-button {
+  min-width: 120px;
+}
+
+.command-modal-footer .el-button i {
+  margin-right: 6px;
 }
 </style>

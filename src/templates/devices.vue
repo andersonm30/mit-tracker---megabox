@@ -708,89 +708,12 @@
     <!-- VISUALIZAÇÃO EM CARDS -->
     <div v-if="viewMode === 'card'" class="cards-container" style="overflow-y: scroll; height: calc(100vh - 230px); padding: 12px;">
       <div class="cards-grid">
-        <div v-for="device in displayDevices" :key="device.id" 
-          class="device-card" 
-          :class="{
-            'card-online': device.status === 'online',
-            'card-offline': device.status === 'offline',
-            'card-moving': device.status === 'online' && store.getters['devices/getPosition'](device.id)?.attributes?.motion,
-            'card-disabled': device.disabled
-          }"
-          @click="markerClick(device.id)" 
-          @contextmenu.prevent="markerContext($event, device.id)">
-          
-          <!-- Barra de status lateral -->
-          <div class="card-status-bar"></div>
-          
-          <!-- Conteúdo do card -->
-          <div class="card-content">
-            <!-- Cabeçalho -->
-            <div class="card-header">
-              <div class="card-name">{{ device.name }}</div>
-              <div class="card-status-icon">
-                <i v-if="device.lastUpdate === null" class="fas fa-question-circle" style="color: var(--el-color-info);"></i>
-                <i v-else-if="device.status === 'online'" class="fas fa-check-circle" style="color: var(--el-color-success);"></i>
-                <i v-else-if="device.status === 'offline'" class="fas fa-exclamation-circle" style="color: var(--el-color-danger);"></i>
-                <i v-else class="fas fa-question-circle" style="color: var(--el-color-warning);"></i>
-              </div>
-            </div>
-            
-            <!-- ID (admin only) -->
-            <div v-if="store.getters['isAdmin']" class="card-id">ID: {{ device.id }}</div>
-            
-            <!-- Última atualização -->
-            <div class="card-update">
-              <i class="far fa-clock"></i>
-              {{ getLastUpdated(device.lastUpdate, now) }}
-            </div>
-            
-            <!-- Ícones de status -->
-            <div v-if="store.getters['devices/getPosition'](device.id)" class="card-icons" :set="position = store.getters['devices/getPosition'](device.id)">
-              <!-- Alarme -->
-              <div class="card-icon" :class="{ active: position.attributes.alarm }">
-                <i class="fas fa-exclamation-triangle" :style="{ color: position.attributes.alarm ? 'var(--el-color-danger)' : 'var(--el-color-info)' }"></i>
-              </div>
-              
-              <!-- Motorista -->
-              <div class="card-icon" :class="{ active: position.attributes['driverUniqueId'] }">
-                <i class="far fa-id-card" :style="{ 
-                  color: position.attributes['driverUniqueId'] ? 'var(--el-color-success)' : 
-                         position.attributes['isQrLocked'] ? 'var(--el-color-danger)' : 'var(--el-color-info)'
-                }"></i>
-              </div>
-              
-              <!-- Ignição -->
-              <div class="card-icon" :class="{ active: position.attributes.ignition === true }">
-                <i class="fas fa-key" :style="{ 
-                  color: position.attributes.ignition === true ? 'var(--el-color-success)' : 
-                         position.attributes.ignition === false ? 'var(--el-color-danger)' : 'var(--el-color-info)'
-                }"></i>
-              </div>
-              
-              <!-- Bloqueio -->
-              <div class="card-icon" :class="{ active: position.attributes.blocked === false }">
-                <i :class="position.attributes.blocked === true ? 'fas fa-lock' : 'fas fa-lock-open'" 
-                   :style="{ 
-                     color: position.attributes.blocked === true ? 'var(--el-color-danger)' : 
-                            position.attributes.blocked === false ? 'var(--el-color-success)' : 'var(--el-color-info)'
-                   }"></i>
-              </div>
-              
-              <!-- Movimento -->
-              <div class="card-icon" :class="{ active: position.attributes.motion }">
-                <i class="fas fa-angle-double-right" :style="{ 
-                  color: position.attributes.motion ? 'var(--el-color-primary)' : 'var(--el-color-info)'
-                }"></i>
-              </div>
-            </div>
-            
-            <!-- Sem posição -->
-            <div v-else class="card-no-position">
-              <i class="fas fa-eye-slash"></i>
-              <span>{{ KT('device.noPosition') }}</span>
-            </div>
-          </div>
-        </div>
+        <DeviceItem 
+          v-for="device in displayDevices" 
+          :key="device.id"
+          :device="device"
+          @device-click="markerClick"
+        />
       </div>
     </div>
 
@@ -820,7 +743,7 @@
           <!-- Devices do grupo (oculto se collapsed) -->
           <div v-if="group.id === -1 || !collapsedGroups[group.id]" class="group-body">
 
-          <div v-for="(device) in group.devices" :key="device.id" class="device" :class="{'isDisabled': device.disabled}" @click="markerClick(device.id)" @contextmenu.prevent="markerContext($event,device.id)" :set="position = store.getters['devices/getPosition'](device.id)">                      
+          <div v-for="(device) in group.devices" :key="device.id" class="device" :class="{'isDisabled': device.disabled}" :data-testid="`device-list-item-${device.id}`" data-testid-type="device-list-item" @click="markerClick(device.id)" @contextmenu.prevent="markerContext($event,device.id)" :set="position = store.getters['devices/getPosition'](device.id)">                      
           <div v-if="store.getters['isAdmin']" class="name" style="width: 90px;box-sizing: border-box;overflow: hidden;white-space: nowrap;text-align: center; flex: 1 1 15%" >{{device.id}}</div>            
           <div class="name" style="flex: 1 1 40%;;">{{device.name}}</div>
           <div class="name" style="width: 32px;overflow: hidden;text-align: center;font-size: 18px;box-sizing: border-box;overflow: hidden;flex: 1 1 15%;">
@@ -893,7 +816,7 @@
                   @mouseleave="hideTip" @mouseenter.stop="showTip($event,KT('unknown'))"
                   :style="{color: 'var(--el-color-info)'}"><i class="fas fa-lock-open"></i></div>
 
-            <template v-if="store.state.server.isPlus && store.getters.advancedPermissions(9)">
+            <template v-if="store.getters.advancedPermissions(9)">
               <div
                   v-if="store.getters['geofences/isAnchored'](device.id)"
                   @mouseleave="hideTip" @mouseenter.stop="showTip($event,KT('device.anchorEnabled'))"
@@ -947,7 +870,7 @@
 
 <script setup>
 
-
+import DeviceItem from './devices.item.vue'
 
 import 'element-plus/es/components/button/style/css'
 import 'element-plus/es/components/input/style/css'
@@ -959,7 +882,7 @@ import 'element-plus/es/components/notification/style/css'
 import { ElButton, ElInput } from "element-plus";
 
 
-import {ref,computed,inject,onMounted,watch,onBeforeUnmount} from 'vue';
+import {ref,computed,inject,onMounted,watch,onBeforeUnmount,nextTick} from 'vue';
 import {useStore} from "vuex"
 
 import KT from '../tarkan/func/kt.js';
@@ -988,8 +911,12 @@ const debouncePersist = (key, value, delay = 200) => {
   }, delay);
 };
 
-const markerContext = inject('markerContext');
-const markerClick = inject('markerClick');
+// console.log('[devices.vue] 🔵 Iniciando setup...');
+
+const markerContext = inject('markerContext', null);
+const markerClick = inject('markerClick', null);
+
+// console.log('[devices.vue] ✅ Injects carregados:', { markerContext: !!markerContext, markerClick: !!markerClick });
 
 const filteredDevices = ref([]);
 
@@ -999,6 +926,13 @@ const situacaoFilter = ref('todos');
 const showFiltersPanel = ref(false);
 const showExportMenu = ref(false);
 const exportBtnRef = ref(null);
+
+// GPS Filters (temporariamente vazios para evitar erros no template)
+const gpsBrands = ref([]);
+const gpsBrandFilter = ref('');
+const commonGpsModels = ref([]);
+const gpsModelFilter = ref('');
+const technologyFilter = ref('');
 
 // ETAPA 6B: Toggle UI-only para mostrar apenas controles ativos no painel
 const loadUIOnlyActiveState = () => {
@@ -1758,7 +1692,7 @@ const showDriverTip = ($event,deviceId)=>{
 
 const realDevices = ref(null);
 const offsetDevices = ref(0);
-const maxDevices = ref(0);
+const maxDevices = ref(20); // Valor padrão razoável caso clientHeight não esteja disponível
 
 // ETAPA 2C: Controle de sync de markers do mapa
 const prevVisibleIds = new Set();
@@ -2377,10 +2311,20 @@ const setSortingByState = ()=>{
 
 onMounted(()=>{
 
-  const real = realDevices.value;
+  nextTick(() => {
+    const real = realDevices.value;
 
-  maxDevices.value = Math.floor(real.clientHeight / 33)+3;
-  offsetDevices.value = Math.floor(real.scrollTop / 33);
+    // Proteção: verificar se real existe antes de acessar clientHeight
+    if (real && real.clientHeight) {
+      maxDevices.value = Math.floor(real.clientHeight / 33)+3;
+      offsetDevices.value = Math.floor(real.scrollTop / 33);
+    } else {
+      // Fallback: definir valor padrão razoável se elemento não estiver pronto
+      maxDevices.value = 30;
+      offsetDevices.value = 0;
+    }
+  });
+  
   setInterval(()=>{
     now.value = new Date();
   },3000);
@@ -2414,10 +2358,11 @@ watch(()=> store.getters['devices/sorting'],()=>{
 const realScroll = (event)=>{
   const real = event.target;
 
-
-  maxDevices.value = Math.floor(real.clientHeight / 33)+3;
-  offsetDevices.value = Math.floor(real.scrollTop / 33);
-
+  // Proteção: verificar se real existe antes de acessar clientHeight
+  if (real && real.clientHeight) {
+    maxDevices.value = Math.floor(real.clientHeight / 33)+3;
+    offsetDevices.value = Math.floor(real.scrollTop / 33);
+  }
 }
 
 
@@ -2825,6 +2770,14 @@ onBeforeUnmount(() => {
   .kpi-cards-row{
     grid-template-columns:repeat(2,1fr);
   }
+  
+  /* Ajuste quando sidebar est\u00e1 aberto no mobile */
+  .sidebar-open .kpi-cards-row,
+  .sidebar-open .kpi-grid-compact {
+    position: relative;
+    z-index: 1;
+    pointer-events: auto;
+  }
 }
 
 .kpi-card{
@@ -2934,6 +2887,14 @@ onBeforeUnmount(() => {
   
   .kpi-mini__total {
     font-size: 10px;
+  }
+  
+  /* Garantir visibilidade dos KPIs quando sidebar aberto */
+  .sidebar-open .kpi-cards-row,
+  .sidebar-open .kpi-grid-compact {
+    opacity: 1;
+    visibility: visible;
+    z-index: 1000;
   }
 }
 
@@ -3515,212 +3476,11 @@ onBeforeUnmount(() => {
   padding: 4px;
 }
 
-.device-card {
-  position: relative;
-  background: #fff;
-  border: 1px solid #d1d5db;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(16, 24, 40, 0.06);
-  overflow: hidden;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  cursor: pointer;
-  animation: fadeInUp 0.4s ease-out;
-}
-
-.device-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 24px rgba(16, 24, 40, 0.12);
-  border-color: #3b82f6;
-}
-
-.device-card:active {
-  transform: translateY(-2px);
-}
-
-/* Barra de status lateral colorida */
-.card-status-bar {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 5px;
-  background: #e5e7eb;
-  transition: background 0.3s ease;
-}
-
-.device-card.card-online .card-status-bar {
-  background: linear-gradient(180deg, #22c55e 0%, #16a34a 100%);
-}
-
-.device-card.card-moving .card-status-bar {
-  background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
-  animation: pulseGlow 2s ease-in-out infinite;
-}
-
-.device-card.card-offline .card-status-bar {
-  background: linear-gradient(180deg, #ef4444 0%, #dc2626 100%);
-}
-
-.device-card.card-disabled {
-  opacity: 0.6;
-  filter: grayscale(30%);
-}
-
-/* Conteúdo do card */
-.card-content {
-  padding: 16px;
-  padding-left: 20px;
-}
-
-/* Cabeçalho do card */
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 8px;
-  gap: 12px;
-}
-
-.card-name {
-  font-size: 16px;
-  font-weight: 600;
-  color: #1f2937;
-  line-height: 1.4;
-  flex: 1;
-  word-break: break-word;
-}
-
-.card-status-icon {
-  font-size: 20px;
-  flex-shrink: 0;
-  line-height: 1;
-}
-
-/* ID do dispositivo */
-.card-id {
-  font-size: 11px;
-  color: #6b7280;
-  font-family: 'Courier New', monospace;
-  margin-bottom: 8px;
-  padding: 4px 8px;
-  background: #f3f4f6;
-  border-radius: 6px;
-  display: inline-block;
-}
-
-/* Última atualização */
-.card-update {
-  font-size: 13px;
-  color: #6b7280;
-  margin-bottom: 12px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.card-update i {
-  opacity: 0.7;
-}
-
-/* Ícones de status */
-.card-icons {
-  display: flex;
-  gap: 8px;
-  padding-top: 12px;
-  border-top: 1px solid #e5e7eb;
-  justify-content: space-around;
-}
-
-.card-icon {
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 8px;
-  background: #f9fafb;
-  transition: all 0.2s ease;
-  font-size: 16px;
-}
-
-.card-icon:hover {
-  background: #f3f4f6;
-  transform: scale(1.1);
-}
-
-.card-icon.active {
-  background: #e0f2fe;
-  box-shadow: 0 0 0 2px #bae6fd;
-}
-
-/* Sem posição */
-.card-no-position {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px;
-  background: #fef3c7;
-  border-radius: 8px;
-  color: #92400e;
-  font-size: 13px;
-  margin-top: 8px;
-}
-
-.card-no-position i {
-  font-size: 16px;
-  opacity: 0.7;
-}
-
-/* Animações para cards */
-@keyframes cardPulse {
-  0%, 100% {
-    box-shadow: 0 2px 8px rgba(16, 24, 40, 0.06);
-  }
-  50% {
-    box-shadow: 0 4px 16px rgba(59, 130, 246, 0.2);
-  }
-}
-
-.device-card.card-moving {
-  animation: fadeInUp 0.4s ease-out, cardPulse 3s ease-in-out infinite;
-}
-
 /* Responsivo - cards */
 @media (max-width: 768px) {
-  .cards-container {
-    padding: 8px;
-  }
-  
   .cards-grid {
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 10px;
-  }
-  
-  .card-content {
-    padding: 12px;
-    padding-left: 16px;
-  }
-  
-  .card-header {
-    gap: 8px;
-  }
-  
-  .card-name {
-    font-size: 15px;
-  }
-  
-  .card-update {
-    font-size: 12px;
-  }
-  
-  .card-icons {
-    gap: 6px;
-  }
-  
-  .card-icon {
-    width: 32px;
-    height: 32px;
-    font-size: 14px;
   }
 }
 
@@ -3734,19 +3494,6 @@ onBeforeUnmount(() => {
     grid-template-columns: 1fr;
     gap: 8px;
   }
-  
-  .device-card {
-    border-radius: 10px;
-  }
-  
-  .card-content {
-    padding: 10px;
-    padding-left: 14px;
-  }
-  
-  .card-status-bar {
-    width: 4px;
-  }
 }
 
 @media (max-width: 420px) {
@@ -3757,55 +3504,6 @@ onBeforeUnmount(() => {
   
   .cards-grid {
     gap: 6px;
-  }
-  
-  .device-card {
-    border-radius: 8px;
-  }
-  
-  .card-content {
-    padding: 8px;
-    padding-left: 12px;
-  }
-  
-  .card-header {
-    margin-bottom: 6px;
-  }
-  
-  .card-name {
-    font-size: 14px;
-    line-height: 1.3;
-  }
-  
-  .card-status-icon {
-    font-size: 16px;
-  }
-  
-  .card-id {
-    font-size: 10px;
-    padding: 3px 6px;
-    margin-bottom: 6px;
-  }
-  
-  .card-update {
-    font-size: 11px;
-    margin-bottom: 8px;
-  }
-  
-  .card-icons {
-    gap: 4px;
-    padding-top: 8px;
-  }
-  
-  .card-icon {
-    width: 28px;
-    height: 28px;
-    font-size: 13px;
-  }
-  
-  .card-no-position {
-    padding: 8px;
-    font-size: 12px;
   }
 }
 

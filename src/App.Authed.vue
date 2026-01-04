@@ -7,8 +7,8 @@
 
 
 
-<edit-share v-if="store.state.server.isPlus" ref="editShareRef"></edit-share>
-<edit-shares v-if="store.state.server.isPlus" ref="editSharesRef"></edit-shares>
+<edit-share ref="editShareRef"></edit-share>
+<edit-shares ref="editSharesRef"></edit-shares>
 
 <edit-user ref="editUserRef"></edit-user>
 <edit-notifications ref="editNotificationsRef"></edit-notifications>
@@ -18,7 +18,7 @@
 <edit-server ref="editServerRef"></edit-server>
 <edit-drivers ref="editDriversRef"></edit-drivers>
 <edit-maintenances ref="editMaintenancesRef"></edit-maintenances>
-<edit-theme  v-if="store.state.server.isPlus" ref="editThemeRef"></edit-theme>
+<edit-theme ref="editThemeRef"></edit-theme>
 
 <div id="head">
   <div id="btnmenu" @click="menuShown = !menuShown">

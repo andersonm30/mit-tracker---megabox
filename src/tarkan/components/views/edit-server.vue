@@ -165,7 +165,7 @@
             </el-switch>
           </el-form-item>
 
-          <el-form-item v-if="store.state.server.isPlus" :label="KT('server.enableAdvancedPerms')">
+          <el-form-item :label="KT('server.enableAdvancedPerms')">
             <el-switch
                 v-model="formData.attributes['tarkan.enableAdvancedPerms']"
                 :inactive-text="KT('disabled')"
@@ -176,7 +176,7 @@
             </el-switch>
           </el-form-item>
 
-          <el-form-item v-if="store.state.server.isPlus" :label="KT('server.enableQrDriverId')">
+          <el-form-item :label="KT('server.enableQrDriverId')">
             <el-switch
                 v-model="formData.attributes['tarkan.enableQrDriverId']"
                 :inactive-text="KT('disabled')"
@@ -187,7 +187,7 @@
             </el-switch>
           </el-form-item>
 
-          <el-form-item v-if="store.state.server.isPlus" :label="KT('server.lazyDeletion')">
+          <el-form-item :label="KT('server.lazyDeletion')">
             <el-switch
                 v-model="formData.attributes['tarkan.enableLazyDeletion']"
                 :inactive-text="KT('disabled')"
@@ -198,7 +198,7 @@
             </el-switch>
           </el-form-item>
 
-          <el-form-item v-if="store.state.server.isPlus" :label="KT('server.showStops')">
+          <el-form-item :label="KT('server.showStops')">
             <el-switch
                 v-model="formData.attributes['tarkan.enableStops']"
                 :inactive-text="KT('disabled')"
@@ -209,7 +209,7 @@
             </el-switch>
           </el-form-item>
 
-          <el-form-item v-if="store.state.server.isPlus" :label="KT('server.showEvents')">
+          <el-form-item :label="KT('server.showEvents')">
             <el-switch
                 v-model="formData.attributes['tarkan.enableEvents']"
                 :inactive-text="KT('disabled')"

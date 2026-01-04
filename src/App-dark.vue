@@ -33,15 +33,15 @@
     <link-objects ref="linkObjectsRef"></link-objects>
     <log-objects ref="logObjectsRef"></log-objects>
 
-    <edit-share v-if="store.state.server.isPlus" ref="editShareRef"></edit-share>
-    <edit-shares v-if="store.state.server.isPlus" ref="editSharesRef"></edit-shares>
+    <edit-share ref="editShareRef"></edit-share>
+    <edit-shares ref="editSharesRef"></edit-shares>
 
     <edit-group ref="editGroupRef"></edit-group>
     <edit-users ref="editUsersRef"></edit-users>
     <edit-server ref="editServerRef"></edit-server>
     <edit-drivers ref="editDriversRef"></edit-drivers>
     <edit-maintenances ref="editMaintenancesRef"></edit-maintenances>
-    <edit-theme v-if="store.state.server.isPlus" ref="editThemeRef"></edit-theme>
+    <edit-theme ref="editThemeRef"></edit-theme>
     <!-- FITRUE_myFlag -->
 
     <!-- ADIÇÕES (paridade com concorrente) -->
@@ -1492,7 +1492,7 @@ const userMenu = (e) => {
   if (!store.state.auth.attributes['isShared']) {
     tmp.push({ text: KT('usermenu.account'), icon: 'fas fa-user-cog', cb: () => editUserRef.value.editUser() })
 
-    if (store.state.auth.administrator && store.state.server.isPlus) {
+    if (store.state.auth.administrator) {
       tmp.push({ text: KT('usermenu.logs'), icon: 'fas fa-history', cb: () => logObjectsRef.value.showLogs('all') })
       tmp.push({ text: KT('usermenu.theme'), icon: 'fas fa-palette', cb: () => editThemeRef.value.showTheme() })
     }

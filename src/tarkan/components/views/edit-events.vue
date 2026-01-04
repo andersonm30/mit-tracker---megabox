@@ -1,5 +1,5 @@
 <template>
-    <edit-notification ref="editEventRef"></edit-notification>
+    <edit-notification ref="editNotificationRef"></edit-notification>
     <el-dialog :lock-scroll="true" :top="'50px'" v-model="show">
   
       <template v-slot:title>
@@ -13,7 +13,7 @@
             <el-button
                 v-if="store.getters.advancedPermissions(37)"
                 @mouseleave="hideTip" @mouseenter.stop="showTip($event, KT('notification.add'))"
-                type="primary" @click="editEventRef.newEvent()"><i class="fas fa-user-plus"></i></el-button>
+                type="primary" @click="editNotificationRef.newNotification()"><i class="fas fa-user-plus"></i></el-button>
   
             <el-button
                 v-if="store.getters.advancedPermissions(39)"
@@ -25,13 +25,11 @@
             <el-button
                 v-if="store.getters.advancedPermissions(38)"
                 @mouseleave="hideTip" @mouseenter.stop="showTip($event, KT('notification.edit'))"
-                type="warning" :plain="selected === 0" @click="editEventRef.EditEvent(selected);">
+                type="warning" :plain="selected === 0" @click="editNotificationRef.editNotification(selected);">
               <i class="fas fa-user-edit"></i>
             </el-button>
         </div>
       </template>
-  
-      <edit-event ref="editEventRef"></edit-event>
   
       <!-- Lista de Notificaciones -->
       <div class="itm" style="display: flex; background: #eeeeee;">
@@ -128,14 +126,14 @@
   import {useStore} from 'vuex'
   
   
-  import EditEvent from "./edit-event.vue";
+  import EditNotification from "./edit-notification.vue";
   import KT from "../../func/kt";
   
   const store = useStore();
   const selected = ref(0);
   const show = ref(false);
   
-  const editEventRef = ref(null);
+  const editNotificationRef = ref(null);
   // Computed property to filter notifications that only have the 'command' channel in 'notificators'
   const filteredNotifications = computed(() => {
     return store.state.events.eventsList.filter(u => u.notificators.split(',').includes('command'));

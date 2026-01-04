@@ -149,7 +149,26 @@ const messages = {
             events: 'Events',
             load: 'Load',
             export: 'Export',
-            showMarkers: 'Show Markers'
+            showMarkers: 'Show Markers',
+            // History/Routes translations
+            visualization: 'Visualization',
+            routeColor: 'Color',
+            colorBlue: 'Blue Default',
+            colorOrange: 'Orange',
+            colorGreen: 'Green',
+            colorRed: 'Red',
+            colorPurple: 'Purple',
+            colorYellow: 'Yellow',
+            colorTurquoise: 'Turquoise',
+            colorPink: 'Pink',
+            routeStart: 'Start',
+            routeEnd: 'End',
+            graphic: 'Chart',
+            maxSpeed: 'Max Speed',
+            avgSpeedMoving: 'Avg Speed (moving)',
+            movingTime: 'Moving Time',
+            stoppedTime: 'Stopped Time',
+            accelerations: 'Accelerations'
         },
         alarms: {
             none: 'No Alert',
@@ -599,6 +618,36 @@ const messages = {
             add: 'Add Maintenance',
             remove: 'Remove',
             edit: 'Edit'
+        },
+        map: {
+            preferences: 'Map Preferences',
+            showCluster: 'Group Vehicles',
+            showGroups: 'Show Groups',
+            showGeofences: 'Show Geofences',
+            showGeofenceNames: 'Geofence Names',
+            showNames: 'Show Names',
+            showPlates: 'Show Plates',
+            showStatus: 'Show Status',
+            showPrecision: 'Show GPS Precision',
+            layers: 'Map Type',
+            refresh: 'Refresh Map',
+            search: {
+                toggle: 'Search Device',
+                enabled: 'Search enabled - Type the name',
+                disabled: 'Search disabled',
+                placeholder: 'Search device...',
+                notFound: 'Not found'
+            },
+            whatsappAssistant: 'Virtual Assistant'
+        },
+        playback: {
+            play: 'Play',
+            pause: 'Pause',
+            stop: 'Stop',
+            restart: 'Restart',
+            forward: 'Forward',
+            backward: 'Backward',
+            speed: 'Speed'
         }
 };
 

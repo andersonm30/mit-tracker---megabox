@@ -1,8 +1,13 @@
 <script>
 
-import { inject, onMounted, onBeforeUnmount, ref, provide, computed, watch } from "vue";
+import { inject, onMounted, onBeforeUnmount, ref, provide, computed, watch, nextTick } from "vue";
 import { GLOBAL_LEAFLET_OPT, WINDOW_OR_GLOBAL } from "@vue-leaflet/vue-leaflet/src/utils";
 import { useStore } from "vuex";
+
+// 🎯 CLUSTER: CSS importados aqui (funcionam sem L global)
+import 'leaflet.markercluster/dist/MarkerCluster.css';
+import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
+// ⚠️ cluster.js PRECISA ser importado DEPOIS que L estiver disponível (import dinâmico no onMounted)
 
 export default {
   name: 'Kore-CanvaMarker',
@@ -15,9 +20,16 @@ export default {
   // eslint-disable-next-line no-unused-vars
   setup(props, context) {
 
+    // Debug mode - desative em produção (silencioso para não poluir console)
+    const DEBUG_MODE = false; // Altere para true apenas quando precisar debugar
+    const debugLog = (...args) => DEBUG_MODE && console.log(...args);
+
     const store = useStore();
 
-    console.log(props);
+    // CLUSTER FIX: Usar clustered do store diretamente
+    const isClusteredEnabled = computed(() => store.getters['mapPref']('clustered', false));
+
+    debugLog('[CanvaMarker] Props:', props);
 
     let L = WINDOW_OR_GLOBAL.L;
 
@@ -29,11 +41,12 @@ export default {
 
     const markerList = ref([]);
 
-    // CLUSTER PATCH: Caches de markers e sistema de clustering
+    // CLUSTER: Caches de markers e sistema de clustering (projeto argentino)
     const markerById = ref(new Map());         // deviceId -> marker
-    const clusterByKey = ref(new Map());       // clusterKey -> marker cluster
     const lastRenderToken = ref(0);
-    const clusterCanvasCache = new Map();
+    // 🎯 USAR window.$mk GLOBAL (como projeto argentino)
+    window.$mk = window.$mk || null;
+    let clusterAvailable = false; // 🛡️ Flag permanente: true se cluster inicializou com sucesso
 
     // Normalizar devices (Array, Object, {list: []})
     const normalizeDevices = (input) => {
@@ -82,14 +95,33 @@ export default {
 
 
 
+    // 🛡️ MELHORIA: Carregamento de modelos com timeout e error handling robusto
+    // Previne travamento se imagens não carregarem ou demorarem muito
     function loadModel(key, model, c1, c2, w, d = 20) {
-      return new Promise((resolve) => {
+      return new Promise((resolve, reject) => {
+        const TIMEOUT = 10000; // 10 segundos - timeout para carregamento
+        let timeoutId;
 
+        const cleanup = () => {
+          if (timeoutId) clearTimeout(timeoutId);
+        };
 
-
+        // Timeout handler
+        timeoutId = setTimeout(() => {
+          console.error(`[CanvaMarker] Timeout ao carregar modelo: ${key}`);
+          cleanup();
+          reject(new Error(`Timeout loading model: ${key}`));
+        }, TIMEOUT);
 
         bases[key] = document.createElement('img');
         bases[key].src = '/img/cars/' + model + '_base.png';
+        
+        // Error handler para base image
+        bases[key].onerror = () => {
+          console.error(`[CanvaMarker] Erro ao carregar base: ${model}`);
+          cleanup();
+          resolve(); // Resolve mesmo com erro para não travar
+        };
 
         sizes[key] = w;
         radius[key] = d;
@@ -98,21 +130,39 @@ export default {
           if (c1) {
             color1[key] = document.createElement('img');
             color1[key].src = '/img/cars/' + model + '_color1.png';
+            
+            color1[key].onerror = () => {
+              console.error(`[CanvaMarker] Erro ao carregar color1: ${model}`);
+              cleanup();
+              modelReady[key] = true;
+              resolve();
+            };
+            
             color1[key].onload = () => {
               if (c2) {
                 color2[key] = document.createElement('img');
                 color2[key].src = '/img/cars/' + model + '_color2.png';
+                
+                color2[key].onerror = () => {
+                  console.error(`[CanvaMarker] Erro ao carregar color2: ${model}`);
+                  cleanup();
+                  modelReady[key] = true;
+                  resolve();
+                };
+                
                 color2[key].onload = () => {
-                  // FIX: Marcar modelo como pronto apenas quando tudo carregar
+                  cleanup();
                   modelReady[key] = true;
                   resolve();
                 }
               } else {
+                cleanup();
                 modelReady[key] = true;
                 resolve();
               }
             }
           } else {
+            cleanup();
             modelReady[key] = true;
             resolve();
           }
@@ -194,8 +244,17 @@ export default {
       return c;
     }
 
-    function getCachedModel(key, h1, s1, b1, h2, s2, b2) {
+    // 🛡️ MELHORIA: Cache com limite de tamanho (LRU-like)
+    const MAX_CACHE_SIZE = 500;
+    const cacheAccessOrder = [];
 
+    function getCachedModel(key, h1, s1, b1, h2, s2, b2) {
+      // Validação de entrada
+      if (!key || typeof key !== 'string') {
+        console.warn('⚠️ [CanvaMarker] getCachedModel: key inválida');
+        return null;
+      }
+      
       const cKey = key + '|' + h1 + '|' + s1 + '|' + b1 + '|' + h2 + '|' + s2 + '|' + b2;
 
       // FIX: Não cachear se modelo ainda não está pronto
@@ -203,15 +262,32 @@ export default {
         return null;
       }
 
-      if (!cached[cKey]) {
-        const tmp = generateCachedModel(key, h1, s1, b1, h2, s2, b2);
-        // FIX: Só cachear se tmp for um canvas válido (truthy)
-        if (tmp) {
-          cached[cKey] = tmp;
+      // Se já existe no cache, atualizar ordem de acesso
+      if (cached[cKey]) {
+        const idx = cacheAccessOrder.indexOf(cKey);
+        if (idx > -1) {
+          cacheAccessOrder.splice(idx, 1);
+        }
+        cacheAccessOrder.push(cKey);
+        return cached[cKey];
+      }
+
+      // Gerar novo canvas
+      const tmp = generateCachedModel(key, h1, s1, b1, h2, s2, b2);
+      if (!tmp) return null;
+
+      // Limitar tamanho do cache
+      if (Object.keys(cached).length >= MAX_CACHE_SIZE) {
+        const oldestKey = cacheAccessOrder.shift();
+        if (oldestKey) {
+          delete cached[oldestKey];
+          debugLog(`[CanvaMarker] Cache evicted: ${oldestKey}`);
         }
       }
 
-      return cached[cKey] || null;
+      cached[cKey] = tmp;
+      cacheAccessOrder.push(cKey);
+      return tmp;
     }
 
 
@@ -228,160 +304,186 @@ export default {
       }
       markerById.value.clear();
 
-      // Remove markers cluster
-      for (const [, m] of clusterByKey.value) {
-        try { if (m.remove) m.remove(); } catch (e) { /* cleanup */ }
+      // 🎯 CLUSTER: Limpar window.$mk
+      if (window.$mk) {
+        try { window.$mk.clearLayers(); } catch (e) { /* cleanup */ }
       }
-      clusterByKey.value.clear();
     };
 
-    const getGridSizePx = (zoom) => {
-      if (zoom >= 16) return 60;
-      if (zoom >= 14) return 70;
-      return 80;
-    };
-
-    const makeClusterCanvas = (count) => {
-      const label = count >= 100 ? "99+" : String(count);
-      const cacheKey = label;
-      if (clusterCanvasCache.has(cacheKey)) return clusterCanvasCache.get(cacheKey);
-
-      const size = 64;
-      const c = document.createElement("canvas");
-      c.width = size;
-      c.height = size;
-      const ctx = c.getContext("2d");
-
-      // Bolha azul
-      ctx.beginPath();
-      ctx.arc(size / 2, size / 2, 22, 0, Math.PI * 2);
-      ctx.fillStyle = "rgba(33,150,243,0.92)";
-      ctx.fill();
-
-      // Borda branca
-      ctx.lineWidth = 3;
-      ctx.strokeStyle = "rgba(255,255,255,0.9)";
-      ctx.stroke();
-
-      // Texto
-      ctx.font = "bold 16px Arial";
-      ctx.fillStyle = "#fff";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(label, size / 2, size / 2);
-
-      clusterCanvasCache.set(cacheKey, c);
-      return c;
-    };
-
-    const addClusterMarker = (key, center, items) => {
-      const map = props.map;
-      if (!map) return;
-
-      const img = makeClusterCanvas(items.length);
-
-      const m = new L.CanvasMarker([center], [1000], {
-        minZoom: 0,
-        type: "cluster",
-        radius: 64,
-        id: `cluster:${key}`,
-        name: `${items.length} devices`,
-        img: {
-          canva: img,
-          showLabel: { name: false, plate: false, status: false },
-          cachedLabels: null,
-          hide: false,
-          hidden: false,
-          rSize: 0.5,
-          size: [64, 64],
-          rotate: 0,
-          offset: { x: 0, y: 0 },
-        },
-      }).on("click", () => {
-        const current = map.getZoom();
-        map.setView(center, Math.min(current + 2, 19), { animate: true });
-      });
-
-      addLayer({ ...props, leafletObject: m });
-      clusterByKey.value.set(key, m);
-    };
+    // 🎯 CLUSTER FIX: Substituir makeClusterCanvas e addClusterMarker
+    // Agora L.MarkerClusterGroup cria os clusters automaticamente
 
     const renderClustered = (devices, token) => {
-      const map = props.map;
+      // 🛡️ GUARD: Verificar se window.$mk existe e está no mapa
+      if (!window.$mk || !window.$mk._map) {
+        console.warn('[CanvaMarker] window.$mk inválido (sem _map), abortando renderClustered');
+        return;
+      }
+      
+      const mapProxy = props.map;
+      if (!mapProxy) return;
+      const map = mapProxy.leafletObject || mapProxy;
       if (!map) return;
-      const zoom = props.zoom || map.getZoom();
-      const gridSize = getGridSizePx(zoom);
 
-      const buckets = new Map();
+      // Limpar cluster anterior
+      try {
+        window.$mk.clearLayers();
+      } catch (e) {
+        console.warn('[CanvaMarker] Erro ao limpar window.$mk:', e);
+        return;
+      }
+      
+      invalidDevices.count = 0;
+      invalidDevices.ids = [];
 
+      // Adicionar markers ao cluster
       for (const d of devices) {
         if (token !== lastRenderToken.value) return;
 
-        const posGetter = store.getters?.["devices/getPosition"];
-        const pos = typeof posGetter === "function" ? posGetter(d.id) : null;
-        if (!pos || pos.latitude == null || pos.longitude == null) continue;
-
-        const latlng = L.latLng(pos.latitude, pos.longitude);
-        const p = map.project(latlng, zoom);
-
-        const gx = Math.floor(p.x / gridSize);
-        const gy = Math.floor(p.y / gridSize);
-        const key = `${gx}:${gy}`;
-
-        if (!buckets.has(key)) buckets.set(key, []);
-        buckets.get(key).push({ d, latlng });
+        const marker = addDevice(d);  // Retorna L.CanvasMarker
+        if (marker) {
+          try {
+            window.$mk.addLayer(marker);
+          } catch (e) {
+            console.warn('[CanvaMarker] Erro ao adicionar marker ao cluster:', e);
+          }
+        }
       }
 
-      for (const [key, items] of buckets.entries()) {
-        if (token !== lastRenderToken.value) return;
+      // Log consolidado de devices inválidos
+      if (invalidDevices.count > 0) {
+        const summary = invalidDevices.count > 5 
+          ? `${invalidDevices.ids.slice(0, 5).join(', ')} e mais ${invalidDevices.count - 5}`
+          : invalidDevices.ids.join(', ');
+        console.warn(`⚠️ [CanvaMarker] ${invalidDevices.count} device(s) com posição inválida: ${summary}`);
+      }
 
-        if (items.length === 1) {
-          addDevice(items[0].d);
-          continue;
+      // Adicionar cluster ao mapa se ainda não está
+      if (!map.hasLayer(window.$mk)) {
+        try {
+          map.addLayer(window.$mk);
+        } catch (e) {
+          console.warn('[CanvaMarker] Erro ao adicionar window.$mk ao mapa:', e);
         }
-
-        // Centro do cluster (média)
-        let sumLat = 0, sumLng = 0;
-        for (const it of items) {
-          sumLat += it.latlng.lat;
-          sumLng += it.latlng.lng;
-        }
-        const center = L.latLng(sumLat / items.length, sumLng / items.length);
-
-        addClusterMarker(key, center, items);
       }
     };
 
     const renderIndividual = (devices, token) => {
+      invalidDevices.count = 0;
+      invalidDevices.ids = [];
+
       for (const d of devices) {
         if (token !== lastRenderToken.value) return;
         addDevice(d);
       }
+
+      // Log consolidado de devices inválidos
+      if (invalidDevices.count > 0) {
+        const summary = invalidDevices.count > 5 
+          ? `${invalidDevices.ids.slice(0, 5).join(', ')} e mais ${invalidDevices.count - 5}`
+          : invalidDevices.ids.join(', ');
+        console.warn(`⚠️ [CanvaMarker] ${invalidDevices.count} device(s) com posição inválida: ${summary}`);
+      }
     };
 
+    // 🛡️ MELHORIA: Debounce para evitar re-renders excessivos
+    let syncTimeout = null;
     const syncMarkers = async () => {
-      const map = props.map;
-      if (!map) return;
-
-      const devices = normalizeDevices(props.devices);
-      const token = ++lastRenderToken.value;
-
-      clearAllMarkers();
-
-      if (!devices.length) return;
-
-      if (props.clustered) {
-        renderClustered(devices, token);
-      } else {
-        renderIndividual(devices, token);
+      // Cancelar sync anterior se ainda pendente
+      if (syncTimeout) {
+        clearTimeout(syncTimeout);
       }
+
+      // Debounce de 100ms - evita updates rápidos desnecessários
+      return new Promise(resolve => {
+        syncTimeout = setTimeout(async () => {
+          const startTime = performance.now();
+          const map = props.map;
+          if (!map) {
+            resolve();
+            return;
+          }
+
+          // Usa devices do store diretamente, pois o componente não recebe props.devices
+          const storeDevices = store.state.devices?.deviceList;
+          const storePositions = store.state.devices?.positionsList;
+          const rawDevices = normalizeDevices(storeDevices);
+          
+          // 🔧 FIX: Juntar device com sua posição (positionsList[deviceId])
+          // O device não tem lat/lng, a posição está em positionsList
+          const devices = rawDevices.map(d => {
+            const pos = storePositions?.[d.id];
+            return {
+              ...d,
+              latitude: pos?.latitude,
+              longitude: pos?.longitude,
+              course: pos?.course ?? 0,
+              speed: pos?.speed ?? 0,
+              attributes: { ...d.attributes, ...(pos?.attributes || {}) }
+            };
+          });
+          const token = ++lastRenderToken.value;
+
+          // 🎯 CLUSTER: Gerenciar window.$mk baseado no modo (projeto argentino)
+          const mapObj = map.leafletObject || map;
+
+          // 🛡️ GUARD PERMANENTE: Se cluster nunca foi disponível, forçar modo individual
+          if (isClusteredEnabled.value && !clusterAvailable) {
+            console.warn('⚠️ [CanvaMarker] Cluster solicitado mas nunca inicializou, forçando modo individual');
+            isClusteredEnabled.value = false; // ✅ Desabilitar no store também
+          }
+
+          if (isClusteredEnabled.value && window.$mk && clusterAvailable) {
+            // Modo cluster: usar window.$mk (L.MarkerClusterGroup)
+            // 🎯 CRÍTICO: Garantir que cluster está no mapa
+            if (!mapObj.hasLayer(window.$mk)) {
+              try {
+                mapObj.addLayer(window.$mk);
+                console.log('✅ [CanvaMarker] window.$mk re-adicionado ao mapa');
+              } catch (e) {
+                console.error('❌ [CanvaMarker] Erro ao re-adicionar window.$mk:', e);
+              }
+            }
+            
+            // Remover markers individuais se existirem
+            for (const [, m] of markerById.value) {
+              try { 
+                if (mapObj.hasLayer(m)) mapObj.removeLayer(m);
+              } catch (e) { /* cleanup */ }
+            }
+            markerById.value.clear();
+
+            renderClustered(devices, token);
+          } else {
+            // Modo individual: remover cluster e adicionar direto
+            if (window.$mk && mapObj.hasLayer(window.$mk)) {
+              try {
+                mapObj.removeLayer(window.$mk);
+                window.$mk.clearLayers();
+              } catch (e) { /* cleanup silencioso */ }
+            }
+            clearAllMarkers();
+            renderIndividual(devices, token);
+          }
+          
+          const elapsed = (performance.now() - startTime).toFixed(2);
+          if (elapsed > 100) {
+            console.warn(`⚠️ [CanvaMarker] syncMarkers lento: ${elapsed}ms (${devices.length} devices)`);
+          }
+          resolve();
+        }, 100);
+      });
     };
 
 
     onMounted(async () => {
+      debugLog('🔧 [CanvaMarker] Iniciando onMounted...');
+      
       L = useGlobalLeaflet
         ? WINDOW_OR_GLOBAL.L
         : await import("leaflet/dist/leaflet-src.esm");
+
+      debugLog('✅ [CanvaMarker] Leaflet carregado');
 
       L.interpolatePosition = function (p1, p2, duration, t) {
         var k = t / duration;
@@ -420,6 +522,7 @@ export default {
               this._ctx.restore();
             }
           } else {
+            // 🎯 Renderização de veículos (CanvasMarker)
 
 
 
@@ -977,14 +1080,163 @@ export default {
         console.error('❌ [CanvasMarkerReady] Erro ao carregar modelos:', err);
       }
 
+      // 🎯 CLUSTER: Importar cluster.js DINAMICAMENTE + inicializar window.$mk (projeto argentino)
+      if (!window.$mk && typeof L.MarkerClusterGroup === 'undefined') {
+        console.log('🔧 [CanvaMarker] Importando cluster.js customizado...');
+        try {
+          await import('./cluster.js');
+          console.log('✅ [CanvaMarker] cluster.js carregado com sucesso');
+          console.log('🔍 [CanvaMarker] L.MarkerClusterGroup disponível?', typeof L.MarkerClusterGroup);
+        } catch (e) {
+          console.error('❌ [CanvaMarker] Erro ao carregar cluster.js:', e);
+        }
+      }
+      
+      // 🛡️ VERIFICAÇÃO E CRIAÇÃO do window.$mk (se não existir)
+      if (!window.$mk) {
+        if (typeof L.MarkerClusterGroup === 'undefined') {
+          console.error('❌ [CanvaMarker] L.MarkerClusterGroup não disponível após import. Clustering DESABILITADO.');
+          isClusteredEnabled.value = false;
+          window.$mk = null;
+          clusterAvailable = false;
+        } else {
+          // 🎯 AGUARDAR o mapa estar 100% pronto
+          const mapObj = props.map?.leafletObject;
+          if (!mapObj || !mapObj._loaded) {
+            console.warn('⚠️ [CanvaMarker] Mapa ainda não está carregado, aguardando...');
+            await new Promise(resolve => {
+              if (mapObj && mapObj._loaded) {
+                resolve();
+              } else if (mapObj) {
+                mapObj.once('load', resolve);
+              } else {
+                // Fallback: aguardar 500ms
+                setTimeout(resolve, 500);
+              }
+            });
+            console.log('✅ [CanvaMarker] Mapa agora está pronto');
+          }
+          
+          // 🎯 Criar window.$mk com mesma config do projeto argentino
+          try {
+            console.log('🔧 [CanvaMarker] Criando window.$mk...');
+            window.$mk = L.markerClusterGroup({
+              pane: 'clusterMarkersPane',
+              maxClusterRadius: 80,
+              spiderfyOnMaxZoom: true,
+              singleMarkerMode: false,
+              showCoverageOnHover: false,
+              zoomToBoundsOnClick: true,
+              disableClusteringAtZoom: 17,
+              chunkedLoading: true,
+              chunkInterval: 200,
+              chunkDelay: 50,
+              iconCreateFunction: (cluster) => {
+                const count = cluster.getChildCount();
+                const label = count >= 100 ? "99+" : String(count);
+                
+                return L.divIcon({
+                  html: `<div style="background: rgba(33,150,243,0.92); border: 3px solid rgba(255,255,255,0.9); border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+                    <span style="color: white; font-weight: bold; font-size: 14px;">${label}</span>
+                  </div>`,
+                  className: 'marker-cluster-custom',
+                  iconSize: new L.Point(40, 40)
+                });
+              }
+            });
+            console.log('✅ [CanvaMarker] window.$mk criado:', window.$mk);
+            
+            // 🎯 CRÍTICO: Adicionar ao mapa (igual projeto argentino)
+            if (window.$mk && addLayer) {
+              addLayer({ leafletObject: window.$mk });
+              console.log('✅ [CanvaMarker] addLayer() chamado');
+              
+              // 🔍 DIAGNÓSTICO: Verificar se _map foi populado
+              await nextTick();
+              console.log('🔍 [CanvaMarker] window.$mk._map:', window.$mk._map);
+              console.log('🔍 [CanvaMarker] window.$mk._mapPane:', window.$mk._mapPane);
+              
+              if (!window.$mk._map) {
+                console.error('❌ [CanvaMarker] window.$mk._map ainda é NULL após addLayer!');
+              }
+            } else {
+              console.error('❌ [CanvaMarker] addLayer não disponível ou window.$mk inválido');
+            }
+            
+            // 🛡️ VERIFICAÇÃO: APIs disponíveis E _map populado?
+            if (!window.$mk || !window.$mk.addLayer || !window.$mk.clearLayers || !window.$mk._map) {
+              console.error('❌ [CanvaMarker] window.$mk inválido (APIs ou _map missing). Cluster DESABILITADO.');
+              console.error('   - addLayer:', !!window.$mk?.addLayer);
+              console.error('   - clearLayers:', !!window.$mk?.clearLayers);
+              console.error('   - _map:', !!window.$mk?._map);
+              isClusteredEnabled.value = false;
+              window.$mk = null;
+              clusterAvailable = false;
+            } else {
+              clusterAvailable = true;
+              console.log('✅ [CanvaMarker] window.$mk 100% inicializado e vinculado ao mapa');
+            }
+          } catch (e) {
+            console.error('❌ [CanvaMarker] Erro ao criar window.$mk:', e);
+            isClusteredEnabled.value = false;
+            window.$mk = null;
+            clusterAvailable = false;
+          }
+        }
+      } else {
+        // window.$mk já existe (criado antes)
+        clusterAvailable = true;
+        console.log('♻️ [CanvaMarker] window.$mk já existe, reutilizando');
+      }
+
+      debugLog('🎉 [CanvaMarker] onMounted completo - tudo pronto!');
+      
+      // GATILHO INICIAL: Sincronizar markers se já houver devices e mapa
+      nextTick(() => {
+        const devices = store.state.devices?.deviceList;
+        if (devices && devices.length > 0 && props.map) {
+          debugLog('🚀 [CanvaMarker] Sincronização inicial de markers');
+          syncMarkers();
+        }
+      });
     });
 
 
 
+
+    // 🛡️ MELHORIA: Validação robusta de device data
+    const invalidDevices = { count: 0, ids: [] };
+    
     const addDevice = (d) => {
-      // CORREÇÃO CRÍTICA: Verificar se L.CanvasMarker está disponível
-      if (typeof window.L === 'undefined' || !window.L.CanvasMarker) {
-        console.warn('[CanvaMarker] L.CanvasMarker não disponível ainda para device:', d.id);
+      // Validação defensiva de entrada
+      if (!d || typeof d !== 'object') {
+        return null;
+      }
+
+      const lat = d.latitude;
+      const lng = d.longitude;
+
+      // Validar existência e tipo
+      if (!lat || !lng || isNaN(Number(lat)) || isNaN(Number(lng))) {
+        invalidDevices.count++;
+        if (invalidDevices.ids.length < 5) { // Armazena apenas os primeiros 5
+          invalidDevices.ids.push(d.id || d.name);
+        }
+        return null;
+      }
+
+      // Validar range de coordenadas geográficas
+      if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+        invalidDevices.count++;
+        if (invalidDevices.ids.length < 5) {
+          invalidDevices.ids.push(d.id || d.name);
+        }
+        return null;
+      }
+
+      // CORREÇÃO: Verificar se L está disponível (sem bloquear prematuramente)
+      if (typeof L === 'undefined') {
+        console.warn('[CanvaMarker] Leaflet não disponível ainda');
         return null;
       }
 
@@ -1140,42 +1392,99 @@ export default {
     provide('addDevice', addDevice);
 
     // CLUSTER PATCH: Watch para sincronização automática
-    // Watch devices do store diretamente como faz o CanvaMarker-dark
+    // Observar mudanças na lista de devices
     watch(
-      () => [store.state.devices.deviceList, store.getters['mapPref']('clustered', true), props.zoom, props.map],
-      () => {
-        syncMarkers();
-      },
-      { deep: true, immediate: true }
+      () => store.state.devices?.deviceList,
+      (newList) => {
+        if (newList) {
+          syncMarkers();
+        }
+      }
     );
 
-    // Watch no mapa para re-render em moveend/zoomend
+    // Watch para atualização de posições (essencial para mover markers)
+    watch(
+      () => store.state.devices?.positionsList,
+      () => {
+        // Forçar atualização visual dos markers existentes
+        syncMarkers();
+      },
+      { deep: true }
+    );
+
+    // Watch separado para clustered e zoom
+    watch(
+      () => [isClusteredEnabled.value, props.zoom],
+      () => {
+        syncMarkers();
+      }
+    );
+
+    // Watch unificado para o mapa - aguarda inicialização completa
     watch(
       () => props.map,
       (mapProxy) => {
         if (!mapProxy) return;
-        // CORREÇÃO CRÍTICA: Pegar leafletObject (L.Map nativo) ao invés do Proxy Vue
+        
+        // CORREÇÃO: Pegar leafletObject (L.Map nativo)
         const map = mapProxy.leafletObject || mapProxy;
         if (!map || typeof map.on !== 'function') {
           console.warn('[CanvaMarker] map.leafletObject não disponível ainda');
           return;
         }
-        const onMoveEnd = () => { if (props.clustered) syncMarkers(); };
+
+        // Aguardar mapa estar 100% pronto antes de sincronizar
+        if (map.whenReady) {
+          map.whenReady(() => {
+            debugLog('🗺️ [CanvaMarker] Mapa pronto, iniciando syncMarkers');
+            syncMarkers();
+            
+            // Forçar invalidateSize
+            nextTick(() => {
+              if (map?.invalidateSize) {
+                map.invalidateSize(true);
+              }
+            });
+          });
+        } else {
+          // Fallback se whenReady não estiver disponível
+          syncMarkers();
+        }
+
+        // Registrar listeners de moveend/zoomend
+        const onMoveEnd = () => { if (isClusteredEnabled.value) syncMarkers(); };
         map.on("moveend", onMoveEnd);
         map.on("zoomend", onMoveEnd);
 
-        onBeforeUnmount(() => {
-          try {
-            map.off("moveend", onMoveEnd);
-            map.off("zoomend", onMoveEnd);
-          } catch (e) { /* cleanup */ }
-        });
-      },
-      { immediate: true }
+        // Cleanup será feito no onBeforeUnmount principal
+      }
     );
 
     onBeforeUnmount(() => {
+      debugLog('🧹 [CanvaMarker] Cleanup iniciado');
+      
+      // Limpar timeout de sync pendente
+      if (syncTimeout) {
+        clearTimeout(syncTimeout);
+        syncTimeout = null;
+      }
+      
+      // Remover event listeners do mapa
+      const mapProxy = props.map;
+      if (mapProxy) {
+        const map = mapProxy.leafletObject || mapProxy;
+        if (map && typeof map.off === 'function') {
+          try {
+            map.off("moveend");
+            map.off("zoomend");
+          } catch (e) { /* cleanup */ }
+        }
+      }
+      
+      // Limpar todos os markers
       clearAllMarkers();
+      
+      debugLog('✅ [CanvaMarker] Cleanup completo');
     });
 
   },

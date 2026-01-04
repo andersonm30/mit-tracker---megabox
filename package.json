@@ -9,7 +9,15 @@
     "i18n:report": "vue-cli-service i18n:report --src \"./src/**/*.?(js|vue)\" --locales \"./src/locales/**/*.json\"",
     "mbuild": "vue-cli-service build src/main-mobile.js --dest=dist-mobile",
     "mcserve": "vue-cli-service serve src/main-mobile-client.js",
-    "mserve": "vue-cli-service serve src/main-mobile.js"
+    "mserve": "vue-cli-service serve src/main-mobile.js",
+    "test:unit": "vitest",
+    "test:unit:run": "vitest run",
+    "test:unit:cov": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:report": "playwright show-report",
+    "verify:hardening": "node scripts/verify-hardening.js"
   },
   "dependencies": {
     "@vue-leaflet/vue-leaflet": "^0.6.1",
@@ -30,6 +38,7 @@
     "leaflet-search": "^4.0.0",
     "leaflet.heat": "^0.2.0",
     "leaflet.markercluster": "^1.5.3",
+    "lodash": "^4.17.21",
     "mini-css-extract-plugin": "^2.6.1",
     "node-polyfill-webpack-plugin": "^2.0.1",
     "nvm": "^0.0.4",
@@ -48,10 +57,13 @@
     "vue3-qrcode-reader": "^0.0.1",
     "vue3-sfc-loader": "^0.8.4",
     "vuex": "^4.0.2",
-    "webpack-bundle-analyzer": "^4.5.0"
+    "webpack-bundle-analyzer": "^4.5.0",
+    "webpack-chain": "^6.5.1"
   },
   "devDependencies": {
     "@intlify/vue-i18n-loader": "^3.0.0",
+    "@playwright/test": "^1.40.0",
+    "@vitest/coverage-v8": "^0.34.6",
     "@vue/cli-plugin-babel": "~4.5.0",
     "@vue/cli-plugin-eslint": "~4.5.0",
     "@vue/cli-plugin-pwa": "~4.5.0",
@@ -62,6 +74,8 @@
     "eslint-plugin-vue": "^7.0.0",
     "sass": "^1.55.0",
     "sass-loader": "^8.0.2",
+    "terser-webpack-plugin": "^5.3.16",
+    "vitest": "^0.34.6",
     "vue-cli-plugin-i18n": "~2.3.1",
     "webpack": "^4.46.0"
   },
@@ -69,6 +83,12 @@
     "root": true,
     "env": {
       "node": true
+    },
+    "globals": {
+      "defineProps": "readonly",
+      "defineEmits": "readonly",
+      "defineExpose": "readonly",
+      "withDefaults": "readonly"
     },
     "extends": [
       "plugin:vue/vue3-essential",

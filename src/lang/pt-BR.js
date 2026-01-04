@@ -72,8 +72,14 @@ const messages = {
         km: (ctx)=>{
             return (ctx.named('distance')/1000).toFixed(2)+' km';
         },
+        mi: (ctx)=>{
+            return ((ctx.named('distance')/1000)*0.621371).toFixed(2)+' mi';
+        },
+        nmi: (ctx)=>{
+            return ((ctx.named('distance')/1000)*0.539957).toFixed(2)+' nmi';
+        },
         mph: (ctx)=>{
-            return Math.round(ctx.named('speed')*1.15078)+' mph/h';
+            return Math.round(ctx.named('speed')*1.15078)+' mph';
         },
         kmh: (ctx)=>{
             return Math.round(ctx.named('speed')*1.852)+' km/h';
@@ -182,6 +188,8 @@ const messages = {
             linkToGroup: 'Atribuindo ao grupo "%name%"',
             linkToUser: 'Atribuindo ao usuário "%name%"',
             title: 'Gerênciar Notificações',
+            title2: 'Anuncio',
+            evento: 'Evento',
             notification: 'Notificação',
             notifications: 'Notificações',
             newNotification: 'Cadastrar Notificação',
@@ -445,6 +453,33 @@ const messages = {
             selectPeriod: 'Selecione o período',
             invalidPeriod: 'A data final deve ser maior que a data inicial',
             maxPeriodDays: 'O período máximo permitido é de {days} dias',
+            // Traduções adicionadas para History/Routes
+            visualization: 'Visualização',
+            routeColor: 'Cor',
+            colorBlue: 'Azul Padrão',
+            colorOrange: 'Laranja',
+            colorGreen: 'Verde',
+            colorRed: 'Vermelho',
+            colorPurple: 'Roxo',
+            colorYellow: 'Amarelo',
+            colorTurquoise: 'Turquesa',
+            colorPink: 'Rosa',
+            routeStart: 'Início',
+            routeEnd: 'Fim',
+            graphic: 'Gráfico',
+            maxSpeed: 'Velocidade Máxima',
+            avgSpeedMoving: 'Velocidade Média (em movimento)',
+            movingTime: 'Tempo em Movimento',
+            stoppedTime: 'Tempo Parado',
+            accelerations: 'Arrancadas',
+            // Traduções adicionais para history.vue refatorado
+            yesterday: 'Ontem',
+            lastWeek: 'Última semana',
+            lastMonth: 'Último mês',
+            period: 'Período',
+            generatedAt: 'Gerado em',
+            footer: 'Sistema de Rastreamento - Relatório gerado automaticamente',
+            popupBlocked: 'Bloqueador de pop-ups ativo. Permita pop-ups para exportar.',
         },
         device:{
             select: 'Selecione o dispositivo',
@@ -560,6 +595,40 @@ const messages = {
                 checkForm: 'Verifique os dados do formulário.',
             },
             streetview: 'StreetView',
+            // Traduções para CommandModal e DeviceComponents
+            custom_command: 'Comando Personalizado',
+            enter_command: 'Digite o Comando',
+            type_command: 'Digite o comando aqui...',
+            transmission_method: 'Método de Transmissão',
+            gprs_description: 'Comando será enviado via conexão de dados (GPRS/3G/4G). O dispositivo precisa estar online.',
+            sms_description: 'Comando será enviado via SMS. Pode ter custo adicional da operadora.',
+            sensors: 'Sensores',
+            ultconection: 'Última Conexão',
+            rpm: 'Rotação do Motor',
+            hideCameras: 'Ocultar Câmeras',
+            showCameras: 'Mostrar Câmeras',
+            showQrCode: 'Mostrar QR Code',
+            camera: 'Câmera',
+            // Traduções adicionais para CommandModal
+            phone_label: 'Telefone',
+            imei_label: 'IMEI',
+            command_response: 'Resposta do Comando',
+            waiting_response: 'Aguardando resposta...',
+            sent_success: 'Enviado com sucesso',
+            send_error: 'Erro no envio',
+            device_response: 'Resposta do Dispositivo',
+            method_label: 'Método',
+            message_id: 'ID da Mensagem',
+            description_label: 'Descrição',
+            cost_label: 'Custo',
+            result_label: 'Resultado',
+            detail_label: 'Detalhe',
+            time_label: 'Hora',
+            send_another: 'Enviar Outro Comando',
+            no_result: 'Sem resultado específico',
+            device_response_info: 'Alguns dispositivos podem não reportar o resultado do comando',
+            not_configured: 'Não configurado',
+            close: 'Fechar',
 
         },
         attribute:{
@@ -734,13 +803,24 @@ const messages = {
         },
         map:{
             preferences: 'Preferências do Mapa',
+            showCluster: 'Agrupar Veículos',
+            showGroups: 'Mostrar Grupos',
             showGeofences: 'Mostrar Geocercas',
+            showGeofenceNames: 'Nomes das Geocercas',
             showNames: 'Mostrar Nomes',
             showPlates: 'Mostrar Placas',
             showStatus: 'Mostrar Status',
             showPrecision: 'Mostrar Precisão GPS',
-            layers: 'Camadas',
-            refresh: 'Atualizar Mapa'
+            layers: 'Tipo de Mapa',
+            refresh: 'Atualizar Mapa',
+            search: {
+                toggle: 'Buscar Dispositivo',
+                enabled: 'Busca ativada - Digite o nome',
+                disabled: 'Busca desativada',
+                placeholder: 'Buscar dispositivo...',
+                notFound: 'Não encontrado'
+            },
+            whatsappAssistant: 'Assistente Virtual'
         },
         playback:{
             play: 'Reproduzir',

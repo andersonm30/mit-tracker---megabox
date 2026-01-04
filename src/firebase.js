@@ -24,15 +24,15 @@ function isWebView() {
   
 
 // eslint-disable-next-line no-undef
-console.log(isBadIosXX());
+// console.log(isBadIosXX());
 
 // eslint-disable-next-line no-undef
 if (window.location.protocol === 'https:' && !isBadIosXX() && !isWebView()) {
-	console.log('Inicializando o Firebase na aplicação web');
+	// console.log('Inicializando o Firebase na aplicação web');
 	// eslint-disable-next-line no-undef
 	firebase.initializeApp(firebaseConfig)
 	m = firebase.messaging();
 } else {
-	console.log('Não inicializando o Firebase no webview');
+	// console.log('Não inicializando o Firebase no webview');
   }
 export default m

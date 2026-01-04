@@ -1,6 +1,7 @@
+/* eslint-disable no-unused-vars */
+// ARQUIVO LEGADO - Mantido para referência, substituído por useMarkers.js
 import KT from "./kt";
 import {inject} from 'vue';
-
 
 import {ElMessage} from "element-plus/es/components/message";
 import {ElMessageBox} from "element-plus/es/components/message-box";

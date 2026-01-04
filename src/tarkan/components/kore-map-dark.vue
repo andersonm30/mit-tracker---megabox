@@ -15,7 +15,7 @@
 
                 <!-- 1. Compartir -->
                 <el-button size="small" style="margin-bottom: 1px;"
-                    v-if="store.state.server.isPlus && ((store.state.server.serverInfo.attributes['tarkan.enableAdvancedPerms'] && store.getters.advancedPermissions(24))) || (!store.state.server.serverInfo.attributes['tarkan.enableAdvancedPerms'] && !store.state.auth.attributes['isShared'] && !store.getters['isReadonly'])"
+                    v-if="((store.state.server.serverInfo.attributes['tarkan.enableAdvancedPerms'] && store.getters.advancedPermissions(24))) || (!store.state.server.serverInfo.attributes['tarkan.enableAdvancedPerms'] && !store.state.auth.attributes['isShared'] && !store.getters['isReadonly'])"
                     @click="editSharesRef.showShares()"><i class="fas fa-share-alt"></i></el-button>
 
                 <!-- 2. Ojo (Visibilidad) -->
@@ -2932,7 +2932,7 @@ const markerContext = async (evt, e) => {
 
     let shares = [];
 
-    if (store.state.server.isPlus && store.getters.advancedPermissions(25)) {
+    if (store.getters.advancedPermissions(25)) {
         shares.push({
             text: KT('device.shareLink'),
             icon: 'fas fa-link',
@@ -3139,7 +3139,7 @@ const markerContext = async (evt, e) => {
 
 
     }
-    if (store.state.server.isPlus && user.administrator) {
+    if (user.administrator) {
         tmp.push({
             text: KT('device.logs'),
             icon: 'fas fa-list-alt',
@@ -3150,7 +3150,7 @@ const markerContext = async (evt, e) => {
     }
 
     // Agregar opción de anchor
-    if (store.state.server.isPlus && store.getters.advancedPermissions(9)) {
+    if (store.getters.advancedPermissions(9)) {
         const isAnchored = store.getters['geofences/isAnchored'](deviceId);
         tmp.push({
             text: KT(isAnchored ? 'actions.anchorDisable' : 'actions.anchorEnable'),

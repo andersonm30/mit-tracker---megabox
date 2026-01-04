@@ -26,15 +26,15 @@
     <link-objects ref="linkObjectsRef"></link-objects>
     <log-objects ref="logObjectsRef"></log-objects>
 
-    <edit-share v-if="store.state.server.isPlus" ref="editShareRef"></edit-share>
-    <edit-shares v-if="store.state.server.isPlus" ref="editSharesRef"></edit-shares>
+    <edit-share ref="editShareRef"></edit-share>
+    <edit-shares ref="editSharesRef"></edit-shares>
 
     <edit-group ref="editGroupRef"></edit-group>
     <edit-users ref="editUsersRef"></edit-users>
     <edit-server ref="editServerRef"></edit-server>
     <edit-drivers ref="editDriversRef"></edit-drivers>
     <edit-maintenances ref="editMaintenancesRef"></edit-maintenances>
-    <edit-theme v-if="store.state.server.isPlus" ref="editThemeRef"></edit-theme>
+    <edit-theme ref="editThemeRef"></edit-theme>
     <show-invoices ref="invoicesRef"></show-invoices>
     <show-invoices-manager ref="invoicesManagerRef"></show-invoices-manager>
     <edit-integrations ref="integrationsRef"></edit-integrations>
@@ -274,9 +274,8 @@
           }" :style="mainDynamicStyle">
             <StreetView v-if="store.state.devices.streetview" />
 
-            <IframeCalor v-if="store.state.devices.toggleCalor" />
-            <IframePercurso v-if="store.state.devices.showPercurso" />
-            <IframePontos v-if="store.state.devices.showPontos" />
+            <!-- REMOVIDO: IframeCalor, IframePercurso, IframePontos -->
+            <!-- Heatmap agora é via toggleHeatmap() direto no Leaflet do KoreMap -->
 
             <KoreMap />
           </div>
@@ -345,10 +344,18 @@ const lazy = (name, loader) =>
  *  ASYNC COMPONENTS
  * =========================== */
 const StreetView = lazy('StreetView', () => import('./tarkan/components/street-view'))
-const IframePercurso = lazy('IframePercurso', () => import('./tarkan/components/iframe-percurso'))
-const IframePontos = lazy('IframePontos', () => import('./tarkan/components/iframe-pontos'))
-const IframeCalor = lazy('IframeCalor', () => import('./tarkan/components/iframe-calor'))
-const KoreMap = lazy('KoreMap', () => import('./tarkan/components/kore-map'))
+// REMOVIDO: IframePercurso, IframePontos, IframeCalor (legado PHP)
+// Heatmap agora via L.heatLayer no kore-map.vue
+const KoreMap = lazy('KoreMap', () => {
+  // console.log('[App.vue] 🔵 Lazy loading KoreMap...');
+  return import('./tarkan/components/kore-map').then(module => {
+    // console.log('[App.vue] ✅ KoreMap loaded successfully');
+    return module;
+  }).catch(error => {
+    console.error('[App.vue] ❌ ERRO ao carregar KoreMap:', error);
+    throw error;
+  });
+})
 
 import KT from './tarkan/func/kt'
 import actAnchor from './tarkan/func/actAnchor'
@@ -986,7 +993,7 @@ const userMenu = (e) => {
       cb: () => editUserRef.value?.editUser?.()
     })
 
-    if (auth?.administrator && store.state.server?.isPlus) {
+    if (auth?.administrator) {
       // logs: fas fa-history
       tmp.push({
         text: KT('usermenu.logs'),
@@ -1034,6 +1041,15 @@ const userMenu = (e) => {
         text: KT('usermenu.notifications'),
         icon: 'fas fa-bell',
         cb: () => editNotificationsRef.value?.showNotifications?.()
+      })
+    }
+
+    if (store.getters.advancedPermissions?.(36)) {
+      // events/anuncio: fas fa-bullhorn
+      tmp.push({
+        text: KT('notification.title2', 'Anuncio'),
+        icon: 'fas fa-bullhorn',
+        cb: () => editEventsRef.value?.showEvents?.()
       })
     }
 
@@ -1459,7 +1475,8 @@ provide('edit-events', editEventsRef)
  * =========================== */
 :root {
   /* Layout */
-  --sb-width: 78px;
+  --sb-width: 82px;
+  --panel-width: 550px;
   --header-height: 2rem;
 
   /* Safe area fallbacks */
@@ -1743,11 +1760,11 @@ body.menu-open {
 
 #menu ul li {
   position: relative;
-  width: calc(var(--sb-width) - 8px);
+  width: calc(var(--sb-width) - 6px);
   /* Ajusta para o padding */
   margin: 0 auto;
-  padding: 10px 0 12px;
-  /* Mais respiro vertical */
+  padding: 8px 0 10px;
+  /* Respiro vertical otimizado */
 }
 
 #menu ul li a {
@@ -1798,24 +1815,25 @@ body.menu-open {
 #menu ul li a .text {
   display: block;
   width: 100%;
-  max-width: calc(var(--sb-width) - 16px);
+  max-width: calc(var(--sb-width) - 10px);
   /* Limita largura do texto */
 
   color: rgba(255, 255, 255, 0.95);
-  font-weight: 800;
+  font-weight: 600;
+  /* Reduzido de 800 para melhor legibilidade */
   font-size: 10px;
-  line-height: 1.2;
+  line-height: 1.25;
   /* Melhor legibilidade */
-  letter-spacing: 0.3px;
+  letter-spacing: 0.2px;
   text-align: center;
   text-transform: uppercase;
 
-  padding: 0 4px 2px;
-  white-space: normal;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-  hyphens: auto;
-  /* Hifenização automática para nomes longos */
+  padding: 0 2px 2px;
+  white-space: nowrap;
+  /* Evita quebra de linha */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* Trunca com ... se necessário */
 }
 
 /* Modo compact (só ícones) - ativado via classe ou variável */
@@ -1910,11 +1928,11 @@ body.menu-open {
 
 #open.shown {
   opacity: 1;
-  width: 700px;
+  width: var(--panel-width);
 }
 
 #open.allowExpand.expanded {
-  width: 1400px !important;
+  width: calc(var(--panel-width) * 2) !important;
 }
 
 #open.shown.editing {
@@ -1929,14 +1947,35 @@ body.menu-open {
 
 #open #rv {
   overflow-y: auto;
-  height: calc(var(--vh, 100vh) - (var(--header-height) + var(--sat)) - 130px);
-  padding: 10px;
+  overflow-x: hidden;
+  height: calc(var(--vh, 100vh) - (var(--header-height) + var(--sat)) - 80px);
+  padding: 10px 8px;
+  /* Scrollbar styling */
+  scrollbar-width: thin;
+  scrollbar-color: #c9c9c9 transparent;
+}
+
+#open #rv::-webkit-scrollbar {
+  width: 6px;
+}
+
+#open #rv::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#open #rv::-webkit-scrollbar-thumb {
+  background: #d0d0d0;
+  border-radius: 6px;
+}
+
+#open #rv::-webkit-scrollbar-thumb:hover {
+  background: #b0b0b0;
 }
 
 /* Expand button */
 #open.allowExpand .expandBtn {
   position: absolute;
-  left: 555px;
+  left: calc(var(--panel-width) - 145px);
   top: 50%;
   z-index: calc(var(--z-panel) + 5);
 
@@ -1959,7 +1998,7 @@ body.menu-open {
 }
 
 #open.allowExpand.expanded .expandBtn {
-  left: 805px;
+  left: calc(var(--panel-width) * 2 - 155px);
 }
 
 #open.allowExpand.expanded .expandBtn i {

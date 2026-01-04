@@ -377,7 +377,7 @@
                     <i :class="pos(device.id).attributes.blocked === true ? 'fas fa-lock' : 'fas fa-lock-open'"></i>
                   </div>
 
-                  <template v-if="store.state.server.isPlus && store.getters.advancedPermissions(9)">
+                  <template v-if="store.getters.advancedPermissions(9)">
                     <div @mouseleave="hideTip"
                       @mouseenter.stop="showTip($event, store.getters['geofences/isAnchored'](device.id) ? KT('device.anchorEnabled') : KT('device.anchorDisabled'))"
                       :style="{ color: store.getters['geofences/isAnchored'](device.id) ? 'var(--el-color-warning)' : 'var(--el-color-info)' }">
@@ -625,7 +625,11 @@ onMounted(()=> { tick = setInterval(() => (now.value = new Date()), 3000) })
 onBeforeUnmount(()=> { if (tick) clearInterval(tick) })
 
 /* tooltips */
-const showTip = (evt, text) => window.$showTip && window.$showTip(evt, text)
+const showTip = (evt, text) => {
+  // ✅ FIX: Validar que text não seja undefined/null/empty antes de passar para o tooltip
+  if (!text || text === '' || text === 'undefined') return
+  return window.$showTip && window.$showTip(evt, text)
+}
 const hideTip = () => window.$hideTip && window.$hideTip()
 const deviceLimitExceded = () => ElMessage.warning(KT('device.limitExceeded') || 'Limite de dispositivos atingido')
 

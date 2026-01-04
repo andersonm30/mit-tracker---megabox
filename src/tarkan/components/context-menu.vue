@@ -1,13 +1,15 @@
 <template>
   <div>
-  <div id="context" ref="context" @blur="doHide()" :class="{ctxshow: show,ctxdisplay: display}" :style="{left: pos.x+'px',top: pos.y+'px'}">
+  <!-- 🛡️ DEFENSIVE: Só renderizar quando display=true para evitar acesso a DOM inexistente -->
+  <div v-if="display" id="context" ref="context" @blur="doHide()" :class="{ctxshow: show,ctxdisplay: display}" :style="{left: pos.x+'px',top: pos.y+'px'}">
       <ul>
         <li v-for="(o,ok) in menus" :key="ok" @click.self="(o.cb && !o.disabled)?o.cb():emptyHandle()" @mouseover.self="submenuHandle($event,o.submenu)"  :class="{'separator': o.text==='separator','disabled': o.disabled}">
           <i v-if="o.icon" :class="o.icon" class="menu-icon"></i>
           <span>{{o.text}}</span>
           <template v-if="o.submenu">
             <i style="color:#595959;float: right;margin-left: 20px;margin-right: -7px;font-size: 16px;line-height: 18px;" class="fas fa-caret-right"></i>
-            <div v-if="submenu" ref="sub" id="submenu" :style="{left: pos.subX+'px',top: pos.subY+'px'}">
+            <!-- 🛡️ DEFENSIVE: Verificar se submenu tem conteúdo -->
+            <div v-if="submenu && submenu.length > 0" ref="sub" id="submenu" :style="{left: pos.subX+'px',top: pos.subY+'px'}">
               <ul>
                 <li v-for="(s,sk) in submenu" :key="'smenu'+sk" :class="{'separator': s.text==='separator','disabled': s.disabled}" @click="(s.cb && !s.disabled)?s.cb():emptyHandle()">
                   <i v-if="s.icon" :class="s.icon" class="menu-icon"></i>
@@ -57,7 +59,14 @@ const openMenu = (args)=>{
     nextTick(()=> {
       show.value = true;
       nextTick(() => {
-        const elSize = document.querySelector("#context").getBoundingClientRect();
+        // 🛡️ DEFENSIVE: Verificar se elemento ainda existe antes de acessá-lo
+        const contextEl = document.querySelector("#context");
+        if (!contextEl) {
+          console.warn('[ContextMenu] Elemento #context não encontrado');
+          return;
+        }
+        
+        const elSize = contextEl.getBoundingClientRect();
         const documentSize = document.body.getBoundingClientRect();
 
         if (args.evt.clientX > (documentSize.width / 2)) {
@@ -87,8 +96,14 @@ const submenuHandle = (evt,s)=>{
   submenu.value = s;
 
   nextTick(() => {
+    // 🛡️ DEFENSIVE: Verificar se elemento ainda existe antes de acessá-lo
+    const submenuEl = document.querySelector("li #submenu");
+    if (!submenuEl) {
+      console.warn('[ContextMenu] Elemento #submenu não encontrado');
+      return;
+    }
 
-    const elSize = document.querySelector("li #submenu").getBoundingClientRect();
+    const elSize = submenuEl.getBoundingClientRect();
     const tgSize = evt.target.getBoundingClientRect();
     const documentSize = document.body.getBoundingClientRect();
 
@@ -111,11 +126,13 @@ const emptyHandle = ()=>{
 }
 
 const doHide = ()=>{
+  // 🛡️ DEFENSIVE: Evitar múltiplas chamadas simultâneas
+  if (!show.value && !display.value) return;
+  
+  show.value = false;
   setTimeout(()=> {
-    show.value = false;
-    nextTick(() => {
-      display.value = false;
-    });
+    display.value = false;
+    submenu.value = []; // Limpar submenu também
   },300);
 }
 

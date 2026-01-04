@@ -2,8 +2,29 @@
 
 import axios from 'axios';
 
+// 🔧 DEBUG FLAG: Ativar logs de debug (desativar em produção)
+const DEBUG_TARKAN = false; // Altere para true apenas quando precisar debugar
 
+const debugLog = (...args) => {
+    if (DEBUG_TARKAN) console.log('[TarkanConnector]', ...args);
+};
 
+const debugError = (...args) => {
+    if (DEBUG_TARKAN) console.error('[TarkanConnector]', ...args);
+};
+
+// 🛡️ Validador de Content-Type para evitar processar HTML como JSON
+const validateJsonResponse = (response) => {
+    const contentType = response.headers?.['content-type'] || '';
+    if (contentType.includes('text/html')) {
+        debugError('Resposta HTML recebida em vez de JSON. Possível redirect/erro de auth.');
+        const error = new Error('RESPONSE_HTML_NOT_JSON');
+        error.isHtmlResponse = true;
+        error.response = response;
+        throw error;
+    }
+    return response;
+};
 
 let connector = function(server,vue){
     this.server = server;
@@ -21,15 +42,45 @@ let connector = function(server,vue){
         }
     });
 
+    // 🛡️ Interceptor para validar respostas e logar erros
+    this.axios.interceptors.response.use(
+        (response) => {
+            // Validar que não é HTML quando esperamos JSON
+            if (response.config.responseType !== 'blob' && 
+                response.config.responseType !== 'arraybuffer') {
+                return validateJsonResponse(response);
+            }
+            return response;
+        },
+        (error) => {
+            if (error.response) {
+                debugError(`HTTP ${error.response.status}:`, error.config?.url);
+            } else if (error.code === 'ERR_NETWORK') {
+                debugError('Erro de rede/CORS:', error.config?.url);
+            }
+            return Promise.reject(error);
+        }
+    );
+
     vue.mixin({created: function(){
             connector.vm = this;
         }})
 
-    //console.log("Instance of " + server);
+    debugLog('Connector inicializado:', server);
 }
 
+// 🛡️ Wrapper com tratamento de erro para chamadas críticas
+connector.prototype._safeCall = function(promise) {
+    return promise.catch((error) => {
+        if (error.isHtmlResponse) {
+            debugError('Servidor retornou HTML. Verifique autenticação.');
+        }
+        throw error;
+    });
+};
+
 connector.prototype.getShares = function(){
-    return this.axios.get("/shares");
+    return this._safeCall(this.axios.get("/shares"));
 }
 
 connector.prototype.createShare = function(params){

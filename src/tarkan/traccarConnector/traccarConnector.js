@@ -4,7 +4,43 @@ import axios from 'axios';
 
 import Emitter from './Emitter';
 
+// 🔧 DEBUG FLAG: Ativar logs de debug (desativar em produção)
+const DEBUG_TRACCAR = false; // Altere para true apenas quando precisar debugar
 
+const debugLog = (...args) => {
+    if (DEBUG_TRACCAR) console.log('[TraccarConnector]', ...args);
+};
+
+const debugError = (...args) => {
+    if (DEBUG_TRACCAR) console.error('[TraccarConnector]', ...args);
+};
+
+// 🛡️ Validador de Content-Type para evitar processar HTML como JSON/mídia
+const validateResponse = (response, expectedType = 'json') => {
+    const contentType = response.headers?.['content-type'] || '';
+    
+    if (expectedType === 'json' && contentType.includes('text/html')) {
+        debugError('Resposta HTML recebida em vez de JSON. Possível redirect/erro de auth.');
+        const error = new Error('RESPONSE_HTML_NOT_JSON');
+        error.isHtmlResponse = true;
+        error.response = response;
+        throw error;
+    }
+    
+    if (expectedType === 'media') {
+        // Validar que é realmente mídia e não HTML
+        if (contentType.includes('text/html')) {
+            debugError('Esperava mídia, recebeu HTML. URL:', response.config?.url);
+            const error = new Error('MEDIA_RESPONSE_IS_HTML');
+            error.isHtmlResponse = true;
+            error.expectedMedia = true;
+            error.response = response;
+            throw error;
+        }
+    }
+    
+    return response;
+};
 
 let connector = function(server,vue){
     this.server = server;
@@ -22,11 +58,33 @@ let connector = function(server,vue){
         }
     });
 
+    // 🛡️ Interceptor para validar respostas e logar erros
+    this.axios.interceptors.response.use(
+        (response) => {
+            // Validar que não é HTML quando esperamos JSON
+            const isBlob = response.config.responseType === 'blob' || 
+                          response.config.responseType === 'arraybuffer';
+            if (!isBlob) {
+                return validateResponse(response, 'json');
+            }
+            // Para blobs, validar se é mídia válida
+            return validateResponse(response, 'media');
+        },
+        (error) => {
+            if (error.response) {
+                debugError(`HTTP ${error.response.status}:`, error.config?.url);
+            } else if (error.code === 'ERR_NETWORK') {
+                debugError('Erro de rede/CORS:', error.config?.url);
+            }
+            return Promise.reject(error);
+        }
+    );
+
     vue.mixin({created: function(){
             connector.vm = this;
         }})
 
-    //console.log("Instance of " + server);
+    debugLog('Connector inicializado:', server);
 }
 
 

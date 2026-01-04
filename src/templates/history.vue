@@ -5,15 +5,24 @@
     <!-- Linha 1: Dispositivo -->
     <el-form-item>
       <div class="form-group">
-        <label for="theInputDevice">{{$t('device.select')}}</label>
-        <el-select v-model="formData.deviceId" :value-key="'id'" filterable :placeholder="$t('device.device')" :size="'large'" :no-data-text="$t('NO_DATA_TEXT')" :no-match-text="$t('NO_MATCH_TEXT')">
+        <label for="theInputDevice">{{ $t('device.select') }}</label>
+        <el-select 
+          v-model="formData.deviceId" 
+          :value-key="'id'" 
+          filterable 
+          :placeholder="$t('device.device')" 
+          :size="'large'" 
+          :no-data-text="$t('NO_DATA_TEXT')" 
+          :no-match-text="$t('NO_MATCH_TEXT')"
+          aria-label="Selecionar dispositivo"
+          @keyup.enter="handleFormEnter"
+        >
           <el-option
             v-for="item in devicesList"
             :key="item.id"
             :label="item.name"
             :value="item.id"
-          >
-          </el-option>
+          />
         </el-select>
       </div>
     </el-form-item>
@@ -21,7 +30,7 @@
     <!-- Linha 2: Período -->
     <el-form-item>
       <div class="form-group">
-        <label>{{$t('startDate')}}</label>
+        <label>{{ $t('startDate') }}</label>
         <el-date-picker
           v-model="formData.date"
           type="datetimerange"
@@ -30,6 +39,8 @@
           :end-placeholder="$t('endDate')"
           :shortcuts="dateShortcuts"
           style="width: 100%;"
+          aria-label="Selecionar período"
+          @keyup.enter="handleFormEnter"
         />
       </div>
     </el-form-item>
@@ -37,119 +48,426 @@
     <!-- Linha 3: Opções de Visualização -->
     <div class="view-options">
       <span class="view-options-label">
-        <i class="fas fa-eye"></i> Visualização:
+        <i class="fas fa-eye"></i> {{ $t('report.visualization') }}:
       </span>
-      <el-switch v-model="showRouteMarkers" :active-text="$t('report.showMarkers')"></el-switch>
-      <el-switch plain @click="toggleCalor" :active-text="$t('report.showMapadeCalor')" v-model="store.state.devices.showCalor"></el-switch>
-      <el-switch plain @click="togglePercurso" :active-text="$t('report.showPercurso')" v-model="store.state.devices.showPercurso"></el-switch>
+      <el-switch v-model="showRouteMarkers" :active-text="$t('report.showMarkers')" :disabled="isPlayingRoute" aria-label="Mostrar marcadores na rota" />
+      <el-switch v-model="showHeatmap" :active-text="$t('report.showMapadeCalor')" :disabled="isPlayingRoute" aria-label="Mostrar mapa de calor" />
+      
+      <!-- Seletor de Cor da Rota -->
+      <div class="route-color-selector">
+        <span class="color-label">{{ $t('report.routeColor') }}:</span>
+        <el-select 
+          v-model="currentRouteColor" 
+          size="small" 
+          style="width: 130px;"
+          :disabled="isPlayingRoute"
+          @change="handleRouteColorChange"
+        >
+          <el-option
+            v-for="option in routeColorOptions"
+            :key="option.value"
+            :label="option.label"
+            :value="option.value"
+          >
+            <span class="color-option">
+              <span class="color-swatch" :style="{ backgroundColor: option.value }"></span>
+              {{ option.label }}
+            </span>
+          </el-option>
+        </el-select>
+      </div>
     </div>
   </el-form>
 
   <!-- Linha 4: Ações (sticky) -->
   <div class="history-actions">
+      <!-- FASE 11: Toggle de modo (só aparece se premium permitido) -->
+      <el-tooltip 
+        v-if="showModeToggle && filteredRoutePoints.length > 0" 
+        :content="isPremiumMode ? $t('route.switchToBasic') || 'Modo Básico' : $t('route.switchToPremium') || 'Recursos Avançados'"
+        placement="top"
+      >
+        <el-button 
+          :type="isPremiumMode ? 'warning' : 'default'" 
+          @click="toggleMode"
+          circle
+          size="small"
+          style="margin-right: 8px;"
+        >
+          <i :class="isPremiumMode ? 'fas fa-star' : 'far fa-star'"></i>
+        </el-button>
+      </el-tooltip>
+      
       <el-dropdown trigger="click" @command="handleExport" :disabled="!isFormValid">
         <el-button type="info" :disabled="!isFormValid">
-          <i class="fas fa-download"></i> {{$t('export.label')}}
+          <i class="fas fa-download"></i> {{ $t('export.label') }}
           <i class="el-icon--right fas fa-angle-down"></i>
         </el-button>
         <template #dropdown>
           <el-dropdown-menu>
+            <!-- Sempre visível: Export básico -->
             <el-dropdown-item command="pdf">
-              <i class="fas fa-file-pdf"></i> {{$t('report.pdf')}}
+              <i class="fas fa-file-pdf"></i> {{ $t('report.pdf') }}
             </el-dropdown-item>
             <el-dropdown-item command="excel">
-              <i class="fas fa-file-excel"></i> {{$t('report.excel')}}
+              <i class="fas fa-file-excel"></i> {{ $t('report.excel') }}
+            </el-dropdown-item>
+            
+            <!-- Premium: só aparece se canUseExportPremium -->
+            <el-dropdown-item 
+              v-if="canUseExportPremium" 
+              command="pdf-premium" 
+              :disabled="filteredRoutePoints.length === 0"
+              divided
+            >
+              <i class="fas fa-file-pdf"></i> {{ $t('report.pdfPremium') || 'PDF Premium' }} ⭐
+            </el-dropdown-item>
+            <el-dropdown-item 
+              v-if="canUseExportPremium" 
+              command="excel-premium" 
+              :disabled="filteredRoutePoints.length === 0"
+            >
+              <i class="fas fa-file-excel"></i> {{ $t('report.excelPremium') || 'Excel Premium' }} ⭐
+            </el-dropdown-item>
+            
+            <!-- Share Link: só aparece se canUseShareLink -->
+            <el-dropdown-item 
+              v-if="canUseShareLink" 
+              divided 
+              command="share" 
+              :disabled="filteredRoutePoints.length === 0"
+            >
+              <i class="fas fa-share-alt"></i> {{ $t('report.shareLink') || 'Copiar Link' }}
+            </el-dropdown-item>
+            
+            <!-- FASE 13: KML Export (Google Earth) - só aparece se ENABLE_EXPORT_KML -->
+            <el-dropdown-item 
+              v-if="isEnabled('ENABLE_EXPORT_KML')" 
+              command="kml" 
+              :disabled="filteredRoutePoints.length === 0"
+            >
+              <i class="fas fa-globe"></i> {{ $t('report.kml') || 'KML (Google Earth)' }}
             </el-dropdown-item>
           </el-dropdown-menu>
         </template>
       </el-dropdown>
       <el-button
-        @mouseleave="hideTip" @mouseenter.stop="showTip($event,$t('device.routes'))"
-        type="primary" @click="loadRoute()"
+        @mouseleave="hideTip" 
+        @mouseenter.stop="showTip($event, $t('device.routes'))"
+        type="primary" 
+        @click="loadRoute()"
         :disabled="!isFormValid"
+        :loading="isLoading"
+        aria-label="Carregar rota no mapa"
       >
-        <i class="fas fa-route"></i> {{$t('report.show')}}
+        <i v-if="!isLoading" class="fas fa-route"></i> {{ $t('report.show') }}
       </el-button>
       <el-button
-        @mouseleave="hideTip" @mouseenter.stop="showTip($event,$t('device.graphic'))"
-        type="success" @click="loadGraph()"
+        @mouseleave="hideTip" 
+        @mouseenter.stop="showTip($event, $t('device.graphic'))"
+        type="success" 
+        @click="loadGraph()"
         :disabled="!isFormValid"
+        aria-label="Abrir gráfico de velocidade"
       >
-        <i class="fas fa-chart-bar"></i> {{$t('report.chart')}}
+        <i class="fas fa-chart-bar"></i> {{ $t('report.chart') }}
       </el-button>
     </div>
   </div>
   </el-card> 
-         
 
-    <!-- Cartões de Estatísticas -->
-    <el-card v-if="routePoints.length > 0" class="stats-card" shadow="never">
-      <template #header>
-        <div class="stats-header">
-          <div class="stats-title">
-            <i class="fas fa-chart-line"></i> {{$t('report.statistics')}}
-          </div>
-          <div v-if="currentDriverName" class="driver-pill">
-            <i class="fas fa-user"></i> Motorista: {{ currentDriverName }}
-          </div>
+  <!-- ============================================================================
+       FASE 12: ESTADOS VAZIOS (Modo BASIC - UX impecável)
+       ============================================================================ -->
+  
+  <!-- Callout: Nenhum dispositivo selecionado -->
+  <el-alert
+    v-if="!formData.deviceId && loadingState !== 'loading'"
+    :title="$t('route.selectDevicePrompt') || 'Selecione um dispositivo'"
+    type="info"
+    :description="$t('route.selectDeviceDesc') || 'Escolha um dispositivo na lista acima para visualizar o histórico de rotas.'"
+    show-icon
+    :closable="false"
+    style="margin-top: 16px;"
+  />
+
+  <!-- Callout: Nenhum período selecionado -->
+  <el-alert
+    v-else-if="formData.deviceId && (!formData.date || !formData.date[0] || !formData.date[1]) && loadingState !== 'loading'"
+    :title="$t('route.selectPeriodPrompt') || 'Selecione o período'"
+    type="info"
+    :description="$t('route.selectPeriodDesc') || 'Defina a data de início e fim para carregar o histórico de rotas.'"
+    show-icon
+    :closable="false"
+    style="margin-top: 16px;"
+  />
+
+  <!-- Callout: Sem dados para o período (após carregar) -->
+  <el-alert
+    v-else-if="isFormValid && hasLoadedOnce && routePoints.length === 0 && loadingState === 'idle'"
+    :title="$t('route.noDataTitle') || 'Sem dados para este período'"
+    type="warning"
+    :description="$t('route.noDataDesc') || 'Não há registros de posição para o dispositivo no período selecionado.'"
+    show-icon
+    :closable="false"
+    style="margin-top: 16px;"
+  >
+    <template #default>
+      <div class="empty-state-actions">
+        <span class="empty-state-hint">{{ $t('route.tryAnotherPeriod') || 'Tente outro período:' }}</span>
+        <el-button size="small" @click="setQuickPeriod(1)">{{ $t('route.last24h') || 'Últimas 24h' }}</el-button>
+        <el-button size="small" @click="setQuickPeriod(7)">{{ $t('route.last7days') || 'Últimos 7 dias' }}</el-button>
+        <el-button size="small" @click="setQuickPeriod(30)">{{ $t('route.last30days') || 'Últimos 30 dias' }}</el-button>
+      </div>
+    </template>
+  </el-alert>
+
+  <!-- Cartões de Estatísticas -->
+  <el-card v-if="filteredRoutePoints.length > 0" class="stats-card" shadow="never">
+    <template #header>
+      <div class="stats-header">
+        <div class="stats-title">
+          <i class="fas fa-chart-line"></i> {{ $t('report.statistics') }}
         </div>
-      </template>
-      <div class="stats-container">
-        <div class="stat-box">
-          <div class="stat-content">
-            <i class="fas fa-route stat-icon stat-icon-primary"></i>
-            <div class="stat-info">
-              <div class="stat-label">{{$t('report.totalDistance')}}</div>
-              <div class="stat-value">{{calculateTotalDistance()}} km</div>
-            </div>
-          </div>
+        <div v-if="currentDriverName" class="driver-pill">
+          <i class="fas fa-user"></i> {{ $t('device.driver') }}: {{ currentDriverName }}
         </div>
-        <div class="stat-box">
-          <div class="stat-content">
-            <i class="fas fa-tachometer-alt stat-icon stat-icon-success"></i>
-            <div class="stat-info">
-              <div class="stat-label">{{$t('report.avgSpeed')}}</div>
-              <div class="stat-value">{{calculateAvgSpeed()}} km/h</div>
-            </div>
-          </div>
-        </div>
-        <div class="stat-box">
-          <div class="stat-content">
-            <i class="fas fa-clock stat-icon stat-icon-warning"></i>
-            <div class="stat-info">
-              <div class="stat-label">{{$t('report.tripDuration')}}</div>
-              <div class="stat-value">{{calculateDuration()}}</div>
-            </div>
-          </div>
-        </div>
-        <div class="stat-box">
-          <div class="stat-content">
-            <i class="fas fa-pause-circle stat-icon stat-icon-danger"></i>
-            <div class="stat-info">
-              <div class="stat-label">{{$t('report.stopTime')}}</div>
-              <div class="stat-value">{{calculateStopTime()}}</div>
-            </div>
+      </div>
+    </template>
+    <div class="stats-container">
+      <div class="stat-box">
+        <div class="stat-content">
+          <i class="fas fa-route stat-icon stat-icon-primary"></i>
+          <div class="stat-info">
+            <div class="stat-label">{{ $t('report.totalDistance') }}</div>
+            <div class="stat-value">{{ stats.totalDistance }} km</div>
           </div>
         </div>
       </div>
-    </el-card>
+      <div class="stat-box">
+        <div class="stat-content">
+          <i class="fas fa-tachometer-alt stat-icon stat-icon-success"></i>
+          <div class="stat-info">
+            <div class="stat-label">{{ $t('report.avgSpeed') }}</div>
+            <div class="stat-value">{{ stats.avgSpeed }} km/h</div>
+          </div>
+        </div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-content">
+          <i class="fas fa-clock stat-icon stat-icon-warning"></i>
+          <div class="stat-info">
+            <div class="stat-label">{{ $t('report.tripDuration') }}</div>
+            <div class="stat-value">{{ stats.duration }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-content">
+          <i class="fas fa-pause-circle stat-icon stat-icon-danger"></i>
+          <div class="stat-info">
+            <div class="stat-label">{{ $t('report.stopTime') }}</div>
+            <div class="stat-value">{{ stats.stopTime }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- FASE 12: Texto explicativo das estatísticas (modo BASIC) -->
+    <div class="stats-disclaimer">
+      <i class="fas fa-info-circle"></i>
+      {{ $t('route.statsDisclaimer') || 'Estatísticas calculadas com base no percurso completo.' }}
+    </div>
+  </el-card>
+
+  <!-- ============================================================================
+       FASE 11: INSIGHTS AVANÇADOS (Premium Mode Only)
+       Bloco único com tabs: Resumo | Capítulos | Favoritos
+       ============================================================================ -->
+  <el-card 
+    v-if="isPremiumMode && canUseInsights && filteredRoutePoints.length > 0 && (routeSummary || routeChapters.length > 1 || bookmarkCount > 0)" 
+    class="premium-insights-card" 
+    shadow="never" 
+    style="margin-top: 16px;"
+  >
+    <template #header>
+      <div class="insights-header">
+        <span><i class="fas fa-star"></i> {{ $t('route.advancedInsights') || 'Insights Avançados' }}</span>
+        <el-tag type="warning" size="small" effect="dark">Premium</el-tag>
+      </div>
+    </template>
+    
+    <el-tabs v-model="insightsActiveTab" type="border-card" class="insights-tabs">
+      
+      <!-- Tab: Resumo Executivo -->
+      <el-tab-pane 
+        v-if="routeSummary" 
+        name="summary" 
+        :label="$t('report.executiveSummary') || 'Resumo Executivo'"
+      >
+        <template #label>
+          <span><i class="fas fa-chart-pie"></i> {{ $t('report.summary') || 'Resumo' }}</span>
+        </template>
+        
+        <div class="summary-grid">
+          <!-- Tempo em Movimento vs Parado -->
+          <div class="summary-item summary-item-highlight">
+            <div class="summary-icon" style="--icon-color: var(--el-color-success);">
+              <i class="fas fa-route"></i>
+            </div>
+            <div class="summary-content">
+              <div class="summary-label">{{ $t('report.movingTime') || 'Em Movimento' }}</div>
+              <div class="summary-value">{{ routeSummary.movingTimeLabel }}</div>
+              <div class="summary-percent">
+                <div class="percent-bar">
+                  <div class="percent-fill" :style="{ width: routeSummary.movingPercent + '%' }"></div>
+                </div>
+                <span>{{ routeSummary.movingPercent }}%</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Paradas -->
+          <div class="summary-item" v-if="routeSummary.stopCount > 0">
+            <div class="summary-icon" style="--icon-color: var(--el-color-warning);">
+              <i class="fas fa-parking"></i>
+            </div>
+            <div class="summary-content">
+              <div class="summary-label">{{ $t('report.stops') || 'Paradas' }}</div>
+              <div class="summary-value">{{ routeSummary.stopCount }} ({{ routeSummary.totalStopTimeLabel }})</div>
+            </div>
+          </div>
+          
+          <!-- Maior Parada -->
+          <div 
+            class="summary-item summary-item-clickable" 
+            v-if="routeSummary.longestStop"
+            @click="onSeekToIndex(routeSummary.longestStop.index)"
+            :title="routeSummary.longestStop.address"
+          >
+            <div class="summary-icon" style="--icon-color: var(--el-color-danger);">
+              <i class="fas fa-hourglass-half"></i>
+            </div>
+            <div class="summary-content">
+              <div class="summary-label">{{ $t('report.longestStop') || 'Maior Parada' }}</div>
+              <div class="summary-value">{{ routeSummary.longestStop.durationLabel }}</div>
+              <div class="summary-address">{{ routeSummary.longestStop.address }}</div>
+            </div>
+            <i class="fas fa-chevron-right summary-action"></i>
+          </div>
+          
+          <!-- Velocidade Máxima -->
+          <div 
+            class="summary-item summary-item-clickable" 
+            v-if="routeSummary.maxSpeed"
+            @click="onSeekToIndex(routeSummary.maxSpeed.index)"
+            :title="routeSummary.maxSpeed.address"
+          >
+            <div class="summary-icon" style="--icon-color: var(--el-color-danger);">
+              <i class="fas fa-tachometer-alt"></i>
+            </div>
+            <div class="summary-content">
+              <div class="summary-label">{{ $t('report.maxSpeed') || 'Velocidade Máxima' }}</div>
+              <div class="summary-value">{{ routeSummary.maxSpeed.value }} km/h</div>
+              <div class="summary-address">{{ routeSummary.maxSpeed.address }}</div>
+            </div>
+            <i class="fas fa-chevron-right summary-action"></i>
+          </div>
+          
+          <!-- Eventos de Velocidade -->
+          <div class="summary-item" v-if="routeSummary.speedEventCount > 0">
+            <div class="summary-icon" style="--icon-color: var(--el-color-danger);">
+              <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div class="summary-content">
+              <div class="summary-label">{{ $t('report.speedEvents') || 'Excessos Velocidade' }}</div>
+              <div class="summary-value">{{ routeSummary.speedEventCount }} {{ $t('report.events') || 'eventos' }}</div>
+            </div>
+          </div>
+        </div>
+      </el-tab-pane>
+      
+      <!-- Tab: Capítulos da Viagem -->
+      <el-tab-pane 
+        v-if="canUseChapters && routeChapters.length > 1" 
+        name="chapters"
+      >
+        <template #label>
+          <span><i class="fas fa-list-ol"></i> {{ $t('report.chapters') || 'Trechos' }} ({{ routeChapters.length }})</span>
+        </template>
+        
+        <div class="chapters-list">
+          <div 
+            v-for="chapter in routeChapters" 
+            :key="chapter.id"
+            class="chapter-item"
+            @click="onSeekToIndex(chapter.startIndex)"
+          >
+            <div class="chapter-number">{{ chapter.id }}</div>
+            <div class="chapter-content">
+              <div class="chapter-label">{{ chapter.label }}</div>
+              <div class="chapter-details">
+                <span><i class="fas fa-clock"></i> {{ chapter.durationLabel }}</span>
+                <span><i class="fas fa-road"></i> {{ chapter.distanceKm }} km</span>
+                <span><i class="fas fa-map-marker-alt"></i> {{ chapter.pointCount }} pts</span>
+              </div>
+              <div class="chapter-addresses">
+                <span class="chapter-start">{{ chapter.startTime }} - {{ chapter.startAddress }}</span>
+                <span class="chapter-end">{{ chapter.endTime }} - {{ chapter.endAddress }}</span>
+              </div>
+            </div>
+            <i class="fas fa-play-circle chapter-action"></i>
+          </div>
+        </div>
+      </el-tab-pane>
+      
+      <!-- Tab: Favoritos / Bookmarks -->
+      <el-tab-pane 
+        v-if="canUseBookmarks && bookmarkCount > 0" 
+        name="bookmarks"
+      >
+        <template #label>
+          <span><i class="fas fa-star"></i> {{ $t('report.bookmarks') || 'Favoritos' }} ({{ bookmarkCount }})</span>
+        </template>
+        
+        <div class="bookmarks-list">
+          <div 
+            v-for="bookmark in bookmarks" 
+            :key="bookmark.index"
+            class="bookmark-item"
+            @click="onSeekToIndex(bookmark.index)"
+          >
+            <div class="bookmark-icon">
+              <i class="fas fa-star"></i>
+            </div>
+            <div class="bookmark-content">
+              <div class="bookmark-label">{{ bookmark.label }}</div>
+              <div class="bookmark-address">{{ bookmark.address }}</div>
+            </div>
+            <i class="fas fa-chevron-right bookmark-action"></i>
+          </div>
+        </div>
+      </el-tab-pane>
+      
+    </el-tabs>
+  </el-card>
 
   <!-- Filtros da Timeline -->
-  <el-card v-if="routePoints.length > 0" class="timeline-filters" shadow="never" style="margin-top: 16px;">
+  <el-card v-if="filteredRoutePoints.length > 0 || routePoints.length > 0" class="timeline-filters" shadow="never" style="margin-top: 16px;">
     <template #header>
       <div style="font-weight: bold;">
-        <i class="fas fa-filter"></i> {{$t('report.filters')}}
+        <i class="fas fa-filter"></i> {{ $t('report.filters') }}
       </div>
     </template>
     <div style="display: flex; flex-direction: column; gap: 16px;">
       <div style="display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap;">
         <div style="flex: 1; min-width: 250px;">
           <label style="font-size: 12px; color: var(--el-text-color-secondary); margin-bottom: 4px; display: block;">
-            <i class="fas fa-search"></i> {{$t('report.searchLabel')}}
+            <i class="fas fa-search"></i> {{ $t('report.searchLabel') }}
           </label>
           <el-input
             v-model="searchQuery"
             :placeholder="$t('report.searchAddress')"
+            :disabled="isPlayingRoute"
             clearable
           >
             <template #prefix>
@@ -159,29 +477,31 @@
         </div>
         <div style="min-width: 200px;">
           <label style="font-size: 12px; color: var(--el-text-color-secondary); margin-bottom: 4px; display: block;">
-            <i class="fas fa-list"></i> {{$t('report.eventType')}}
+            <i class="fas fa-list"></i> {{ $t('report.eventType') }}
           </label>
           <el-select
             v-model="eventFilter"
             :placeholder="$t('report.filterByEvent')"
+            :disabled="isPlayingRoute"
             style="width: 100%;"
             @change="onEventFilterChange"
           >
-            <el-option :label="$t('report.all')" value="all"></el-option>
-            <el-option :label="$t('report.moving')" value="moving"></el-option>
-            <el-option :label="$t('report.stopped')" value="stopped"></el-option>
-            <el-option :label="$t('report.fastSpeed')" value="fast"></el-option>
+            <el-option :label="$t('report.all')" value="all" />
+            <el-option :label="$t('report.moving')" value="moving" />
+            <el-option :label="$t('report.stopped')" value="stopped" />
+            <el-option :label="$t('report.fastSpeed')" value="fast" />
           </el-select>
         </div>
         <div v-if="eventFilter === 'fast'" style="min-width: 180px;">
           <label style="font-size: 12px; color: var(--el-text-color-secondary); margin-bottom: 4px; display: block;">
-            <i class="fas fa-tachometer-alt"></i> {{$t('report.insertSpeed')}}
+            <i class="fas fa-tachometer-alt"></i> {{ $t('report.insertSpeed') }}
           </label>
           <el-input-number
             v-model="customSpeed"
             :min="1"
             :max="300"
             :controls="true"
+            :disabled="isPlayingRoute"
             style="width: 100%;"
           />
           <span style="font-size: 11px; color: var(--el-text-color-secondary); margin-left: 4px;">km/h</span>
@@ -191,255 +511,446 @@
         <el-switch
           v-model="removeDuplicates"
           :active-text="$t('report.removeDuplicates')"
-        ></el-switch>
+          :disabled="isPlayingRoute"
+        />
         <div style="font-size: 13px; color: var(--el-text-color-regular); font-weight: 500;">
           <i class="fas fa-map-marker-alt"></i> 
           <span v-if="filteredRoutePoints.length !== routePoints.length">
-            {{filteredRoutePoints.length}} / {{routePoints.length}} {{$t('report.points')}}
+            {{ filteredRoutePoints.length }} / {{ routePoints.length }} {{ $t('report.points') }}
           </span>
           <span v-else>
-            {{routePoints.length}} {{$t('report.points')}}
+            {{ routePoints.length }} {{ $t('report.points') }}
           </span>
         </div>
       </div>
     </div>
   </el-card>
 
-
-  <div class="timeline-container">
+  <!-- Timeline Container -->
+  <div class="timeline-container" :key="timelineKey">
     <template v-if="loadingState === 'loading'">
       <div class="timeline-message">
         <i class="fas fa-spinner fa-spin" style="font-size: 24px; margin-bottom: 8px;"></i>
-        <div>{{$t('LOADING')}}</div>
+        <div>{{ $t('LOADING') }}</div>
       </div>
     </template>
     <template v-else-if="loadingState === 'export_ok'">
       <div class="timeline-message">
         <i class="fas fa-check-circle" style="font-size: 24px; margin-bottom: 8px; color: var(--el-color-success);"></i>
-        <div>{{$t('ExportOK')}}</div>
+        <div>{{ $t('device.ExportOK') }}</div>
       </div>
     </template>
     <template v-else-if="loadingState === 'error'">
       <div class="timeline-message" style="color: var(--el-color-danger);">
         <i class="fas fa-exclamation-circle" style="font-size: 24px; margin-bottom: 8px;"></i>
-        <div>{{$t('report.loadError') || 'Erro ao carregar dados'}}</div>
+        <div>{{ $t('report.loadError') }}</div>
       </div>
     </template>
-    <template v-else-if="routePoints.length === 0">
-      <div class="timeline-message">{{$t('route.empty')}}</div>
+    <template v-else-if="filteredRoutePoints.length === 0">
+      <div class="timeline-message">{{ $t('route.empty') }}</div>
     </template>
     <template v-else>
-      <div v-if="routePoints.length>0" class="timeline-point timeline-point-start">
-        <div class="timeline-time">
-          <div class="timeline-line timeline-line-bottom"></div>
-          <div class="timeline-icon">
-            <i class="fas fa-flag"></i>
+      <!-- FASE 5 + FASE 7: Controles de Reprodução com Eventos -->
+      <RoutePlaybackControls
+        :total-points="filteredRoutePoints.length"
+        :points="filteredRoutePoints"
+        :events="routeEvents"
+        @seek="onSeekToPoint"
+      />
+      
+      <!-- Ponto Inicial (Start) -->
+      <TimelinePoint
+        v-if="filteredRoutePoints.length > 0"
+        :point="filteredRoutePoints[0]"
+        :index="0"
+        type="start"
+        :speed-unit="speedUnit"
+        :event="getEventAtIndex(0)"
+        :bookmarked="isBookmarked(0)"
+        @seek="onSeekToPoint"
+        @toggle-bookmark="onToggleBookmark"
+      />
+
+      <!-- Pontos Intermediários (Middle) - Com Virtualização -->
+      <div 
+        v-if="filteredRoutePoints.length > 2" 
+        ref="timelineScrollRef"
+        class="timeline-scroll"
+        @scroll="onTimelineScroll"
+      >
+        <!-- Spacer para altura total virtual -->
+        <div :style="virtualScrollState.spacerStyle">
+          <!-- Wrapper dos itens visíveis posicionado absolutamente -->
+          <div :style="virtualScrollState.itemsWrapperStyle">
+            <TimelinePoint
+              v-for="{ item, realIndex } in visibleMiddlePoints"
+              :key="item.id || realIndex"
+              :point="item"
+              :index="realIndex"
+              type="middle"
+              :is-active="isPlayingRoute && realIndex === currentPlayingPoint"
+              :is-visited="isPlayingRoute && realIndex < currentPlayingPoint"
+              :speed-unit="speedUnit"
+              :event="getEventAtIndex(realIndex)"
+              :bookmarked="isBookmarked(realIndex)"
+              @seek="onSeekToPoint"
+              @toggle-bookmark="onToggleBookmark"
+            />
           </div>
-          <div class="timeline-date">
-            {{new Date(routePoints[0].fixTime).toLocaleDateString()}}<br>
-            {{new Date(routePoints[0].fixTime).toLocaleTimeString()}}
-          </div>
-        </div>
-        <div class="timeline-address">{{routePoints[0].address}}</div>
-        <div class="timeline-speed">
-          <i class="fas fa-tachometer-alt"></i>
-          {{$t('units.'+store.getters['server/getAttribute']('speedUnit','speedUnit'),{speed: routePoints[0].speed})}}
         </div>
       </div>
-      <div v-if="filteredRoutePoints.length>2" class="timeline-scroll">
-        <template v-for="(p,k) in filteredRoutePoints" :key="p.id">
-            <div v-if="k>0 && k<filteredRoutePoints.length-1" class="timeline-point timeline-point-middle">
-              <div class="timeline-time">
-                <div class="timeline-line timeline-line-full"></div>
-                <div class="timeline-dot"></div>
-                <div class="timeline-date">
-                  {{new Date(p.fixTime).toLocaleDateString()}}<br>
-                  {{new Date(p.fixTime).toLocaleTimeString()}}
-                </div>
-              </div>
-              <div class="timeline-address">
-                <a target="_blank" class="timeline-link" :href="'https://maps.google.com/?q='+p.latitude+','+p.longitude">
-                  {{p.address || p.latitude+','+p.longitude }} <i class="fas fa-external-link-alt"></i>
-                </a>
-              </div>
-              <div class="timeline-speed">
-                <i class="fas fa-tachometer-alt"></i>
-                {{$t('units.'+store.getters['server/getAttribute']('speedUnit','speedUnit'),{speed: p.speed})}}
-              </div>
-            </div>
-        </template>
-      </div>
-    <div v-if="routePoints.length>0" class="timeline-point timeline-point-end">
-      <div class="timeline-time">
-        <div class="timeline-line timeline-line-top"></div>
-        <div class="timeline-icon">
-          <i class="fas fa-flag"></i>
-        </div>
-        <div class="timeline-date">
-          {{new Date(routePoints[routePoints.length-1].fixTime).toLocaleDateString()}}<br>
-          {{new Date(routePoints[routePoints.length-1].fixTime).toLocaleTimeString()}}
-        </div>
-      </div>
-      <div class="timeline-address">{{routePoints[routePoints.length-1].address}}</div>
-      <div class="timeline-speed">
-        <i class="fas fa-tachometer-alt"></i>
-        {{$t('units.'+store.getters['server/getAttribute']('speedUnit','speedUnit'),{speed: routePoints[routePoints.length-1].speed})}}
-      </div>
-    </div>
+
+      <!-- Ponto Final (End) -->
+      <TimelinePoint
+        v-if="filteredRoutePoints.length > 0"
+        :point="filteredRoutePoints[filteredRoutePoints.length - 1]"
+        :index="filteredRoutePoints.length - 1"
+        type="end"
+        :speed-unit="speedUnit"
+        :event="getEventAtIndex(filteredRoutePoints.length - 1)"
+        :bookmarked="isBookmarked(filteredRoutePoints.length - 1)"
+        @seek="onSeekToPoint"
+        @toggle-bookmark="onToggleBookmark"
+      />
     </template>
   </div>
-
 </template>
 
 <script setup>
+/**
+ * history.vue - Componente de Histórico de Rotas
+ * 
+ * Refatorado para:
+ * - Performance: Virtualização (windowing) para milhares de pontos
+ * - Manutenibilidade: Subcomponentes TimelinePoint e PointAttributes
+ * - Robustez: Controle de concorrência com requestId/AbortController
+ * - Padronização: i18n consistente, sem strings hardcoded
+ * - Timezone: Formatação correta de datas locais
+ */
 
+// Element Plus components
+import 'element-plus/es/components/button/style/css';
+import 'element-plus/es/components/icon/style/css';
+import 'element-plus/es/components/tooltip/style/css';
+import 'element-plus/es/components/form/style/css';
+import 'element-plus/es/components/form-item/style/css';
+import 'element-plus/es/components/select/style/css';
+import 'element-plus/es/components/option/style/css';
+import 'element-plus/es/components/switch/style/css';
+import 'element-plus/es/components/input/style/css';
+import 'element-plus/es/components/input-number/style/css';
+import 'element-plus/es/components/message-box/style/css';
+import 'element-plus/es/components/date-picker/style/css';
+import 'element-plus/es/components/dropdown/style/css';
+import 'element-plus/es/components/dropdown-menu/style/css';
+import 'element-plus/es/components/dropdown-item/style/css';
+import 'element-plus/es/components/card/style/css';
+import 'element-plus/es/components/message/style/css';
 
+import {
+  ElButton, ElForm, ElSelect, ElOption, ElFormItem, ElSwitch, 
+  ElInput, ElInputNumber, ElDatePicker, ElDropdown, 
+  ElDropdownMenu, ElDropdownItem, ElCard, ElMessage
+} from 'element-plus';
 
-import 'element-plus/es/components/button/style/css'
-import 'element-plus/es/components/icon/style/css'
-import 'element-plus/es/components/tooltip/style/css'
-import 'element-plus/es/components/form/style/css'
-import 'element-plus/es/components/form-item/style/css'
-import 'element-plus/es/components/select/style/css'
-import 'element-plus/es/components/option/style/css'
-import 'element-plus/es/components/switch/style/css'
-import 'element-plus/es/components/input/style/css'
-import 'element-plus/es/components/input-number/style/css'
-import 'element-plus/es/components/message-box/style/css'
-import 'element-plus/es/components/date-picker/style/css'
-import 'element-plus/es/components/dropdown/style/css'
-import 'element-plus/es/components/dropdown-menu/style/css'
-import 'element-plus/es/components/dropdown-item/style/css'
-import 'element-plus/es/components/card/style/css'
+import { ref, inject, onMounted, watch, onBeforeUnmount, nextTick, computed, getCurrentInstance } from 'vue';
+import { useStore } from 'vuex';
+import { useRoute } from 'vue-router';
 
+// Subcomponentes locais
+import TimelinePoint from './components/TimelinePoint.vue';
 
-import {ElButton,ElForm,ElSelect,ElOption,ElFormItem,ElSwitch,ElInput,ElInputNumber,ElDatePicker,ElDropdown,ElDropdownMenu,ElDropdownItem,ElCard,ElMessage} from "element-plus";
-import 'element-plus/es/components/message/style/css'
+// Componente de controles de reprodução (FASE 5)
+import RoutePlaybackControls from '@/components/RoutePlaybackControls.vue';
 
-import {ref,inject,onMounted,watch,onBeforeUnmount,nextTick,computed} from 'vue';
-import {useStore} from 'vuex';
-import {useRoute} from 'vue-router'
+// FASE 7: Detector de eventos na rota
+import { detectRouteEvents, createEventIndexMap } from '@/utils/routeEventDetector';
+
+// FASE 8: Capítulos e Resumo da Rota
+import { buildRouteChapters, buildRouteSummary } from '@/utils/routeChapters';
+
+// FASE 8: Composable de Bookmarks
+import { useRouteBookmarks } from '@/composables/useRouteBookmarks';
+
+// FASE 9: Export Premium + Share
+import { 
+  generatePremiumPdfHtml, 
+  generateExcelCsv,
+  parseSharePayload,
+  generateShareUrl,
+  generateKml
+} from '@/utils/routeExportPremium';
+
+// FASE 10: Telemetria, Feature Flags, Fail-Safe
+import { 
+  startMeasure, 
+  endMeasure,
+  incrementCounter
+} from '@/utils/routeTelemetry';
+import { isEnabled, getFlag } from '@/utils/routeFeatureFlags';
+import { 
+  enforceLimits, 
+  guardExport,
+  limitEvents,
+  limitChapters
+} from '@/utils/routeFailSafe';
+
+// FASE 11: Modo Basic vs Premium
+import { useRouteMode } from '@/composables/useRouteMode';
+
+// Composables
+import { getDefaultDateRange } from '@/composables/useRequestControl';
 
 // ============================================
-// CONFIGURAÇÃO DE PERFORMANCE (history.vue)
+// CONFIGURAÇÃO
 // ============================================
-const PERF_DEBUG = false; // Ativar logs de performance (dev only)
+const PERF_DEBUG = process.env.NODE_ENV === 'development' && false;
+const DEBUG_HISTORY = process.env.NODE_ENV === 'development';
+const DEBOUNCE_DELAY = 250; // ms para debounce de filtros
 
-// Helper de log de performance
+// Configuração de virtualização
+const virtualItemHeight = ref(65); // Altura dinâmica de cada ponto (medida em runtime)
+const VIRTUAL_BUFFER = 8; // Itens extras acima/abaixo do viewport
+
+// Controle de concorrência (requestId simples)
+let loadRouteRequestId = 0;
+
+// Helpers de log
 const perfLog = (label, startTime, extra = '') => {
-    if (!PERF_DEBUG) return;
-    const elapsed = performance.now() - startTime;
-    console.log(`[PERF:history] ${label}: ${elapsed.toFixed(2)}ms ${extra}`);
+  if (!PERF_DEBUG) return;
+  const elapsed = performance.now() - startTime;
+  console.log(`[PERF:history] ${label}: ${elapsed.toFixed(2)}ms ${extra}`);
 };
 
-const showGraphicsRef = inject("show-graphics");
+const debugLog = (...args) => {
+  if (DEBUG_HISTORY) console.log('[History]', ...args);
+};
 
-// Estados de loading: 'idle' | 'loading' | 'export_ok' | 'error'
-const loadingState = ref('idle');
+// ============================================
+// INJECTS E STORE
+// ============================================
+const store = useStore();
+const route = useRoute();
+const { proxy } = getCurrentInstance();
+
+// FASE 12: Helper para tradução segura (fail-safe)
+// Usa proxy.$t com fallback para a chave ou valor default
+const safeT = (key, fallback = '') => {
+  try {
+    // Verificação mais robusta para garantir que proxy e $t existem
+    const instance = proxy || getCurrentInstance()?.proxy;
+    if (instance?.$t && typeof instance.$t === 'function') {
+      const result = instance.$t(key);
+      // Se retornou a própria chave, usar fallback
+      if (result === key && fallback) return fallback;
+      return result;
+    }
+    return fallback || key;
+  } catch (error) {
+    console.warn(`[safeT] Erro ao traduzir chave "${key}":`, error);
+    return fallback || key;
+  }
+};
+
+const showGraphicsRef = inject('show-graphics');
+const showRouteMarkers = inject('showRouteMarkers');
+const updateRoute = inject('updateRoute');
+const toggleHeatmap = inject('toggleHeatmap');
+const isPlayingRoute = inject('isPlayingRoute', ref(false)); // Fallback para ref(false)
+const routeColorRef = inject('routeColor');
+const setRouteColor = inject('setRouteColor');
+const ROUTE_COLOR_OPTIONS = inject('ROUTE_COLOR_OPTIONS');
+
+// FASE 4: Preview/Seek de ponto na timeline (vem do kore-map)
+const previewRoutePoint = inject('previewRoutePoint', null);
+
+// 1️⃣ CORREÇÃO: showHeatmap via inject com fallback (não redeclarar ref)
+const injectedShowHeatmap = inject('showHeatmap', null);
+const showHeatmap = injectedShowHeatmap ?? ref(false);
+
+// ============================================
+// REFS E ESTADO
+// ============================================
+const timelineScrollRef = ref(null);
+const timelineKey = ref(0); // Key para forçar remount limpo
+
+// Form data
+const [defaultStart, defaultEnd] = getDefaultDateRange();
+const formData = ref({ 
+  deviceId: '', 
+  date: [defaultStart, defaultEnd] 
+});
+
+// Estados de UI
+const loadingState = ref('idle'); // 'idle' | 'loading' | 'export_ok' | 'error'
 const searchQuery = ref('');
 const eventFilter = ref('all');
 const customSpeed = ref(80);
 const removeDuplicates = ref(false);
+// showHeatmap agora vem do inject acima
 
-// Timer para debounce do updateMapRoute
-let debounceTimer = null;
-const DEBOUNCE_DELAY = 250; // ms
-
-const date1 = new Date();
-const date2 = new Date();
-
-date1.setHours(0);
-date1.setMinutes(0);
-
-const showRouteMarkers = inject("showRouteMarkers");
-
-
-const showTip = (evt,text)=>{
-  window.$showTip(evt,text);
-}
-
-const hideTip = (evt,text)=>{
-  window.$hideTip(evt,text);
-}
-
-
-
-const formData = ref({deviceId: '',date: [date1,date2]})
-const store = useStore();
-const route = useRoute();
-
-// Computed para validar form
-const isFormValid = computed(() => {
-  return !!(formData.value.deviceId && formData.value.date?.[0] && formData.value.date?.[1]);
-});
-
-const sendDataToStore = ()=>{
-  const deviceId = formData.value.deviceId;
-  const startDate = formData.value.date[0];
-  const endDate = formData.value.date[1];
-
-  store.dispatch('reports/updateReportData',{deviceId,date: [startDate,endDate]});
-}
-
-watch(formData, () => {
-  const { deviceId, date } = formData.value;
-  if (!deviceId || !date?.[0] || !date?.[1]) return;
-  sendDataToStore();
-}, { deep: true });
-
-watch([searchQuery, eventFilter, customSpeed, removeDuplicates], () => {
-  if (routePoints.value.length > 0) {
-    // Debounce para evitar recalcular a cada tecla
-    if (debounceTimer) {
-      clearTimeout(debounceTimer);
-    }
-    debounceTimer = setTimeout(() => {
-      updateMapRoute();
-    }, DEBOUNCE_DELAY);
-  }
-});
-
-
-onMounted(()=>{
-  if(route.query.deviceId){
-    formData.value.deviceId = parseInt(route.query.deviceId);
-
-    loadRoute();
-  }
-})
-
-
-onBeforeUnmount(() => {
-  // Limpar debounce timer
-  if (debounceTimer) {
-    clearTimeout(debounceTimer);
-    debounceTimer = null;
-  }
-  // Resetar estados do store
-  store.dispatch('devices/resetDeviceStates');
-});
-
-watch(()=> route.query.deviceId,()=>{
-  if(route.query.deviceId){
-    formData.value.deviceId = parseInt(route.query.deviceId);
-
-    loadRoute();
-  }
-})
-
-const updateRoute = inject('updateRoute');
-
-const showCalorLayer = inject('showCalorLayer');
-const hideCalorLayer = inject('hideCalorLayer');
-const showPercursoLayer = inject('showPercursoLayer');
-const hidePercursoLayer = inject('hidePercursoLayer');
-// const showCalorCorrelacaoLayer = inject('showCalorCorrelacaoLayer');
-// const hideCalorCorrelacaoLayer = inject('hideCalorCorrelacaoLayer');
-
-
+// Dados da rota
 const routePoints = ref([]);
 
-// Lista de dispositivos normalizada (aceita array, objeto ou {list: []})
+// Cor da rota
+const currentRouteColor = ref(
+  routeColorRef?.value || localStorage.getItem('kore-route-color') || '#05a7e3'
+);
+
+// Estado de loading
+const isLoading = ref(false);
+
+// FASE 12: Flag para saber se já carregou pelo menos uma vez
+const hasLoadedOnce = ref(false);
+
+// FASE 9: Playback settings (para share link)
+const playbackSpeed = ref(1);
+const followPlay = ref(true);
+
+// ============================================
+// FASE 11: MODO BASIC VS PREMIUM
+// ============================================
+const {
+  isPremiumMode,
+  showModeToggle,
+  canUseInsights,
+  canUseChapters,
+  canUseBookmarks,
+  canUseExportPremium,
+  canUseShareLink,
+  toggleMode
+} = useRouteMode(store);
+
+// Tab ativa no painel de Insights (premium)
+const insightsActiveTab = ref('summary');
+
+// Timer de debounce
+let debounceTimer = null;
+
+// ============================================
+// VIRTUALIZAÇÃO (Windowing simples)
+// ============================================
+const virtualScrollTop = ref(0);
+
+// 4️⃣ Altura dinâmica do container (medida no mount)
+const containerHeight = ref(400);
+
+// Pontos intermediários filtrados (sem primeiro e último)
+const middlePoints = computed(() => {
+  if (filteredRoutePoints.value.length <= 2) return [];
+  return filteredRoutePoints.value.slice(1, -1);
+});
+
+// Estado da virtualização
+const virtualScrollState = computed(() => {
+  const totalItems = middlePoints.value.length;
+  const totalHeight = totalItems * virtualItemHeight.value;
+  
+  // Usar altura medida dinamicamente
+  const visibleCount = Math.ceil(containerHeight.value / virtualItemHeight.value) + 1;
+  const startIndex = Math.max(0, Math.floor(virtualScrollTop.value / virtualItemHeight.value) - VIRTUAL_BUFFER);
+  const endIndex = Math.min(totalItems, startIndex + visibleCount + VIRTUAL_BUFFER * 2);
+  const offsetTop = startIndex * virtualItemHeight.value;
+  
+  return {
+    startIndex,
+    endIndex,
+    spacerStyle: {
+      height: `${totalHeight}px`,
+      position: 'relative'
+    },
+    itemsWrapperStyle: {
+      position: 'absolute',
+      top: `${offsetTop}px`,
+      left: 0,
+      right: 0
+    }
+  };
+});
+
+// Pontos visíveis (slice com índice real preservado)
+const visibleMiddlePoints = computed(() => {
+  const { startIndex, endIndex } = virtualScrollState.value;
+  const points = middlePoints.value;
+  
+  return points.slice(startIndex, endIndex).map((item, i) => ({
+    item,
+    // +1 porque o primeiro ponto (start) tem índice 0
+    realIndex: startIndex + i + 1
+  }));
+});
+
+// Handler de scroll para virtualização
+const onTimelineScroll = (event) => {
+  virtualScrollTop.value = event.target.scrollTop;
+};
+
+// Scroll para ponto específico (sync com mapa)
+const scrollToActivePoint = (index) => {
+  if (!timelineScrollRef.value) return;
+  
+  // Ajustar índice para o container virtual (subtrair 1 pelo start)
+  const virtualIndex = index - 1;
+  const targetTop = virtualIndex * virtualItemHeight.value - (containerHeight.value / 2) + (virtualItemHeight.value / 2);
+  
+  // FASE 13.6.1: Micro-delay humano (16ms) - evita sensação robótica em playback rápido
+  // FASE 13.6.2: Scroll suave com behavior 'smooth' (easing natural do browser)
+  setTimeout(() => {
+    if (!timelineScrollRef.value) return;
+    timelineScrollRef.value.scrollTo({
+      top: Math.max(0, targetTop),
+      behavior: 'smooth' // CSS scroll-behavior: smooth (ease-out perceptivo)
+    });
+  }, 16); // 1 frame em 60fps - timing humano
+  
+  debugLog(`Scroll para ponto ${index}`);
+};
+
+/**
+ * FASE 4: Seek/Preview para um ponto da timeline
+ * - Se estiver tocando: pula para o ponto e continua reprodução
+ * - Se NÃO estiver tocando: apenas pré-visualiza (marker + panTo)
+ * @param {number} realIndex - Índice real do ponto em filteredRoutePoints
+ */
+const onSeekToPoint = (realIndex) => {
+  // Validar índice
+  if (realIndex < 0 || realIndex >= filteredRoutePoints.value.length) {
+    console.warn('[SEEK] Índice inválido:', realIndex);
+    return;
+  }
+  
+  const point = filteredRoutePoints.value[realIndex];
+  if (!point) return;
+  
+  debugLog(`Seek para ponto ${realIndex}`, point);
+  
+  // Atualizar store para sincronizar timeline
+  store.commit('devices/setRoutePlayPoint', realIndex);
+  
+  // Chamar preview no mapa (se provider existir)
+  if (previewRoutePoint) {
+    previewRoutePoint({ point, index: realIndex });
+  }
+  
+  // Scroll para manter ponto visível na timeline
+  scrollToActivePoint(realIndex);
+};
+
+// ============================================
+// COMPUTED
+// ============================================
+
+// Ponto atual sendo reproduzido no mapa
+const currentPlayingPoint = computed(() => {
+  return store.state.devices?.routePlayPoint || 0;
+});
+
+// Unidade de velocidade do servidor
+const speedUnit = computed(() => {
+  return store.getters['server/getAttribute']('speedUnit', 'speedUnit');
+});
+
+// Lista de dispositivos normalizada
 const devicesList = computed(() => {
   const raw =
     store.state.devices?.deviceList ??
@@ -454,61 +965,46 @@ const devicesList = computed(() => {
   return [];
 });
 
-// ============================================================================
-// COMPUTED - Motorista atual do dispositivo selecionado
-// ============================================================================
+// Validação do formulário
+const isFormValid = computed(() => {
+  return !!(formData.value.deviceId && formData.value.date?.[0] && formData.value.date?.[1]);
+});
+
+// Dispositivo selecionado
 const selectedDevice = computed(() => {
   const id = Number(formData.value.deviceId);
   if (!id) return null;
   return devicesList.value.find(d => Number(d.id) === id) || null;
 });
 
+// Nome do motorista atual
 const currentDriverName = computed(() => {
   const dev = selectedDevice.value;
   if (!dev) return null;
 
-  const posGetter = store.getters["devices/getPosition"];
-  const pos = typeof posGetter === "function" ? posGetter(dev.id) : null;
-
+  const posGetter = store.getters['devices/getPosition'];
+  const pos = typeof posGetter === 'function' ? posGetter(dev.id) : null;
   const attrs = pos?.attributes || dev?.attributes || {};
 
-  const driverUniqueId =
-    attrs.driverUniqueId ||
-    attrs.driver_unique_id ||
-    dev?.driverUniqueId ||
-    dev?.driver_unique_id;
+  const driverUniqueId = attrs.driverUniqueId || attrs.driver_unique_id || dev?.driverUniqueId;
+  const driverId = attrs.driverId || attrs.driver_id || dev?.driverId;
 
-  const driverId =
-    attrs.driverId ||
-    attrs.driver_id ||
-    dev?.driverId ||
-    dev?.driver_id;
-
-  // 1) getter por uniqueId (se existir)
-  const byUnique = store.getters["drivers/getDriverByUniqueId"];
-  if (driverUniqueId && typeof byUnique === "function") {
+  // Tentar getters do store
+  const byUnique = store.getters['drivers/getDriverByUniqueId'];
+  if (driverUniqueId && typeof byUnique === 'function') {
     const d = byUnique(driverUniqueId);
     if (d) return d.name || d.uniqueId || driverUniqueId;
   }
 
-  // 2) getter por id (se existir)
-  const byId = store.getters["drivers/getDriverById"];
-  if (driverId && typeof byId === "function") {
+  const byId = store.getters['drivers/getDriverById'];
+  if (driverId && typeof byId === 'function') {
     const d = byId(driverId);
     if (d) return d.name || d.uniqueId || String(driverId);
   }
 
-  // 3) fallback em listas do state
-  const driversRaw =
-    store.state.drivers?.driversList ??
-    store.state.drivers?.list ??
-    store.state.drivers?.items ??
-    store.state.drivers ??
-    [];
-
-  const drivers = Array.isArray(driversRaw)
-    ? driversRaw
-    : (driversRaw && Array.isArray(driversRaw.list) ? driversRaw.list : Object.values(driversRaw || {}));
+  // Fallback: buscar em listas do state
+  const driversRaw = store.state.drivers?.driversList ?? store.state.drivers?.list ?? [];
+  const drivers = Array.isArray(driversRaw) ? driversRaw : Object.values(driversRaw || {});
 
   if (driverUniqueId) {
     const d = drivers.find(x => x?.uniqueId === driverUniqueId);
@@ -523,9 +1019,9 @@ const currentDriverName = computed(() => {
   return driverUniqueId || (driverId ? String(driverId) : null);
 });
 
+// Pontos filtrados (busca, tipo de evento, duplicatas)
 const filteredRoutePoints = computed(() => {
   const perfStart = PERF_DEBUG ? performance.now() : 0;
-  
   let points = routePoints.value;
   
   // Filtrar por endereço
@@ -545,9 +1041,8 @@ const filteredRoutePoints = computed(() => {
   } else if (eventFilter.value === 'fast') {
     points = points.filter(p => p.speed >= customSpeed.value);
   }
-  // Se 'all', mantém todos os pontos (inclusive velocidade 0)
   
-  // Remover duplicatas se habilitado (só agora clonamos se necessário)
+  // Remover duplicatas se habilitado
   if (removeDuplicates.value && points.length > 0) {
     const uniquePoints = [];
     let lastPoint = null;
@@ -560,27 +1055,198 @@ const filteredRoutePoints = computed(() => {
         lastPoint = point;
       }
     }
-    
     points = uniquePoints;
   }
   
   perfLog('filteredRoutePoints', perfStart, `input:${routePoints.value.length} output:${points.length}`);
-  
   return points;
 });
 
-const dateShortcuts = [
+// Estatísticas calculadas (memoizadas)
+const stats = computed(() => {
+  if (routePoints.value.length === 0) {
+    return { totalDistance: '0.00', avgSpeed: '0.00', duration: '0h 0m', stopTime: '0h 0m' };
+  }
+  
+  return {
+    totalDistance: calculateTotalDistance(),
+    avgSpeed: calculateAvgSpeed(),
+    duration: calculateDuration(),
+    stopTime: calculateStopTime()
+  };
+});
+
+// ============================================================================
+// FASE 7: DETECÇÃO DE EVENTOS NA ROTA
+// ============================================================================
+
+/**
+ * Eventos detectados na rota (paradas, excesso de velocidade, início/fim)
+ * Usa os pontos filtrados para manter sincronização com a timeline
+ */
+const routeEvents = computed(() => {
+  // FASE 10: Feature flag guard
+  if (!isEnabled('ENABLE_EVENTS')) return [];
+  
+  const points = filteredRoutePoints.value;
+  if (points.length < 2) return [];
+  
+  const perfStart = PERF_DEBUG ? performance.now() : 0;
+  startMeasure('detectEvents');
+  
+  let events = detectRouteEvents(points, {
+    stopMinMinutes: 10,      // Paradas > 10 minutos
+    speedLimit: customSpeed.value, // Usa o limite configurável do filtro
+    detectStops: true,
+    detectSpeed: true,
+    detectStartEnd: true,
+    detectIgnition: false,   // Habilitar se tiver dados de ignição
+  });
+  
+  // FASE 10: Limitar eventos para performance
+  events = limitEvents(events);
+  
+  endMeasure('detectEvents', { count: events.length });
+  perfLog('routeEvents', perfStart, `detected:${events.length}`);
+  return events;
+});
+
+/**
+ * Mapa de índice -> eventos para lookup O(1)
+ * Usado para marcar pontos da timeline que têm eventos
+ */
+const routeEventIndexMap = computed(() => {
+  return createEventIndexMap(routeEvents.value);
+});
+
+/**
+ * Verifica se um ponto tem evento associado
+ * @param {number} index - Índice do ponto
+ * @returns {Object|null} - Primeiro evento no índice ou null
+ */
+const getEventAtIndex = (index) => {
+  const events = routeEventIndexMap.value.get(index);
+  return events?.[0] || null;
+};
+
+// ============================================================================
+// FASE 8: RESUMO EXECUTIVO + CAPÍTULOS + BOOKMARKS
+// ============================================================================
+
+/**
+ * Resumo executivo da rota
+ * Contém estatísticas agregadas: paradas, velocidade máxima, tempo em movimento, etc.
+ */
+const routeSummary = computed(() => {
+  // FASE 10: Feature flag guard
+  if (!isEnabled('ENABLE_SUMMARY')) return null;
+  
+  const points = filteredRoutePoints.value;
+  const events = routeEvents.value;
+  
+  if (points.length < 2) return null;
+  
+  const perfStart = PERF_DEBUG ? performance.now() : 0;
+  startMeasure('buildSummary');
+  const summary = buildRouteSummary(points, events);
+  endMeasure('buildSummary');
+  perfLog('routeSummary', perfStart);
+  
+  return summary;
+});
+
+/**
+ * Capítulos da viagem (segmentação por paradas longas)
+ */
+const routeChapters = computed(() => {
+  // FASE 10: Feature flag guard
+  if (!isEnabled('ENABLE_CHAPTERS')) return [];
+  
+  const points = filteredRoutePoints.value;
+  const events = routeEvents.value;
+  
+  if (points.length < 2) return [];
+  
+  const perfStart = PERF_DEBUG ? performance.now() : 0;
+  startMeasure('buildChapters');
+  let chapters = buildRouteChapters(points, events, {
+    minStopMinutes: 10 // Mesma config do detector de eventos
+  });
+  
+  // FASE 10: Limitar capítulos para performance
+  chapters = limitChapters(chapters);
+  
+  endMeasure('buildChapters', { count: chapters.length });
+  perfLog('routeChapters', perfStart, `chapters:${chapters.length}`);
+  
+  return chapters;
+});
+
+/**
+ * Bookmarks da rota atual
+ */
+const {
+  bookmarks,
+  bookmarkCount,
+  isBookmarked,
+  toggleBookmark
+} = useRouteBookmarks(computed(() => formData.value.deviceId));
+
+/**
+ * Handler para toggle de bookmark emitido pelo TimelinePoint
+ */
+const onToggleBookmark = (point, index) => {
+  toggleBookmark(point, index);
+};
+
+/**
+ * Handler para seek a partir de bookmark ou capítulo
+ */
+const onSeekToIndex = (index) => {
+  onSeekToPoint(index);
+};
+
+// Opções de cores da rota (i18n)
+const colorKeyMap = {
+  '#05a7e3': 'colorBlue',
+  '#FF5733': 'colorOrange',
+  '#28a745': 'colorGreen',
+  '#dc3545': 'colorRed',
+  '#6f42c1': 'colorPurple',
+  '#fd7e14': 'colorYellow',
+  '#20c997': 'colorTurquoise',
+  '#e83e8c': 'colorPink'
+};
+
+const routeColorOptions = computed(() => {
+  const baseOptions = ROUTE_COLOR_OPTIONS || [
+    { value: '#05a7e3' },
+    { value: '#FF5733' },
+    { value: '#28a745' },
+    { value: '#dc3545' },
+    { value: '#6f42c1' },
+    { value: '#fd7e14' },
+    { value: '#20c997' },
+    { value: '#e83e8c' }
+  ];
+  return baseOptions.map(opt => ({
+    value: opt.value,
+    label: safeT(`report.${colorKeyMap[opt.value] || 'colorBlue'}`)
+  }));
+});
+
+// Atalhos de data - Computed para garantir que i18n está disponível
+const dateShortcuts = computed(() => [
   {
-    text: 'Hoje',
+    text: safeT('now', 'Hoje'),
     value: () => {
       const start = new Date();
       start.setHours(0, 0, 0, 0);
-      const end = new Date();
-      return [start, end];
-    },
+      return [start, new Date()];
+    }
   },
   {
-    text: 'Ontem',
+    text: safeT('report.yesterday', 'Ontem'),
     value: () => {
       const start = new Date();
       start.setTime(start.getTime() - 3600 * 1000 * 24);
@@ -588,121 +1254,270 @@ const dateShortcuts = [
       const end = new Date(start);
       end.setHours(23, 59, 59, 999);
       return [start, end];
-    },
+    }
   },
   {
-    text: 'Última semana',
+    text: safeT('report.lastWeek', 'Última semana'),
     value: () => {
       const end = new Date();
       const start = new Date();
       start.setTime(start.getTime() - 3600 * 1000 * 24 * 7);
       return [start, end];
-    },
+    }
   },
   {
-    text: 'Último mês',
+    text: safeT('report.lastMonth', 'Último mês'),
     value: () => {
       const end = new Date();
       const start = new Date();
       start.setTime(start.getTime() - 3600 * 1000 * 24 * 30);
       return [start, end];
-    },
-  },
-];
-
-const onEventFilterChange = () => {
-  // Atualizar rota no mapa com pontos filtrados
-  if (filteredRoutePoints.value.length > 0) {
-    updateMapRoute();
+    }
   }
+]);
+
+// ============================================
+// MÉTODOS
+// ============================================
+
+const showTip = (evt, text) => window.$showTip?.(evt, text);
+const hideTip = (evt, text) => window.$hideTip?.(evt, text);
+
+// Sync form com store de reports
+const sendDataToStore = () => {
+  const { deviceId, date } = formData.value;
+  if (!deviceId || !date?.[0] || !date?.[1]) return;
+  store.dispatch('reports/updateReportData', { deviceId, date: [date[0], date[1]] });
 };
 
-// Validação antes de carregar ou exportar
+// Validação antes de carregar/exportar
+// FASE 12: Validação mais humana - corrige automaticamente quando possível
 const validateForm = () => {
-  // Verificar se dispositivo foi selecionado
   if (!formData.value.deviceId) {
-    ElMessage.warning('Selecione um dispositivo');
+    ElMessage.warning(safeT('report.selectDevice', 'Selecione um dispositivo'));
     return false;
   }
   
-  // Verificar se período foi selecionado
-  if (!formData.value.date || !formData.value.date[0] || !formData.value.date[1]) {
-    ElMessage.warning('Selecione o período');
+  if (!formData.value.date?.[0] || !formData.value.date?.[1]) {
+    ElMessage.warning(safeT('report.selectPeriod', 'Selecione o período'));
     return false;
   }
   
-  // Verificar se data final é maior que inicial
-  const startDate = new Date(formData.value.date[0]);
-  const endDate = new Date(formData.value.date[1]);
+  let startDate = new Date(formData.value.date[0]);
+  let endDate = new Date(formData.value.date[1]);
   
+  // FASE 12: Se datas invertidas, corrigir automaticamente
   if (endDate <= startDate) {
-    ElMessage.warning('A data final deve ser maior que a data inicial');
-    return false;
+    // Swap automático das datas
+    formData.value.date = [formData.value.date[1], formData.value.date[0]];
+    startDate = new Date(formData.value.date[0]);
+    endDate = new Date(formData.value.date[1]);
+    ElMessage.info(safeT('route.datesSwapped', 'Datas ajustadas automaticamente.'));
   }
   
-  // Limite opcional: máximo 31 dias
   const diffDays = (endDate - startDate) / (1000 * 60 * 60 * 24);
+  
+  // FASE 12: Se período > 31 dias, avisar mas não bloquear
   if (diffDays > 31) {
-    ElMessage.warning('O período máximo permitido é de 31 dias');
-    return false;
+    ElMessage.warning(
+      safeT('route.periodTooLong', 'O período selecionado tem {days} dias. Períodos longos podem demorar mais para carregar.')
+        .replace('{days}', Math.ceil(diffDays))
+    );
+    // Não retorna false - permite continuar
   }
   
   return true;
 };
 
-const updateMapRoute = () => {
-  let tmp = [];
-  filteredRoutePoints.value.forEach((p) => {
-    tmp.push([p.latitude, p.longitude, p.id, p.course]);
-  });
-  updateRoute(tmp);
+// FASE 12: Handler para Enter no formulário
+const handleFormEnter = () => {
+  if (isFormValid.value && !isLoading.value) {
+    loadRoute();
+  }
 };
 
-// Obter nome do dispositivo pelo ID
+// FASE 12: Definir período rápido (para estados vazios)
+const setQuickPeriod = (days) => {
+  const now = new Date();
+  const start = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+  start.setHours(0, 0, 0, 0);
+  
+  const end = new Date(now);
+  end.setHours(23, 59, 59, 999);
+  
+  formData.value.date = [start, end];
+  
+  ElMessage.success(
+    safeT('route.periodSet', 'Período definido: últimos {days} dias')
+      .replace('{days}', days)
+  );
+};
+
+// Atualizar rota no mapa com pontos filtrados
+const updateMapRoute = () => {
+  const coords = filteredRoutePoints.value.map(p => [p.latitude, p.longitude, p.id, p.course]);
+  updateRoute(coords);
+};
+
+// Carregar rota do backend (com controle de concorrência via requestId)
+const loadRoute = async (showGraphAfter = false) => {
+  if (!validateForm()) return;
+  
+  // FASE 10: Iniciar medição de telemetria
+  startMeasure('loadRoute');
+  incrementCounter('loadRoute_calls');
+  
+  const perfStart = PERF_DEBUG ? performance.now() : 0;
+  loadingState.value = 'loading';
+  isLoading.value = true;
+  
+  // Incrementar key para forçar remount limpo do container
+  timelineKey.value++;
+  
+  // Controle de concorrência: guardar ID deste request
+  const thisRequestId = ++loadRouteRequestId;
+  
+  const deviceId = formData.value.deviceId;
+  const startDate = formData.value.date[0];
+  const endDate = formData.value.date[1];
+  
+  debugLog(`loadRoute: device=${deviceId}, start=${startDate}, end=${endDate}, requestId=${thisRequestId}`);
+  
+  try {
+    const $traccar = window.$traccar;
+    const response = await $traccar.loadRoute(deviceId, startDate, endDate, false);
+    
+    // Verificar se ainda é o request mais recente (evita race condition)
+    if (thisRequestId !== loadRouteRequestId) {
+      debugLog(`loadRoute ignorado: requestId=${thisRequestId} superado por ${loadRouteRequestId}`);
+      return;
+    }
+    
+    perfLog('loadRoute API', perfStart, `points:${response.data.length}`);
+    
+    // FASE 10: Verificar limites e aplicar fail-safe
+    const { points: safePoints, truncated, warning } = enforceLimits(response.data, {
+      warningLimit: getFlag('MAX_POINTS_WARNING'),
+      hardLimit: getFlag('MAX_POINTS_HARD_LIMIT')
+    });
+    
+    if (warning) {
+      ElMessage.warning(warning);
+    }
+    
+    routePoints.value = safePoints;
+    updateMapRoute();
+    
+    // FASE 12: Marcar que já carregou pelo menos uma vez
+    hasLoadedOnce.value = true;
+    
+    // Ocultar outros devices para focar neste
+    await nextTick();
+    store.dispatch('devices/setDeviceFilter', deviceId);
+    
+    loadingState.value = 'idle';
+    isLoading.value = false;
+    virtualScrollTop.value = 0; // Reset scroll virtual
+    
+    // FASE 10: Finalizar medição
+    endMeasure('loadRoute', { points: safePoints.length, truncated });
+    
+    perfLog('loadRoute render', perfStart);
+    
+    // FASE 13.2: Re-medir altura após render dos novos pontos
+    measureItemHeight();
+    
+    // Mostrar gráfico se solicitado
+    if (showGraphAfter && response.data.length > 0) {
+      loadGraph();
+    }
+  } catch (error) {
+    // Verificar se ainda é o request atual antes de reportar erro
+    if (thisRequestId !== loadRouteRequestId) {
+      debugLog(`loadRoute erro ignorado: requestId=${thisRequestId} superado`);
+      return;
+    }
+    
+    console.error('Erro ao carregar rota:', error);
+    loadingState.value = 'error';
+    isLoading.value = false;
+    ElMessage.error(safeT('report.loadError', 'Erro ao carregar dados'));
+    
+    // Voltar ao idle após 3s
+    setTimeout(() => {
+      if (loadingState.value === 'error') loadingState.value = 'idle';
+    }, 3000);
+  }
+};
+
+// Carregar gráfico
+const loadGraph = () => {
+  if (routePoints.value.length === 0) {
+    loadRoute(true);
+  } else {
+    showGraphicsRef.value?.showGraphic(routePoints.value);
+  }
+};
+
+// Handler de mudança de cor da rota
+const handleRouteColorChange = (color) => {
+  setRouteColor?.(color);
+  debugLog('Cor da rota alterada:', color);
+};
+
+// Handler de filtro de eventos
+const onEventFilterChange = () => {
+  if (filteredRoutePoints.value.length > 0) {
+    updateMapRoute();
+  }
+};
+
+// ============================================
+// EXPORT: CSV e PDF
+// ============================================
+
 const getDeviceName = (deviceId) => {
   const device = devicesList.value.find(d => Number(d.id) === Number(deviceId));
-  return device ? device.name : `Device ${deviceId}`;
+  return device?.name || `Device ${deviceId}`;
 };
 
-// Formatar data para nome de arquivo (YYYYMMDD_HHmm)
 const formatDateForFilename = (date) => {
   const d = new Date(date);
   const pad = (n) => String(n).padStart(2, '0');
   return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}`;
 };
 
-// Escapar valor para CSV (lidar com ;, ", quebras de linha)
 const escapeCsvValue = (value) => {
   if (value === null || value === undefined) return '';
   const str = String(value);
-  // Se contém delimitador, aspas ou quebra de linha, envolver em aspas e escapar aspas internas
   if (str.includes(';') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
     return '"' + str.replace(/"/g, '""') + '"';
   }
   return str;
 };
 
-// Export CSV nativo (sem dependências externas)
 const exportCsv = () => {
-  // Validar dados
   if (filteredRoutePoints.value.length === 0) {
-    ElMessage.warning('Sem pontos para exportar');
+    ElMessage.warning(safeT('route.empty', 'Sem pontos para exportar'));
     return;
   }
-  
-  if (!validateForm()) {
-    return;
-  }
+  if (!validateForm()) return;
   
   const deviceId = formData.value.deviceId;
   const deviceName = getDeviceName(deviceId);
   const startDate = formatDateForFilename(formData.value.date[0]);
   const endDate = formatDateForFilename(formData.value.date[1]);
   
-  // Header do CSV
-  const headers = ['Data/Hora', 'Dispositivo', 'Latitude', 'Longitude', 'Velocidade (km/h)', 'Curso', 'Endereço'];
+  const headers = [
+    safeT('attribute.fixTime', 'Data/Hora'),
+    safeT('device.device', 'Dispositivo'),
+    safeT('attribute.latitude', 'Latitude'),
+    safeT('attribute.longitude', 'Longitude'),
+    safeT('attribute.speed', 'Velocidade (km/h)'),
+    safeT('attribute.course', 'Curso'),
+    safeT('attribute.address', 'Endereço')
+  ];
   
-  // Linhas de dados
   const rows = filteredRoutePoints.value.map(p => {
     const fixTime = new Date(p.fixTime).toLocaleString('pt-BR');
     return [
@@ -716,11 +1531,8 @@ const exportCsv = () => {
     ].join(';');
   });
   
-  // Montar CSV com BOM para acentos no Excel pt-BR
   const BOM = '\ufeff';
   const csv = BOM + headers.join(';') + '\r\n' + rows.join('\r\n');
-  
-  // Criar blob e download
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const filename = `percurso_${deviceId}_${startDate}_${endDate}.csv`;
@@ -734,33 +1546,23 @@ const exportCsv = () => {
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
   
-  ElMessage.success('Arquivo CSV exportado com sucesso');
+  ElMessage.success(safeT('device.ExportOK', 'Arquivo exportado com sucesso'));
 };
 
-// Export Print/PDF nativo (HTML + window.print)
 const exportPrintPdf = () => {
-  // Validar dados
   if (filteredRoutePoints.value.length === 0) {
-    ElMessage.warning('Sem pontos para exportar');
+    ElMessage.warning(safeT('route.empty', 'Sem pontos para exportar'));
     return;
   }
-  
-  if (!validateForm()) {
-    return;
-  }
+  if (!validateForm()) return;
   
   const deviceId = formData.value.deviceId;
   const deviceName = getDeviceName(deviceId);
   const startDateStr = new Date(formData.value.date[0]).toLocaleString('pt-BR');
   const endDateStr = new Date(formData.value.date[1]).toLocaleString('pt-BR');
   
-  // Estatísticas
-  const totalDistance = calculateTotalDistance();
-  const avgSpeed = calculateAvgSpeed();
-  const duration = calculateDuration();
-  const stopTime = calculateStopTime();
+  const { totalDistance, avgSpeed, duration, stopTime } = stats.value;
   
-  // Gerar linhas da tabela
   const tableRows = filteredRoutePoints.value.map((p, idx) => {
     const fixTime = new Date(p.fixTime).toLocaleString('pt-BR');
     return `
@@ -775,13 +1577,12 @@ const exportPrintPdf = () => {
     `;
   }).join('');
   
-  // HTML do relatório
   const html = `
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Relatório de Percurso - ${deviceName}</title>
+  <title>${safeT('report.history', 'Relatório de Percurso')} - ${deviceName}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: Arial, sans-serif; font-size: 12px; padding: 20px; }
@@ -805,371 +1606,588 @@ const exportPrintPdf = () => {
       body { padding: 10px; }
       .header { page-break-after: avoid; }
       table { page-break-inside: auto; }
-      tr { page-break-inside: avoid; page-break-after: auto; }
+      tr { page-break-inside: avoid; }
       thead { display: table-header-group; }
     }
   </style>
 </head>
 <body>
   <div class="header">
-    <h1>Relatório de Percurso</h1>
-    <div class="subtitle">Gerado em ${new Date().toLocaleString('pt-BR')}</div>
+    <h1>${safeT('report.history', 'Relatório de Percurso')}</h1>
+    <div class="subtitle">${safeT('report.generatedAt', 'Gerado em')} ${new Date().toLocaleString('pt-BR')}</div>
   </div>
-  
   <div class="info">
-    <div class="info-item">
-      <strong>Dispositivo:</strong> ${deviceName} (ID: ${deviceId})
-    </div>
-    <div class="info-item">
-      <strong>Período:</strong> ${startDateStr} a ${endDateStr}
-    </div>
-    <div class="info-item">
-      <strong>Pontos:</strong> ${filteredRoutePoints.value.length} registros
-    </div>
+    <div class="info-item"><strong>${safeT('device.device', 'Dispositivo')}:</strong> ${deviceName} (ID: ${deviceId})</div>
+    <div class="info-item"><strong>${safeT('report.period', 'Período')}:</strong> ${startDateStr} ${safeT('report.to', 'a')} ${endDateStr}</div>
+    <div class="info-item"><strong>${safeT('report.points', 'Pontos')}:</strong> ${filteredRoutePoints.value.length}</div>
   </div>
-  
   <div class="stats">
-    <div class="stat-box">
-      <div class="value">${totalDistance} km</div>
-      <div class="label">Distância Total</div>
-    </div>
-    <div class="stat-box">
-      <div class="value">${avgSpeed} km/h</div>
-      <div class="label">Velocidade Média</div>
-    </div>
-    <div class="stat-box">
-      <div class="value">${duration}</div>
-      <div class="label">Duração</div>
-    </div>
-    <div class="stat-box">
-      <div class="value">${stopTime}</div>
-      <div class="label">Tempo Parado</div>
-    </div>
+    <div class="stat-box"><div class="value">${totalDistance} km</div><div class="label">${safeT('report.totalDistance', 'Distância Total')}</div></div>
+    <div class="stat-box"><div class="value">${avgSpeed} km/h</div><div class="label">${safeT('report.avgSpeed', 'Velocidade Média')}</div></div>
+    <div class="stat-box"><div class="value">${duration}</div><div class="label">${safeT('report.tripDuration', 'Duração')}</div></div>
+    <div class="stat-box"><div class="value">${stopTime}</div><div class="label">${safeT('report.stopTime', 'Tempo Parado')}</div></div>
   </div>
-  
   <table>
-    <thead>
-      <tr>
-        <th>#</th>
-        <th>Data/Hora</th>
-        <th>Latitude</th>
-        <th>Longitude</th>
-        <th>Velocidade</th>
-        <th>Endereço</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${tableRows}
-    </tbody>
+    <thead><tr><th>#</th><th>${safeT('attribute.fixTime', 'Data/Hora')}</th><th>${safeT('attribute.latitude', 'Latitude')}</th><th>${safeT('attribute.longitude', 'Longitude')}</th><th>${safeT('attribute.speed', 'Velocidade')}</th><th>${safeT('attribute.address', 'Endereço')}</th></tr></thead>
+    <tbody>${tableRows}</tbody>
   </table>
-  
-  <div class="footer">
-    Sistema de Rastreamento - Relatório gerado automaticamente
-  </div>
+  <div class="footer">${safeT('report.footer', 'Sistema de Rastreamento - Relatório gerado automaticamente')}</div>
 </body>
-</html>
-  `;
+</html>`;
   
-  // Abrir nova janela e imprimir
   const printWindow = window.open('', '_blank');
   if (printWindow) {
     printWindow.document.open();
     printWindow.document.write(html);
     printWindow.document.close();
     printWindow.focus();
-    // Aguardar carregamento antes de imprimir
-    setTimeout(() => {
-      printWindow.print();
-    }, 250);
+    printWindow.onload = () => printWindow.print();
   } else {
-    ElMessage.error('Não foi possível abrir a janela de impressão. Verifique o bloqueador de pop-ups.');
+    ElMessage.error(safeT('report.popupBlocked', 'Bloqueador de pop-ups ativo. Permita pop-ups para exportar.'));
   }
 };
 
 const handleExport = (command) => {
-  if (command === 'pdf') {
-    exportPrintPdf();
-  } else if (command === 'excel') {
-    exportCsv();
+  // FASE 10: Telemetria
+  incrementCounter('export_' + command);
+  
+  if (command === 'pdf') exportPrintPdf();
+  else if (command === 'pdf-premium') {
+    if (!isEnabled('ENABLE_EXPORT_PREMIUM')) {
+      ElMessage.info('Recurso desabilitado');
+      return;
+    }
+    exportPdfPremium();
   }
+  else if (command === 'excel') exportCsv();
+  else if (command === 'excel-premium') {
+    if (!isEnabled('ENABLE_EXPORT_PREMIUM')) {
+      ElMessage.info('Recurso desabilitado');
+      return;
+    }
+    exportExcelPremium();
+  }
+  else if (command === 'share') {
+    if (!isEnabled('ENABLE_SHARE')) {
+      ElMessage.info('Recurso desabilitado');
+      return;
+    }
+    copyShareLink();
+  }
+  else if (command === 'kml') {
+    if (!isEnabled('ENABLE_EXPORT_KML')) {
+      ElMessage.info('Recurso desabilitado');
+      return;
+    }
+    exportKml();
+  }
+};
+
+// ============================================
+// FASE 9: EXPORT PREMIUM + SHARE
+// ============================================
+
+/**
+ * Export PDF Premium com Summary, Chapters, Events, Bookmarks
+ */
+const exportPdfPremium = () => {
+  // FASE 10: Guard com fail-safe
+  if (!guardExport(filteredRoutePoints.value, (msg) => ElMessage.warning(msg))) {
+    return;
+  }
+  if (!validateForm()) return;
+  
+  startMeasure('exportPdfPremium');
+  
+  const deviceId = formData.value.deviceId;
+  const deviceName = getDeviceName(deviceId);
+  
+  // Montar payload para o gerador
+  const params = {
+    deviceName,
+    deviceId,
+    dateRange: formData.value.date,
+    summary: routeSummary.value,
+    chapters: routeChapters.value,
+    events: routeEvents.value,
+    bookmarks: bookmarks.value,
+    stats: stats.value,
+    i18n: {
+      'report.premiumReport': safeT('report.premiumReport', 'Relatório de Percurso Premium'),
+      'report.generatedAt': safeT('report.generatedAt', 'Gerado em'),
+      'report.period': safeT('report.period', 'Período'),
+      'report.to': safeT('report.to', 'a'),
+      'report.totalPoints': safeT('report.totalPoints', 'Total de Pontos'),
+      'report.chapters': safeT('report.chapters', 'Trechos'),
+      'report.events': safeT('report.events', 'Eventos'),
+      'report.totalDistance': safeT('report.totalDistance', 'Distância Total'),
+      'report.avgSpeed': safeT('report.avgSpeed', 'Velocidade Média'),
+      'report.tripDuration': safeT('report.tripDuration', 'Duração Total'),
+      'report.stopTime': safeT('report.stopTime', 'Tempo Parado'),
+      'report.longestStop': safeT('report.longestStop', 'Maior Parada'),
+      'report.maxSpeed': safeT('report.maxSpeed', 'Velocidade Máxima'),
+      'report.startTime': safeT('report.startTime', 'Início'),
+      'report.endTime': safeT('report.endTime', 'Fim'),
+      'report.duration': safeT('report.duration', 'Duração'),
+      'report.distance': safeT('report.distance', 'Distância'),
+      'report.startAddress': safeT('report.startAddress', 'Origem'),
+      'report.endAddress': safeT('report.endAddress', 'Destino'),
+      'report.type': safeT('report.type', 'Tipo'),
+      'report.index': safeT('report.index', 'Ponto'),
+      'report.time': safeT('report.time', 'Hora'),
+      'report.description': safeT('report.description', 'Descrição'),
+      'report.address': safeT('report.address', 'Local'),
+      'report.stop': safeT('report.stop', 'Parada'),
+      'report.speeding': safeT('report.speeding', 'Velocidade'),
+      'report.bookmarks': safeT('report.bookmarks', 'Pontos Favoritos'),
+      'report.label': safeT('report.label', 'Nome'),
+      'report.footer': safeT('report.footer', 'Relatório gerado automaticamente')
+    },
+    systemName: 'KORE GPS'
+  };
+  
+  const html = generatePremiumPdfHtml(params);
+  
+  // Abrir em nova janela
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) {
+    ElMessage.error(safeT('report.popupBlocked', 'Popup bloqueado'));
+    return;
+  }
+  printWindow.document.write(html);
+  printWindow.document.close();
+  
+  endMeasure('exportPdfPremium', { points: filteredRoutePoints.value.length });
+  ElMessage.success(safeT('report.pdfPremiumGenerated', 'PDF Premium gerado'));
+};
+
+/**
+ * Export Excel Premium (CSV multi-seção)
+ */
+const exportExcelPremium = () => {
+  // FASE 10: Guard com fail-safe
+  if (!guardExport(filteredRoutePoints.value, (msg) => ElMessage.warning(msg))) {
+    return;
+  }
+  if (!validateForm()) return;
+  
+  startMeasure('exportExcelPremium');
+  
+  const deviceId = formData.value.deviceId;
+  const deviceName = getDeviceName(deviceId);
+  const startDate = formatDateForFilename(formData.value.date[0]);
+  const endDate = formatDateForFilename(formData.value.date[1]);
+  
+  const params = {
+    deviceName,
+    deviceId,
+    dateRange: formData.value.date,
+    summary: routeSummary.value,
+    chapters: routeChapters.value,
+    events: routeEvents.value,
+    bookmarks: bookmarks.value,
+    points: filteredRoutePoints.value,
+    i18n: {
+      'report.summary': safeT('report.summary', 'RESUMO'),
+      'device.device': safeT('device.device', 'Dispositivo'),
+      'report.period': safeT('report.period', 'Período'),
+      'report.totalPoints': safeT('report.totalPoints', 'Total Pontos'),
+      'report.totalDistance': safeT('report.totalDistance', 'Distância Total'),
+      'report.tripDuration': safeT('report.tripDuration', 'Duração'),
+      'report.stopTime': safeT('report.stopTime', 'Tempo Parado'),
+      'report.movingTime': safeT('report.movingTime', 'Em Movimento'),
+      'report.stops': safeT('report.stops', 'Paradas'),
+      'report.speedEvents': safeT('report.speedEvents', 'Eventos Velocidade'),
+      'report.maxSpeed': safeT('report.maxSpeed', 'Velocidade Máxima'),
+      'report.chapters': safeT('report.chapters', 'TRECHOS'),
+      'report.startTime': safeT('report.startTime', 'Início'),
+      'report.endTime': safeT('report.endTime', 'Fim'),
+      'report.duration': safeT('report.duration', 'Duração'),
+      'report.distance': safeT('report.distance', 'Distância'),
+      'report.points': safeT('report.points', 'Pontos'),
+      'report.startAddress': safeT('report.startAddress', 'Origem'),
+      'report.endAddress': safeT('report.endAddress', 'Destino'),
+      'report.events': safeT('report.events', 'EVENTOS'),
+      'report.type': safeT('report.type', 'Tipo'),
+      'report.index': safeT('report.index', 'Ponto'),
+      'report.time': safeT('report.time', 'Hora'),
+      'report.description': safeT('report.description', 'Descrição'),
+      'report.address': safeT('report.address', 'Local'),
+      'report.stop': safeT('report.stop', 'Parada'),
+      'report.speeding': safeT('report.speeding', 'Velocidade'),
+      'report.bookmarks': safeT('report.bookmarks', 'FAVORITOS'),
+      'report.label': safeT('report.label', 'Nome'),
+      'attribute.fixTime': safeT('attribute.fixTime', 'Data/Hora'),
+      'attribute.latitude': safeT('attribute.latitude', 'Latitude'),
+      'attribute.longitude': safeT('attribute.longitude', 'Longitude'),
+      'attribute.speed': safeT('attribute.speed', 'Velocidade'),
+      'attribute.address': safeT('attribute.address', 'Endereço')
+    }
+  };
+  
+  const csv = generateExcelCsv(params);
+  
+  // Download CSV
+  const BOM = '\ufeff';
+  const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const filename = `percurso_premium_${deviceId}_${startDate}_${endDate}.csv`;
+  
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.style.display = 'none';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+  
+  endMeasure('exportExcelPremium', { points: filteredRoutePoints.value.length });
+  ElMessage.success(safeT('device.ExportOK', 'Arquivo exportado com sucesso'));
+};
+
+/**
+ * Gera e copia link de compartilhamento
+ */
+const copyShareLink = async () => {
+  if (!validateForm()) return;
+  
+  const deviceId = formData.value.deviceId;
+  
+  // Coletar índices dos bookmarks
+  const bookmarkIndexes = bookmarks.value.map(b => b.index);
+  
+  const params = {
+    deviceId,
+    dateRange: formData.value.date,
+    filters: {
+      searchQuery: searchQuery.value,
+      eventFilter: eventFilter.value,
+      customSpeed: customSpeed.value,
+      removeDuplicates: removeDuplicates.value
+    },
+    routeColor: currentRouteColor.value,
+    playbackSpeed: playbackSpeed.value,
+    followPlay: followPlay.value,
+    seekIndex: currentPlayingPoint.value > 0 ? currentPlayingPoint.value : null,
+    bookmarkIndexes
+  };
+  
+  // Gerar URL
+  const baseUrl = window.location.origin + window.location.pathname;
+  const shareUrl = generateShareUrl(baseUrl, params);
+  
+  if (!shareUrl) {
+    ElMessage.error(safeT('report.shareError', 'Erro ao gerar link'));
+    return;
+  }
+  
+  // Copiar para clipboard
+  try {
+    await navigator.clipboard.writeText(shareUrl);
+    ElMessage.success(safeT('report.shareLinkCopied', 'Link copiado para a área de transferência!'));
+  } catch (err) {
+    // Fallback para navegadores antigos
+    const textarea = document.createElement('textarea');
+    textarea.value = shareUrl;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
+    ElMessage.success(safeT('report.shareLinkCopied', 'Link copiado para a área de transferência!'));
+  }
+};
+
+/**
+ * FASE 13: Export KML (Google Earth)
+ */
+const exportKml = () => {
+  if (filteredRoutePoints.value.length === 0) {
+    ElMessage.warning(safeT('route.empty', 'Sem pontos para exportar'));
+    return;
+  }
+  if (!validateForm()) return;
+  
+  const deviceId = formData.value.deviceId;
+  const deviceName = getDeviceName(deviceId);
+  const startDate = formData.value.date[0];
+  const endDate = formData.value.date[1];
+  
+  // Gerar KML
+  const kml = generateKml(filteredRoutePoints.value, deviceName, startDate, endDate);
+  
+  if (!kml) {
+    ElMessage.error(safeT('report.exportError', 'Erro ao gerar arquivo'));
+    return;
+  }
+  
+  // Download
+  const blob = new Blob([kml], { type: 'application/vnd.google-earth.kml+xml;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const filename = `${deviceName}_route_${formatDateForFilename(startDate)}.kml`;
+  
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.style.display = 'none';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+  
+  ElMessage.success(safeT('device.ExportOK', 'Arquivo exportado com sucesso'));
+};
+
+/**
+ * Restaura estado a partir de share param na URL
+ */
+const restoreFromShareLink = () => {
+  const shareParam = route.query.share;
+  if (!shareParam) return false;
+  
+  const payload = parseSharePayload(shareParam);
+  if (!payload) {
+    debugLog('Share payload inválido');
+    return false;
+  }
+  
+  debugLog('Restaurando de share link:', payload);
+  
+  // Aplicar estado
+  if (payload.deviceId) {
+    formData.value.deviceId = payload.deviceId;
+  }
+  
+  if (payload.dateRange?.[0] && payload.dateRange?.[1]) {
+    formData.value.date = payload.dateRange;
+  }
+  
+  if (payload.filters) {
+    if (payload.filters.searchQuery) searchQuery.value = payload.filters.searchQuery;
+    if (payload.filters.eventFilter) eventFilter.value = payload.filters.eventFilter;
+    if (payload.filters.customSpeed) customSpeed.value = payload.filters.customSpeed;
+    if (payload.filters.removeDuplicates !== undefined) removeDuplicates.value = payload.filters.removeDuplicates;
+  }
+  
+  if (payload.routeColor) currentRouteColor.value = payload.routeColor;
+  if (payload.playbackSpeed) playbackSpeed.value = payload.playbackSpeed;
+  if (payload.followPlay !== undefined) followPlay.value = payload.followPlay;
+  
+  // Limpar share param da URL
+  const url = new URL(window.location.href);
+  url.searchParams.delete('share');
+  window.history.replaceState({}, '', url.toString());
+  
+  // Retornar info para carregar rota automaticamente
+  return {
+    shouldLoad: true,
+    seekIndex: payload.seekIndex,
+    bookmarkIndexes: payload.bookmarkIndexes
+  };
+};
+
+// ============================================
+// CÁLCULOS DE ESTATÍSTICAS
+// ============================================
+
+const deg2rad = (deg) => deg * (Math.PI / 180);
+
+const getDistanceFromLatLonInKm = (lat1, lon1, lat2, lon2) => {
+  const R = 6371;
+  const dLat = deg2rad(lat2 - lat1);
+  const dLon = deg2rad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 + 
+            Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * Math.sin(dLon / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
 };
 
 const calculateTotalDistance = () => {
   if (routePoints.value.length === 0) return '0.00';
-  
-  let totalDistance = 0;
+  let total = 0;
   for (let i = 1; i < routePoints.value.length; i++) {
     const p1 = routePoints.value[i - 1];
     const p2 = routePoints.value[i];
-    const distance = getDistanceFromLatLonInKm(p1.latitude, p1.longitude, p2.latitude, p2.longitude);
-    totalDistance += distance;
+    total += getDistanceFromLatLonInKm(p1.latitude, p1.longitude, p2.latitude, p2.longitude);
   }
-  
-  return totalDistance.toFixed(2);
+  return total.toFixed(2);
 };
 
 const calculateAvgSpeed = () => {
   if (routePoints.value.length === 0) return '0.00';
-  
   const totalSpeed = routePoints.value.reduce((sum, p) => sum + (p.speed || 0), 0);
-  const avgSpeed = totalSpeed / routePoints.value.length;
-  
-  return avgSpeed.toFixed(2);
+  return (totalSpeed / routePoints.value.length).toFixed(2);
 };
 
 const calculateDuration = () => {
   if (routePoints.value.length < 2) return '0h 0m';
-  
   const startTime = new Date(routePoints.value[0].fixTime).getTime();
   const endTime = new Date(routePoints.value[routePoints.value.length - 1].fixTime).getTime();
   const durationMs = endTime - startTime;
-  
   const hours = Math.floor(durationMs / (1000 * 60 * 60));
   const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
-  
   return `${hours}h ${minutes}m`;
 };
 
 const calculateStopTime = () => {
   if (routePoints.value.length < 2) return '0h 0m';
-  
   let stopTimeMs = 0;
   let isCurrentlyStopped = false;
   let stopStartTime = null;
   
   for (let i = 0; i < routePoints.value.length; i++) {
     const p = routePoints.value[i];
-    
-    // Se está parado (velocidade < 1 km/h)
     if (p.speed < 1) {
       if (!isCurrentlyStopped) {
-        // Começou a parar
         isCurrentlyStopped = true;
         stopStartTime = new Date(p.fixTime).getTime();
       }
     } else {
-      // Se estava parado e agora está em movimento
       if (isCurrentlyStopped && stopStartTime !== null) {
-        const stopEndTime = new Date(p.fixTime).getTime();
-        stopTimeMs += (stopEndTime - stopStartTime);
+        stopTimeMs += (new Date(p.fixTime).getTime() - stopStartTime);
         isCurrentlyStopped = false;
         stopStartTime = null;
       }
     }
   }
   
-  // Se terminou parado, adicionar o tempo até o último ponto
   if (isCurrentlyStopped && stopStartTime !== null) {
     const lastPoint = routePoints.value[routePoints.value.length - 1];
-    const stopEndTime = new Date(lastPoint.fixTime).getTime();
-    stopTimeMs += (stopEndTime - stopStartTime);
+    stopTimeMs += (new Date(lastPoint.fixTime).getTime() - stopStartTime);
   }
   
   const hours = Math.floor(stopTimeMs / (1000 * 60 * 60));
   const minutes = Math.floor((stopTimeMs % (1000 * 60 * 60)) / (1000 * 60));
-  
   return `${hours}h ${minutes}m`;
 };
 
-const getDistanceFromLatLonInKm = (lat1, lon1, lat2, lon2) => {
-  const R = 6371; // Raio da Terra em km
-  const dLat = deg2rad(lat2 - lat1);
-  const dLon = deg2rad(lon2 - lon1);
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  const distance = R * c;
-  return distance;
-};
+// ============================================
+// WATCHERS
+// ============================================
 
-const deg2rad = (deg) => {
-  return deg * (Math.PI / 180);
-};
+// Sync formData com store
+watch(formData, () => {
+  const { deviceId, date } = formData.value;
+  if (!deviceId || !date?.[0] || !date?.[1]) return;
+  sendDataToStore();
+}, { deep: true });
 
-const loadGraph = ()=>{
-    if(routePoints.value.length===0){
-      loadRoute(true);
-    }else{
-      showGraphicsRef.value.showGraphic(routePoints.value);
-    }
-}
-const hideDevices = (deviceId=0)=>{
-  store.dispatch("devices/setDeviceFilter",deviceId);
-}
-
-/*
-const resetDevices = ()=>{
-  store.dispatch("devices/setDeviceFilter",0);
-}*/
-
-
-// import {saveAs} from "file-saver";
-
-const loadRoute = (g=false)=>{
-  // Validar formulário antes de carregar
-  if (!validateForm()) {
-    return;
-  }
-  
-  const perfStart = PERF_DEBUG ? performance.now() : 0;
-  const $traccar = window.$traccar;
-  loadingState.value = 'loading';
-
-  $traccar.loadRoute(formData.value.deviceId,formData.value.date[0],formData.value.date[1],false)
-    .then((r)=>{
-      perfLog('loadRoute API', perfStart, `points:${r.data.length}`);
-      
-      const perfRender = PERF_DEBUG ? performance.now() : 0;
-      
-      // Carregar rota
-      const data = r.data;
-      routePoints.value = data;
-
-      // Usar updateMapRoute que considera filteredRoutePoints
+// Debounce para filtros
+watch([searchQuery, eventFilter, customSpeed, removeDuplicates], () => {
+  if (routePoints.value.length > 0) {
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
       updateMapRoute();
-      
-      nextTick(() => {
-        hideDevices(formData.value.deviceId);
-        perfLog('loadRoute render', perfRender, `points:${data.length}`);
-      });
+    }, DEBOUNCE_DELAY);
+  }
+});
 
-      loadingState.value = 'idle';
+// Heatmap toggle
+watch(showHeatmap, (enabled) => {
+  debugLog('Heatmap toggle:', enabled);
+  toggleHeatmap?.(enabled);
+  store.state.devices.showCalor = enabled;
+});
+
+// 5️⃣ Scroll automático APENAS quando estiver em modo play
+watch(currentPlayingPoint, (newValue) => {
+  // Só faz scroll se estiver reproduzindo e tiver pontos
+  if (!isPlayingRoute.value) return;
+  if (newValue > 0 && filteredRoutePoints.value.length > 0) {
+    nextTick(() => scrollToActivePoint(newValue));
+  }
+});
+
+// Carregar rota via query param (ex: ?deviceId=123)
+watch(() => route.query.deviceId, () => {
+  if (route.query.deviceId) {
+    formData.value.deviceId = parseInt(route.query.deviceId);
+    loadRoute();
+  }
+});
+
+// ============================================
+// FASE 13.2: MEDIÇÃO DINÂMICA DE ALTURA
+// ============================================
+/**
+ * Mede a altura real do primeiro item da timeline e atualiza virtualItemHeight.
+ * Chamado em onMounted e após loadRoute para garantir precisão do scroll virtual.
+ */
+const measureItemHeight = () => {
+  nextTick(() => {
+    const firstItem = document.querySelector('.timeline-point');
+    if (firstItem) {
+      const rect = firstItem.getBoundingClientRect();
+      const measuredHeight = rect.height;
       
-      if (g && data.length > 0) {
-        loadGraph();
+      // Validação: altura deve ser razoável (entre 40px e 200px)
+      if (measuredHeight > 40 && measuredHeight < 200) {
+        virtualItemHeight.value = measuredHeight;
+        debugLog(`[FASE 13.2] Altura medida: ${measuredHeight.toFixed(2)}px`);
+      } else {
+        debugLog(`[FASE 13.2] Altura inválida ignorada: ${measuredHeight}px`);
       }
-    })
-    .catch((error) => {
-      console.error('Erro ao carregar rota:', error);
-      loadingState.value = 'error';
-      ElMessage.error('Erro ao carregar dados do dispositivo');
-      
-      // Voltar ao idle após 3 segundos
-      setTimeout(() => {
-        loadingState.value = 'idle';
-      }, 3000);
+    } else {
+      debugLog('[FASE 13.2] .timeline-point não encontrado para medição');
+    }
+  });
+};
+
+// ============================================
+// LIFECYCLE
+// ============================================
+
+onMounted(() => {
+  // Medir altura real do container para virtualização correta
+  if (timelineScrollRef.value) {
+    containerHeight.value = timelineScrollRef.value.clientHeight || 400;
+  }
+  
+  // FASE 13.2: Medir altura real dos itens (primeira medição)
+  measureItemHeight();
+  
+  // FASE 9: Verificar share link na URL
+  const shareResult = restoreFromShareLink();
+  
+  if (shareResult?.shouldLoad) {
+    // Share link detectado - carregar rota automaticamente
+    nextTick(() => {
+      loadRoute().then(() => {
+        // Após carregar, aplicar seek se especificado
+        if (shareResult.seekIndex !== null && shareResult.seekIndex >= 0) {
+          setTimeout(() => {
+            onSeekToPoint(shareResult.seekIndex);
+          }, 500);
+        }
+      });
     });
-}
-
-const toggleCalor = () => {
-  // Verificar estado atual ANTES de alternar
-  const isCurrentlyActive = store.state.devices.showCalor;
-  
-  if (isCurrentlyActive) {
-    hideCalorLayer();
-  } else {
-    showCalorLayer();
+  } else if (route.query.deviceId) {
+    formData.value.deviceId = parseInt(route.query.deviceId);
+    loadRoute();
   }
-  
-  // Commit alterna o toggleCalor que dispara watcher no kore-map
-  store.commit('devices/toggleCalor');
-};
+});
 
-const togglePercurso = () => {
-  // Verificar estado atual ANTES de alternar
-  const isCurrentlyActive = store.state.devices.showPercurso;
-  
-  if (isCurrentlyActive) {
-    hidePercursoLayer();
-  } else {
-    showPercursoLayer();
+onBeforeUnmount(() => {
+  // Limpar debounce timer
+  if (debounceTimer) {
+    clearTimeout(debounceTimer);
+    debounceTimer = null;
   }
-  
-  // Commit alterna o togglePercurso que dispara watcher no kore-map
-  store.commit('devices/togglePercurso');
-};
-
-
-
+  // Invalidar requests pendentes incrementando o ID
+  loadRouteRequestId++;
+  // Resetar estados do store
+  store.dispatch('devices/resetDeviceStates');
+});
 </script>
 
 <style scoped>
-.el-select.el-select--large{
+.el-select.el-select--large {
   width: 100%;
 }
 
-
-.device{
-  border-bottom: var(--el-border-color-light) 1px solid;
-  display: flex;
-  flex-direction: row;
-  text-align: center;
-  cursor: pointer;
-  margin-right: -1px;
-}
-
-.deviceHead{
-  border-bottom: var(--el-border-color-light) 1px solid;
-  display: flex;
-  flex-direction: row;
-  text-align: center;
-  cursor: pointer;
-  margin-right: -1px;
-  background: var(--el-color-info-light);
-}
-
-.device:hover{
-  background: var(--el-color-primary-light-9);
-}
-
-
-
-.device .name,.deviceHead .name{
-  font-size: 12px;
-  padding: 7px;
-  text-align: left;
-  line-height: 14px;
-  font-weight: 800;
-  border-right: silver 1px dotted;
-  width: 60%;
-}
-
-.icons{
-  display: flex;
-  justify-content: center;
-  flex-direction: row-reverse;
-  flex: 1;
-  font-size: 11px;
-}
-
-.icons div{
-  display: flex;
-  justify-content: center;
-  flex: 1;
-  border-right: silver 1px dotted;
-  padding: 7px;
-  font-size: 11px;
-}
-.icons div i{
-  font-size: 14px;
-}
-
-.icons div:first-child{
-  border-right: none;
-}
-
-.icons div span{
-  display: flex;
-  padding: 2px;
-  padding-left: 5px;
-}
-
-.subtitle{
-  margin-top: 20px;
-  font-weight: bold;
-  font-size: 14px;
-  text-transform: uppercase;
-  color: var(--text-black);
-}
-
-.subtitle i{
-  font-size: 12px;
-  margin-right: 3px;
-}
-
-/* Timeline Styles */
+/* Timeline Container */
 .timeline-container {
   display: flex;
   flex-direction: column;
@@ -1186,147 +2204,22 @@ const togglePercurso = () => {
   font-size: 14px;
 }
 
-.timeline-point {
-  display: flex;
-  border-bottom: var(--el-border-color-lighter) 1px dotted;
-  transition: background-color 0.2s;
-}
-
-.timeline-point:hover {
-  background-color: var(--el-fill-color-lighter);
-}
-
-.timeline-point-start,
-.timeline-point-end {
-  border-bottom: var(--el-border-color-light) 2px solid;
-}
-
-.timeline-point-end {
-  border-bottom: none;
-  border-top: var(--el-border-color-light) 2px solid;
-}
-
-.timeline-time {
-  text-align: right;
-  padding: 10px;
-  font-size: 11px;
-  color: var(--el-text-color-secondary);
-  position: relative;
-  min-width: 90px;
-  width: 90px;
-}
-
-.timeline-line {
-  position: absolute;
-  border-right: var(--el-border-color) 1px dashed;
-  width: 1px;
-  right: 3px;
-  transform: translate(-55%, 0);
-}
-
-.timeline-line-bottom {
-  height: 55%;
-  bottom: 0%;
-}
-
-.timeline-line-top {
-  height: 55%;
-  top: 0%;
-}
-
-.timeline-line-full {
-  height: 100%;
-  bottom: 0%;
-}
-
-.timeline-icon {
-  position: absolute;
-  width: 20px;
-  height: 20px;
-  font-size: 16px;
-  text-align: center;
-  right: -10px;
-  top: 50%;
-  border-radius: 50%;
-  transform: translateY(-50%);
-  color: var(--el-color-primary);
-}
-
-.timeline-dot {
-  position: absolute;
-  background: var(--el-color-primary);
-  width: 10px;
-  height: 10px;
-  right: 0px;
-  top: 50%;
-  border-radius: 50%;
-  transform: translateY(-50%);
-}
-
-.timeline-date {
-  position: absolute;
-  right: 15px;
-  top: 50%;
-  border-radius: 50%;
-  transform: translateY(-50%);
-  white-space: nowrap;
-  font-size: 11px;
-  line-height: 1.3;
-}
-
-.timeline-address {
-  padding: 10px;
-  font-size: 14px;
-  flex: 1;
-  color: var(--el-text-color-primary);
-}
-
-.timeline-point-middle .timeline-address {
-  font-size: 13px;
-  line-height: 1.35;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.timeline-link {
-  text-decoration: none;
-  color: var(--el-text-color-primary);
-  transition: color 0.2s;
-}
-
-.timeline-link:hover {
-  color: var(--el-color-primary);
-}
-
-.timeline-speed {
-  padding: 10px;
-  min-width: 90px;
-  width: 90px;
-  text-align: right;
-  font-size: 12px;
-  color: var(--el-text-color-regular);
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  justify-content: center;
-  gap: 4px;
-}
-
-.timeline-speed i {
-  font-size: 14px;
-  color: var(--el-color-success);
-}
-
+/* FASE 13.6.2: Scroll suave com CSS scroll-behavior */
 .timeline-scroll {
   overflow: auto;
   max-height: clamp(260px, 40vh, 420px);
+  position: relative;
+  scroll-behavior: smooth; /* Easing natural do browser (ease-out perceptivo) */
 }
 
-/* ============================================================================ */
-/* STATS CARD - Anti-zoom/scale inheritance (corrige contadores gigantes)       */
-/* ============================================================================ */
+/* FASE 13.6.4: Respeitar reduced motion (A11y) */
+@media (prefers-reduced-motion: reduce) {
+  .timeline-scroll {
+    scroll-behavior: auto; /* Instant scroll para usuários com preferência de redução de movimento */
+  }
+}
+
+/* Stats Card */
 .stats-card,
 .stats-card * {
   max-width: 100%;
@@ -1416,11 +2309,7 @@ const togglePercurso = () => {
   color: var(--el-text-color-primary);
 }
 
-/* Stats Container */
-.stats-container {
-  animation: fadeIn 0.3s ease-in;
-}
-
+/* Form e Actions */
 .history-card {
   margin-bottom: 16px;
 }
@@ -1448,8 +2337,31 @@ const togglePercurso = () => {
   margin-right: 4px;
 }
 
-.view-options .el-switch {
-  margin-right: 0;
+.route-color-selector {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 8px;
+}
+
+.route-color-selector .color-label {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  font-weight: 500;
+}
+
+.color-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.color-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid rgba(0,0,0,0.15);
+  flex-shrink: 0;
 }
 
 .history-actions {
@@ -1469,8 +2381,387 @@ const togglePercurso = () => {
   margin-top: 16px;
 }
 
+/* ============================================================================
+   FASE 12: ESTADOS VAZIOS E DISCLAIMER DE STATS
+   ============================================================================ */
+
+.stats-disclaimer {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--el-border-color-lighter);
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.stats-disclaimer i {
+  color: var(--el-color-info);
+}
+
+.empty-state-actions {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.empty-state-hint {
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
+}
+
 .timeline-filters {
   border: var(--el-border-color-lighter) 1px solid;
+}
+
+/* ============================================================================
+   FASE 11: INSIGHTS AVANÇADOS (Premium Mode)
+   ============================================================================ */
+
+.premium-insights-card {
+  border: 2px solid var(--el-color-warning-light-5);
+  background: linear-gradient(135deg, var(--el-fill-color-lighter) 0%, var(--el-bg-color) 100%);
+}
+
+.insights-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-weight: bold;
+}
+
+.insights-header > span:first-child {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.insights-header i {
+  color: var(--el-color-warning);
+}
+
+.insights-tabs {
+  margin: -12px;
+}
+
+.insights-tabs :deep(.el-tabs__content) {
+  padding: 16px;
+}
+
+.insights-tabs :deep(.el-tabs__header) {
+  background: var(--el-fill-color-lighter);
+}
+
+.insights-tabs :deep(.el-tabs__item) {
+  font-size: 13px;
+}
+
+.insights-tabs :deep(.el-tabs__item.is-active) {
+  color: var(--el-color-warning);
+}
+
+/* ============================================================================
+   FASE 8: RESUMO EXECUTIVO
+   ============================================================================ */
+
+.executive-summary-card {
+  border: var(--el-border-color-lighter) 1px solid;
+}
+
+.summary-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: bold;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.summary-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+  background: var(--el-fill-color-lighter);
+  border-radius: 8px;
+  transition: all 0.15s ease;
+}
+
+.summary-item-clickable {
+  cursor: pointer;
+}
+
+.summary-item-clickable:hover {
+  background: var(--el-fill-color-light);
+  transform: translateX(2px);
+}
+
+.summary-item-highlight {
+  background: var(--el-color-success-light-9);
+  border: 1px solid var(--el-color-success-light-5);
+}
+
+.summary-icon {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  border-radius: 8px;
+  color: var(--icon-color, var(--el-color-primary));
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.summary-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.summary-label {
+  font-size: 11px;
+  color: var(--el-text-color-secondary);
+  margin-bottom: 2px;
+}
+
+.summary-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}
+
+.summary-address {
+  font-size: 11px;
+  color: var(--el-text-color-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
+
+.summary-action {
+  color: var(--el-text-color-placeholder);
+  font-size: 12px;
+  align-self: center;
+}
+
+.summary-percent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--el-text-color-secondary);
+}
+
+.percent-bar {
+  flex: 1;
+  height: 4px;
+  background: var(--el-fill-color);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.percent-fill {
+  height: 100%;
+  background: var(--el-color-success);
+  transition: width 0.3s ease;
+}
+
+/* ============================================================================
+   FASE 8: CAPÍTULOS DA VIAGEM
+   ============================================================================ */
+
+.chapters-card {
+  border: var(--el-border-color-lighter) 1px solid;
+}
+
+.chapters-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: bold;
+}
+
+.chapters-count {
+  font-weight: normal;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  background: var(--el-fill-color-light);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.chapters-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.chapter-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--el-fill-color-lighter);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.chapter-item:hover {
+  background: var(--el-fill-color-light);
+  transform: translateX(2px);
+}
+
+.chapter-number {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--el-color-primary);
+  color: white;
+  font-weight: 600;
+  font-size: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.chapter-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.chapter-label {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--el-text-color-primary);
+  margin-bottom: 4px;
+}
+
+.chapter-details {
+  display: flex;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--el-text-color-secondary);
+  margin-bottom: 4px;
+}
+
+.chapter-details i {
+  margin-right: 2px;
+}
+
+.chapter-addresses {
+  display: flex;
+  flex-direction: column;
+  font-size: 10px;
+  color: var(--el-text-color-placeholder);
+}
+
+.chapter-start::before {
+  content: '▶ ';
+  color: var(--el-color-success);
+}
+
+.chapter-end::before {
+  content: '⏹ ';
+  color: var(--el-color-danger);
+}
+
+.chapter-action {
+  color: var(--el-color-primary);
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+/* ============================================================================
+   FASE 8: BOOKMARKS (FAVORITOS)
+   ============================================================================ */
+
+.bookmarks-card {
+  border: var(--el-border-color-lighter) 1px solid;
+}
+
+.bookmarks-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: bold;
+}
+
+.bookmarks-count {
+  font-weight: normal;
+  font-size: 12px;
+  color: white;
+  background: var(--el-color-warning);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.bookmarks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bookmark-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--el-color-warning-light-9);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.bookmark-item:hover {
+  background: var(--el-color-warning-light-8);
+  transform: translateX(2px);
+}
+
+.bookmark-icon {
+  color: var(--el-color-warning);
+  font-size: 14px;
+}
+
+.bookmark-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.bookmark-label {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--el-text-color-primary);
+}
+
+.bookmark-address {
+  font-size: 11px;
+  color: var(--el-text-color-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bookmark-action {
+  color: var(--el-text-color-placeholder);
+  font-size: 12px;
+}
+
+/* Animations */
+.stats-container {
+  animation: fadeIn 0.3s ease-in;
 }
 
 @keyframes fadeIn {
@@ -1484,11 +2775,7 @@ const togglePercurso = () => {
   }
 }
 
-.stat-card {
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-
-/* Responsividade mobile para stats */
+/* Responsividade */
 @media (max-width: 768px) {
   .stats-container {
     grid-template-columns: 1fr;
@@ -1509,5 +2796,4 @@ const togglePercurso = () => {
     grid-template-columns: repeat(2, 1fr);
   }
 }
-
 </style>

@@ -2,716 +2,761 @@
   <div class="kore-map-root">
     <div class="map-wrapper">
       <div ref="mapContainer" id="map-container">
-      <LMap id="LMap" :options="{ preferCanvas: true, zoomControl: false }" :use-global-leaflet="true" ref="map"
-        :zoom="zoomForce" :min-zoom="3" :max-zoom="21" :zoom-animation="true" :fade-animation="true"
-        :marker-zoom-animation="false" @ready="mapReady($event)" @click="mapClick" @mousemove="mapMove" :center="center"
-        @update:zoom="zoomUpdated($event)" style="width: 100%;height: 100%;">
-        <!-- ============================================================== -->
-        <!-- CONTROLES SUPERIORES DIREITO - Container Vertical Moderno      -->
-        <!-- ============================================================== -->
-        <l-control position="topright">
-          <div class="vertical-controls-container">
-            <!-- Botão fechar rotas -->
-            <el-button type="danger" size="small" v-if="store.state.devices.showRoutes" @click="closeRoutes()"
-              style="margin-bottom: 1px;">
-              <i class="fas fa-times"></i>
-            </el-button>
+        <LMap id="LMap" :options="{ preferCanvas: true, zoomControl: false }" :use-global-leaflet="true" ref="map"
+          :zoom="zoomForce" :min-zoom="3" :max-zoom="21" :zoom-animation="true" :fade-animation="true"
+          :marker-zoom-animation="false" @ready="mapReady($event)" @click="mapClick" @mousemove="mapMove"
+          :center="center" @update:zoom="zoomUpdated($event)" style="width: 100%;height: 100%;">
+          <!-- ============================================================== -->
+          <!-- CONTROLES SUPERIORES DIREITO - Container Vertical Moderno      -->
+          <!-- ============================================================== -->
+          <l-control position="topright">
+            <div class="vertical-controls-container">
+              <!-- Botão fechar rotas -->
+              <el-button type="danger" size="small" v-if="store.state.devices.showRoutes" @click="closeRoutes()"
+                style="margin-bottom: 1px;">
+                <i class="fas fa-times"></i>
+              </el-button>
 
-            <!-- Botão compartilhar -->
-            <el-button size="small" style="margin-bottom: 1px;"
-              v-if="store.state.server.isPlus && ((store.state.server.serverInfo?.attributes?.['tarkan.enableAdvancedPerms'] && store.getters.advancedPermissions(24))) || (!store.state.server.serverInfo?.attributes?.['tarkan.enableAdvancedPerms'] && !store.state.auth.attributes?.['isShared'] && !store.getters['isReadonly'])"
-              @click="editSharesRef.showShares()">
-              <i class="fas fa-share-alt"></i>
-            </el-button>
+              <!-- Botão compartilhar -->
+              <el-button size="small" style="margin-bottom: 1px;"
+                v-if="((store.state.server.serverInfo?.attributes?.['tarkan.enableAdvancedPerms'] && store.getters.advancedPermissions(24))) || (!store.state.server.serverInfo?.attributes?.['tarkan.enableAdvancedPerms'] && !store.state.auth.attributes?.['isShared'] && !store.getters['isReadonly'])"
+                @click="editSharesRef.showShares()">
+                <i class="fas fa-share-alt"></i>
+              </el-button>
 
-            <!-- Dropdown de Visibilidade (Olho) -->
-            <el-dropdown v-if="!store.state.auth.attributes?.['isShared']" size="small" trigger="click"
-              placement="left-start" popper-class="kore-map-popper" style="margin-bottom: 1px; display: block;">
-              <el-button size="small"><i class="fas fa-eye"></i></el-button>
-              <template #dropdown>
-                <el-dropdown-menu class="professional-dropdown">
-                  <!-- Busca -->
-                  <div style="padding: 8px 10px;">
-                    <el-input v-model="eyeFilter" size="small" placeholder="Buscar..."
-                      prefix-icon="el-icon-search"></el-input>
-                  </div>
-
-                  <div class="section-title">
-                    <i class="fas fa-cog" style="margin-right: 6px;"></i>{{ KT('map.preferences') }}
-                  </div>
-
-                  <!-- Agrupar Markers (Cluster): Agrupa veículos próximos para melhor visualização em contas grandes -->
-                  <div style="display: flex; align-items: center; padding: 5px 12px; margin-bottom: 3px;">
-                    <i class="fas fa-globe" style="width: 20px; font-size: 11px;"></i>
-                    <span style="margin-left: 12px; font-size: 11px; flex-grow: 1;">{{ KT('map.showCluster') || 'Agrupar (cluster)' }}</span>
-                    <el-switch style="min-width: 36px; justify-content: flex-end;" size="small"
-                      :model-value="store.getters['mapPref']('clustered', true)"
-                      @click="store.dispatch('setMapPref', ['clustered', store.getters['mapPref']('clustered', true) ? false : true])"></el-switch>
-                  </div>
-
-                  <!-- Mostrar Grupos: Exibe agrupamento visual por grupos de dispositivos -->
-                  <div style="display: flex; align-items: center; padding: 5px 12px; margin-bottom: 3px;">
-                    <i class="fas fa-layer-group" style="width: 20px; font-size: 11px;"></i>
-                    <span style="margin-left: 12px; font-size: 11px; flex-grow: 1;">{{ KT('map.showGroups') || 'Mostrar grupos' }}</span>
-                    <el-switch style="min-width: 36px; justify-content: flex-end;" size="small"
-                      :model-value="store.getters['mapPref']('groups')"
-                      @click="store.dispatch('setMapPref', 'groups')"></el-switch>
-                  </div>
-
-                  <!-- Mostrar Geocercas: Exibe/oculta as áreas delimitadas (cercas virtuais) -->
-                  <div style="display: flex; align-items: center; padding: 5px 12px; margin-bottom: 3px;">
-                    <i class="fas fa-draw-polygon" style="width: 20px; font-size: 11px;"></i>
-                    <span style="margin-left: 12px; font-size: 11px; flex-grow: 1;">{{ KT('map.showGeofences') }}</span>
-                    <el-switch style="min-width: 36px; justify-content: flex-end;" size="small"
-                      v-model="showGeofences"></el-switch>
-                  </div>
-
-                  <!-- Mostrar Nomes das Geocercas: Exibe nomes das geocercas no mapa (só aparece se geocercas ativas) -->
-                  <div v-if="showGeofences" style="display: flex; align-items: center; padding: 5px 12px; margin-bottom: 3px;">
-                    <i class="fas fa-tag" style="width: 20px; font-size: 11px; margin-left: 20px;"></i>
-                    <span style="margin-left: 12px; font-size: 11px; flex-grow: 1;">{{ KT('map.showGeofenceNames') || 'Nomes das geocercas' }}</span>
-                    <el-switch style="min-width: 36px; justify-content: flex-end;" size="small"
-                      :model-value="store.getters['mapPref']('geofenceNames')"
-                      @change="(value) => store.dispatch('setMapPref', ['geofenceNames', value])"></el-switch>
-                  </div>
-
-                  <!-- Mostrar Nomes: Exibe o nome do veículo no mapa -->
-                  <div style="display: flex; align-items: center; padding: 5px 12px; margin-bottom: 3px;">
-                    <i class="fas fa-tag" style="width: 20px; font-size: 11px;"></i>
-                    <span style="margin-left: 12px; font-size: 11px; flex-grow: 1;">{{ KT('map.showNames') }}</span>
-                    <el-switch style="min-width: 36px; justify-content: flex-end;" size="small"
-                      :model-value="store.getters['mapPref']('name')"
-                      @click="store.dispatch('setMapPref', 'name')"></el-switch>
-                  </div>
-
-                  <!-- Mostrar Placas: Exibe a placa do veículo no mapa -->
-                  <div style="display: flex; align-items: center; padding: 5px 12px; margin-bottom: 3px;">
-                    <i class="fas fa-id-card" style="width: 20px; font-size: 11px;"></i>
-                    <span style="margin-left: 12px; font-size: 11px; flex-grow: 1;">{{ KT('map.showPlates') }}</span>
-                    <el-switch style="min-width: 36px; justify-content: flex-end;" size="small"
-                      :model-value="store.getters['mapPref']('plate')"
-                      @click="store.dispatch('setMapPref', 'plate')"></el-switch>
-                  </div>
-
-                  <!-- Mostrar Status: Exibe indicador de status (online/offline) no ícone -->
-                  <div style="display: flex; align-items: center; padding: 5px 12px; margin-bottom: 3px;">
-                    <i class="fas fa-info-circle" style="width: 20px; font-size: 11px;"></i>
-                    <span style="margin-left: 12px; font-size: 11px; flex-grow: 1;">{{ KT('map.showStatus') }}</span>
-                    <el-switch style="min-width: 36px; justify-content: flex-end;" size="small"
-                      :model-value="store.getters['mapPref']('status')"
-                      @click="store.dispatch('setMapPref', 'status')"></el-switch>
-                  </div>
-
-                  <!-- Mostrar Precisão GPS: Exibe círculo de precisão do GPS ao redor do veículo -->
-                  <div style="display: flex; align-items: center; padding: 5px 12px; margin-bottom: 3px;">
-                    <i class="fas fa-crosshairs" style="width: 20px; font-size: 11px;"></i>
-                    <span style="margin-left: 12px; font-size: 11px; flex-grow: 1;">{{ KT('map.showPrecision') }}</span>
-                    <el-switch style="min-width: 36px; justify-content: flex-end;" size="small"
-                      :model-value="store.getters['mapPref']('precision')"
-                      @click="store.dispatch('setMapPref', 'precision')"></el-switch>
-                  </div>
-
-                  <!-- Seção Dispositivos -->
-                  <div class="section-title"
-                    style="display: flex; justify-content: space-between; align-items: center;">
-                    <span><i class="fas fa-car" style="margin-right: 6px;"></i>{{ KT('device.devices') || 'Dispositivos'
-                      }}</span>
-                    <div style="font-size: 9px; white-space: nowrap;">
-                      <a @click.prevent="eyeAll(true)"
-                        style="color: var(--el-color-primary);text-decoration: none;margin-right: 4px;">{{ KT('all') ||
-                        'Todos' }}</a>
-                      <span style="margin: 0 2px;">|</span>
-                      <a @click.prevent="eyeAll(false)"
-                        style="color: var(--el-color-primary);text-decoration: none;margin-left: 4px;">{{ KT('none') ||
-                        'Nenhum' }}</a>
+              <!-- Dropdown de Visibilidade (Olho) -->
+              <el-dropdown v-if="!store.state.auth.attributes?.['isShared']" size="small" trigger="click"
+                placement="left-start" popper-class="kore-map-popper" style="margin-bottom: 1px; display: block;">
+                <el-button size="small"><i class="fas fa-eye"></i></el-button>
+                <template #dropdown>
+                  <el-dropdown-menu class="professional-dropdown">
+                    <!-- Busca -->
+                    <div style="padding: 8px 10px;">
+                      <el-input v-model="eyeFilter" size="small" placeholder="Buscar..."
+                        prefix-icon="el-icon-search"></el-input>
                     </div>
-                  </div>
 
-                  <div style="overflow: auto; max-height: 50vh; padding-top: 2px;">
-                    <el-dropdown-item v-for="(t, tk) in availableTypes" :key="tk"
-                      @click="store.dispatch('devices/toggleHiddenFilter', t.key)"
-                      style="height: auto !important; padding: 0 !important; display: block !important;">
-                      <div style="display: flex; align-items: center; padding: 5px 12px; margin-bottom: 2px;">
-                        <i class="fas fa-car" style="width: 20px; font-size: 11px;"></i>
-                        <span style="margin-left: 12px; font-size: 11px; flex-grow: 1;">{{ t.name }}</span>
-                        <el-switch :key="'chk' + t.key" style="min-width: 36px; justify-content: flex-end;" size="small"
-                          :model-value="store.getters['devices/isHiddenFilter'](t.key)" disabled></el-switch>
+                    <div class="section-title">
+                      <i class="fas fa-cog" style="margin-right: 6px;"></i>{{ KT('map.preferences') }}
+                    </div>
+
+                    <!-- Agrupar Markers (Cluster): Agrupa veículos próximos para melhor visualização em contas grandes -->
+                    <div style="display: flex; align-items: center; padding: 5px 12px; margin-bottom: 3px;">
+                      <i class="fas fa-globe" style="width: 20px; font-size: 11px;"></i>
+                      <span style="margin-left: 12px; font-size: 11px; flex-grow: 1;">{{ KT('map.showCluster') }}</span>
+                      <el-switch style="min-width: 36px; justify-content: flex-end;" size="small"
+                        :model-value="store.getters['mapPref']('clustered')"
+                        @change="(val) => store.dispatch('setMapPref', ['clustered', val])"></el-switch>
+                    </div>
+
+                    <!-- Mostrar Grupos: Exibe agrupamento visual por grupos de dispositivos -->
+                    <div style="display: flex; align-items: center; padding: 5px 12px; margin-bottom: 3px;">
+                      <i class="fas fa-layer-group" style="width: 20px; font-size: 11px;"></i>
+                      <span style="margin-left: 12px; font-size: 11px; flex-grow: 1;">{{ KT('map.showGroups') }}</span>
+                      <el-switch style="min-width: 36px; justify-content: flex-end;" size="small"
+                        :model-value="store.getters['mapPref']('groups')"
+                        @change="(val) => store.dispatch('setMapPref', ['groups', val])"></el-switch>
+                    </div>
+
+                    <!-- Mostrar Geocercas: Exibe/oculta as áreas delimitadas (cercas virtuais) -->
+                    <div style="display: flex; align-items: center; padding: 5px 12px; margin-bottom: 3px;">
+                      <i class="fas fa-draw-polygon" style="width: 20px; font-size: 11px;"></i>
+                      <span style="margin-left: 12px; font-size: 11px; flex-grow: 1;">{{ KT('map.showGeofences')
+                        }}</span>
+                      <el-switch style="min-width: 36px; justify-content: flex-end;" size="small"
+                        v-model="showGeofences"></el-switch>
+                    </div>
+
+                    <!-- Mostrar Nomes das Geocercas: Exibe nomes das geocercas no mapa (só aparece se geocercas ativas) -->
+                    <div v-if="showGeofences"
+                      style="display: flex; align-items: center; padding: 5px 12px; margin-bottom: 3px;">
+                      <i class="fas fa-tag" style="width: 20px; font-size: 11px; margin-left: 20px;"></i>
+                      <span style="margin-left: 12px; font-size: 11px; flex-grow: 1;">{{ KT('map.showGeofenceNames')
+                        }}</span>
+                      <el-switch style="min-width: 36px; justify-content: flex-end;" size="small"
+                        :model-value="store.getters['mapPref']('geofenceNames')"
+                        @change="(val) => store.dispatch('setMapPref', ['geofenceNames', val])"></el-switch>
+                    </div>
+
+                    <!-- Mostrar Nomes: Exibe o nome do veículo no mapa -->
+                    <div style="display: flex; align-items: center; padding: 5px 12px; margin-bottom: 3px;">
+                      <i class="fas fa-tag" style="width: 20px; font-size: 11px;"></i>
+                      <span style="margin-left: 12px; font-size: 11px; flex-grow: 1;">{{ KT('map.showNames') }}</span>
+                      <el-switch style="min-width: 36px; justify-content: flex-end;" size="small"
+                        :model-value="store.getters['mapPref']('name')"
+                        @change="(val) => store.dispatch('setMapPref', ['name', val])"></el-switch>
+                    </div>
+
+                    <!-- Mostrar Placas: Exibe a placa do veículo no mapa -->
+                    <div style="display: flex; align-items: center; padding: 5px 12px; margin-bottom: 3px;">
+                      <i class="fas fa-id-card" style="width: 20px; font-size: 11px;"></i>
+                      <span style="margin-left: 12px; font-size: 11px; flex-grow: 1;">{{ KT('map.showPlates') }}</span>
+                      <el-switch style="min-width: 36px; justify-content: flex-end;" size="small"
+                        :model-value="store.getters['mapPref']('plate')"
+                        @change="(val) => store.dispatch('setMapPref', ['plate', val])"></el-switch>
+                    </div>
+
+                    <!-- Mostrar Status: Exibe indicador de status (online/offline) no ícone -->
+                    <div style="display: flex; align-items: center; padding: 5px 12px; margin-bottom: 3px;">
+                      <i class="fas fa-info-circle" style="width: 20px; font-size: 11px;"></i>
+                      <span style="margin-left: 12px; font-size: 11px; flex-grow: 1;">{{ KT('map.showStatus') }}</span>
+                      <el-switch style="min-width: 36px; justify-content: flex-end;" size="small"
+                        :model-value="store.getters['mapPref']('status')"
+                        @change="(val) => store.dispatch('setMapPref', ['status', val])"></el-switch>
+                    </div>
+
+                    <!-- Mostrar Precisão GPS: Exibe círculo de precisão do GPS ao redor do veículo -->
+                    <div style="display: flex; align-items: center; padding: 5px 12px; margin-bottom: 3px;">
+                      <i class="fas fa-crosshairs" style="width: 20px; font-size: 11px;"></i>
+                      <span style="margin-left: 12px; font-size: 11px; flex-grow: 1;">{{ KT('map.showPrecision')
+                        }}</span>
+                      <el-switch style="min-width: 36px; justify-content: flex-end;" size="small"
+                        :model-value="store.getters['mapPref']('precision')"
+                        @change="(val) => store.dispatch('setMapPref', ['precision', val])"></el-switch>
+                    </div>
+
+                    <!-- Seção Dispositivos -->
+                    <div class="section-title"
+                      style="display: flex; justify-content: space-between; align-items: center;">
+                      <span><i class="fas fa-car" style="margin-right: 6px;"></i>{{ KT('device.devices') ||
+                        'Dispositivos'
+                        }}</span>
+                      <div style="font-size: 9px; white-space: nowrap;">
+                        <a @click.prevent="eyeAll(true)"
+                          style="color: var(--el-color-primary);text-decoration: none;margin-right: 4px;">{{ KT('all')
+                            ||
+                          'Todos' }}</a>
+                        <span style="margin: 0 2px;">|</span>
+                        <a @click.prevent="eyeAll(false)"
+                          style="color: var(--el-color-primary);text-decoration: none;margin-left: 4px;">{{ KT('none')
+                            ||
+                          'Nenhum' }}</a>
                       </div>
+                    </div>
+
+                    <div style="overflow: auto; max-height: 50vh; padding-top: 2px;">
+                      <el-dropdown-item v-for="(t, tk) in availableTypes" :key="tk"
+                        @click="store.dispatch('devices/toggleHiddenFilter', t.key)"
+                        style="height: auto !important; padding: 0 !important; display: block !important;">
+                        <div style="display: flex; align-items: center; padding: 5px 12px; margin-bottom: 2px;">
+                          <i class="fas fa-car" style="width: 20px; font-size: 11px;"></i>
+                          <span style="margin-left: 12px; font-size: 11px; flex-grow: 1;">{{ t.name }}</span>
+                          <el-switch :key="'chk' + t.key" style="min-width: 36px; justify-content: flex-end;"
+                            size="small" :model-value="store.getters['devices/isHiddenFilter'](t.key)"
+                            disabled></el-switch>
+                        </div>
+                      </el-dropdown-item>
+                    </div>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
+
+              <!-- Dropdown de Camadas -->
+              <el-dropdown size="small" trigger="click" placement="left-start" popper-class="kore-map-popper"
+                style="margin-bottom: 1px; display: block;">
+                <el-button size="small"><i class="fas fa-layer-group"></i></el-button>
+                <template #dropdown>
+                  <el-dropdown-menu class="professional-dropdown">
+                    <div class="section-title">
+                      <i class="fas fa-layer-group" style="margin-right: 6px;"></i>{{ KT('map.layers') || 'Camadas' }}
+                    </div>
+                    <el-dropdown-item v-for="(m, mk) in availableMaps" :key="'map-' + mk" @click="changeMap(m.id)"
+                      style="padding: 5px 12px; min-height: auto;">
+                      <el-radio v-model="selectedMap" :label="m.id" size="small"
+                        style="margin-right: 0; display: flex; align-items: center;">
+                        <span style="font-size: 11px; font-weight: 500; white-space: nowrap;">{{ m.name }}</span>
+                      </el-radio>
                     </el-dropdown-item>
-                  </div>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
 
-            <!-- Dropdown de Camadas -->
-            <el-dropdown size="small" trigger="click" placement="left-start"
-              popper-class="kore-map-popper" style="margin-bottom: 1px; display: block;">
-              <el-button size="small"><i class="fas fa-layer-group"></i></el-button>
-              <template #dropdown>
-                <el-dropdown-menu class="professional-dropdown">
-                  <div class="section-title">
-                    <i class="fas fa-layer-group" style="margin-right: 6px;"></i>{{ KT('map.layers') || 'Camadas' }}
-                  </div>
-                  <el-dropdown-item v-for="(m, mk) in availableMaps" :key="'map-' + mk" @click="changeMap(m.id)"
-                    style="padding: 5px 12px; min-height: auto;">
-                    <el-radio v-model="selectedMap" :label="m.id" size="small"
-                      style="margin-right: 0; display: flex; align-items: center;">
-                      <span style="font-size: 11px; font-weight: 500; white-space: nowrap;">{{ m.name }}</span>
-                    </el-radio>
-                  </el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
+              <!-- Botão Atualizar -->
+              <el-tooltip placement="left" :content="KT('map.refresh') || 'Atualizar Mapa'">
+                <el-button size="small" @click="refreshMap" style="margin-bottom: 1px;">
+                  <i class="fas fa-sync"></i>
+                </el-button>
+              </el-tooltip>
 
-            <!-- Botão Atualizar -->
-            <el-tooltip placement="left" :content="KT('map.refresh') || 'Atualizar Mapa'">
-              <el-button size="small" @click="refreshMap" style="margin-bottom: 1px;">
-                <i class="fas fa-sync"></i>
-              </el-button>
-            </el-tooltip>
+              <!-- Botão Busca no Mapa -->
+              <el-tooltip placement="left" :content="KT('map.search.toggle') || 'Buscar Dispositivo'">
+                <el-button size="small" @click="toggleMapSearch" style="margin-bottom: 1px;">
+                  <i class="fas fa-search"></i>
+                </el-button>
+              </el-tooltip>
 
-            <!-- Botão Busca no Mapa -->
-            <el-tooltip placement="left" :content="KT('map.search.toggle') || 'Buscar Dispositivo'">
-              <el-button size="small" @click="toggleMapSearch" style="margin-bottom: 1px;">
-                <i class="fas fa-search"></i>
-              </el-button>
-            </el-tooltip>
-
-            <!-- Botão Assistente Virtual / WhatsApp (condicional) -->
-            <el-tooltip
-              v-if="!store.state.auth.attributes?.['isShared'] && store.state.server.labelConf?.whatsapp && store.state.server.labelConf.whatsapp !== ''"
-              placement="left" :content="KT('map.whatsappAssistant') || 'Assistente Virtual'">
-              <el-button size="small" @click="openWhatsAppAssistant" style="margin-bottom: 1px;" type="success">
-                <i class="fas fa-headset"></i>
-              </el-button>
-            </el-tooltip>
-          </div>
-        </l-control>
-
-        <!-- ============================================================== -->
-        <!-- CONTROLES SUPERIORES ESQUERDO - Status Counters Modernos       -->
-        <!-- ============================================================== -->
-        <l-control position="topleft" v-if="!store.state.auth.attributes?.['isShared']">
-          <div class="status-counters">
-            <el-tooltip placement="right-start" :content="KT('all') || 'Todos'">
-              <div class="counter all" :class="{ active: store.state.devices.applyFilters.statusFilter === 'all' }"
-                @click="store.dispatch('devices/setStatusFilter', 'all')">
-                {{ store.getters['devices/deviceCount'].all }}
-              </div>
-            </el-tooltip>
-            <el-tooltip placement="right-start" :content="KT('online') || 'Online'">
-              <div class="counter online" :class="{ active: store.state.devices.applyFilters.statusFilter === 'online' }"
-                @click="store.dispatch('devices/setStatusFilter', 'online')">
-                {{ store.getters['devices/deviceCount'].online }}
-              </div>
-            </el-tooltip>
-            <el-tooltip placement="right-start" :content="KT('offline') || 'Offline'">
-              <div class="counter offline" :class="{ active: store.state.devices.applyFilters.statusFilter === 'offline' }"
-                @click="store.dispatch('devices/setStatusFilter', 'offline')">
-                {{ store.getters['devices/deviceCount'].offline }}
-              </div>
-            </el-tooltip>
-            <el-tooltip placement="right-start" :content="KT('unknown') || 'Desconhecido'">
-              <div class="counter unknown" :class="{ active: store.state.devices.applyFilters.statusFilter === 'unknown' }"
-                @click="store.dispatch('devices/setStatusFilter', 'unknown')">
-                {{ store.getters['devices/deviceCount'].unknown }}
-              </div>
-            </el-tooltip>
-            <el-tooltip placement="right-start" :content="KT('device.moving') || 'Em Movimento'">
-              <div class="counter motion" :class="{ active: store.state.devices.applyFilters.motionFilter }"
-                @click="store.dispatch('devices/toggleMotionFilter')">
-                {{ store.getters['devices/deviceCount'].motion }}
-              </div>
-            </el-tooltip>
-          </div>
+              <!-- Botão Assistente Virtual / WhatsApp (condicional) -->
+              <el-tooltip
+                v-if="!store.state.auth.attributes?.['isShared'] && store.state.server.labelConf?.whatsapp && store.state.server.labelConf.whatsapp !== ''"
+                placement="left" :content="KT('map.whatsappAssistant') || 'Assistente Virtual'">
+                <el-button size="small" @click="openWhatsAppAssistant" style="margin-bottom: 1px;" type="success">
+                  <i class="fas fa-headset"></i>
+                </el-button>
+              </el-tooltip>
+            </div>
+          </l-control>
 
           <!-- ============================================================== -->
-          <!-- WIDGET DE PLAYBACK MODERNO                                     -->
+          <!-- CONTROLES SUPERIORES ESQUERDO - Status Counters Modernos       -->
           <!-- ============================================================== -->
-          <div v-if="store.state.devices.showRoutes" class="modern-playback-widget">
-            <!-- Timeline Section -->
-            <div class="timeline-section">
-              <div class="timeline-track" @click="moveTimelinePosition($event)">
-                <div class="timeline-progress" :style="{ width: `${routePlayPos}px` }"></div>
-                <div class="timeline-handle"
-                  :style="{ left: (routePlayPos + 10) + 'px', cursor: isDragging ? 'grabbing' : 'grab' }"
-                  @mousedown="startDrag" @touchstart="startDrag">
-                  <i class="fas fa-grip-lines-vertical"></i>
+          <l-control position="topleft" v-if="!store.state.auth.attributes?.['isShared']">
+            <div class="status-counters">
+              <el-tooltip placement="right-start" :content="KT('all') || 'Todos'">
+                <div class="counter all" :class="{ active: store.state.devices.applyFilters.statusFilter === 'all' }"
+                  @click="store.dispatch('devices/setStatusFilter', 'all')">
+                  {{ store.getters['devices/deviceCount'].all }}
+                </div>
+              </el-tooltip>
+              <el-tooltip placement="right-start" :content="KT('online') || 'Online'">
+                <div class="counter online"
+                  :class="{ active: store.state.devices.applyFilters.statusFilter === 'online' }"
+                  @click="store.dispatch('devices/setStatusFilter', 'online')">
+                  {{ store.getters['devices/deviceCount'].online }}
+                </div>
+              </el-tooltip>
+              <el-tooltip placement="right-start" :content="KT('offline') || 'Offline'">
+                <div class="counter offline"
+                  :class="{ active: store.state.devices.applyFilters.statusFilter === 'offline' }"
+                  @click="store.dispatch('devices/setStatusFilter', 'offline')">
+                  {{ store.getters['devices/deviceCount'].offline }}
+                </div>
+              </el-tooltip>
+              <el-tooltip placement="right-start" :content="KT('unknown') || 'Desconhecido'">
+                <div class="counter unknown"
+                  :class="{ active: store.state.devices.applyFilters.statusFilter === 'unknown' }"
+                  @click="store.dispatch('devices/setStatusFilter', 'unknown')">
+                  {{ store.getters['devices/deviceCount'].unknown }}
+                </div>
+              </el-tooltip>
+              <el-tooltip placement="right-start" :content="KT('device.moving') || 'Em Movimento'">
+                <div class="counter motion" :class="{ active: store.state.devices.applyFilters.motionFilter }"
+                  @click="store.dispatch('devices/toggleMotionFilter')">
+                  {{ store.getters['devices/deviceCount'].motion }}
+                </div>
+              </el-tooltip>
+            </div>
+
+            <!-- ============================================================== -->
+            <!-- WIDGET DE PLAYBACK MODERNO                                     -->
+            <!-- ============================================================== -->
+            <div v-if="store.state.devices.showRoutes" class="modern-playback-widget">
+              <!-- Timeline Section -->
+              <div class="timeline-section">
+                <div class="timeline-track" @click="moveTimelinePosition($event)">
+                  <div class="timeline-progress" :style="{ width: `${routePlayPos}px` }"></div>
+                  <div class="timeline-handle"
+                    :style="{ left: (routePlayPos + 10) + 'px', cursor: isDragging ? 'grabbing' : 'grab' }"
+                    @mousedown="startDrag" @touchstart="startDrag">
+                    <i class="fas fa-grip-lines-vertical"></i>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Controls Section -->
+              <div class="modern-playback-controls">
+                <!-- Secondary Controls -->
+                <div class="secondary-controls">
+                  <button @click="stopPlayRoute()" class="control-btn secondary-btn"
+                    :title="KT('playback.stop') || 'Parar'">
+                    <i class="fas fa-stop"></i>
+                  </button>
+                  <button @click="restartPlayRoute()" class="control-btn secondary-btn"
+                    :title="KT('playback.restart') || 'Reiniciar'">
+                    <i class="fas fa-redo-alt"></i>
+                  </button>
+                  <button @click="moveBackward()" class="control-btn secondary-btn"
+                    :title="KT('playback.backward') || 'Retroceder'">
+                    <i class="fas fa-step-backward"></i>
+                  </button>
+                </div>
+
+                <!-- Primary Play/Pause Button -->
+                <div class="primary-control">
+                  <button v-if="routePlayState" @click="pausePlayRoute()" class="control-btn primary-btn"
+                    :title="KT('playback.pause') || 'Pausar'">
+                    <i class="fas fa-pause"></i>
+                  </button>
+                  <button v-else @click="runPlayRoute()" class="control-btn primary-btn"
+                    :title="KT('playback.play') || 'Reproduzir'">
+                    <i class="fas fa-play"></i>
+                  </button>
+                </div>
+
+                <!-- Secondary Controls -->
+                <div class="secondary-controls">
+                  <button @click="moveForward()" class="control-btn secondary-btn"
+                    :title="KT('playback.forward') || 'Avançar'">
+                    <i class="fas fa-step-forward"></i>
+                  </button>
+                  <button @click="togglePlaybackSpeed()" class="control-btn speed-btn"
+                    :title="'Velocidade: ' + playbackSpeed + 'x'">
+                    {{ playbackSpeed }}x
+                  </button>
+                  <button @click="showRouteDetails()" class="control-btn secondary-btn"
+                    :title="KT('attribute.details') || 'Detalhes'">
+                    <i class="fas fa-info"></i>
+                  </button>
                 </div>
               </div>
             </div>
+          </l-control>
 
-            <!-- Controls Section -->
-            <div class="modern-playback-controls">
-              <!-- Secondary Controls -->
-              <div class="secondary-controls">
-                <button @click="stopPlayRoute()" class="control-btn secondary-btn"
-                  :title="KT('playback.stop') || 'Parar'">
-                  <i class="fas fa-stop"></i>
-                </button>
-                <button @click="restartPlayRoute()" class="control-btn secondary-btn"
-                  :title="KT('playback.restart') || 'Reiniciar'">
-                  <i class="fas fa-redo-alt"></i>
-                </button>
-                <button @click="moveBackward()" class="control-btn secondary-btn"
-                  :title="KT('playback.backward') || 'Retroceder'">
-                  <i class="fas fa-step-backward"></i>
-                </button>
+          <!-- ============================================================== -->
+          <!-- PAINEL DE DETALHES DA ROTA (AVANÇADO)                          -->
+          <!-- ============================================================== -->
+          <l-control position="topright">
+            <div v-if="showDetailsPanel && currentRoutePoint" class="route-details-panel">
+              <div class="route-details-header">
+                <div><i class="fas fa-info-circle"></i> {{ KT('attribute.details') || 'Detalhes do Ponto' }}</div>
+                <div class="route-details-close" @click="showDetailsPanel = false"><i class="fas fa-times"></i></div>
               </div>
-
-              <!-- Primary Play/Pause Button -->
-              <div class="primary-control">
-                <button v-if="routePlayState" @click="pausePlayRoute()" class="control-btn primary-btn"
-                  :title="KT('playback.pause') || 'Pausar'">
-                  <i class="fas fa-pause"></i>
-                </button>
-                <button v-else @click="runPlayRoute()" class="control-btn primary-btn"
-                  :title="KT('playback.play') || 'Reproduzir'">
-                  <i class="fas fa-play"></i>
-                </button>
-              </div>
-
-              <!-- Secondary Controls -->
-              <div class="secondary-controls">
-                <button @click="moveForward()" class="control-btn secondary-btn"
-                  :title="KT('playback.forward') || 'Avançar'">
-                  <i class="fas fa-step-forward"></i>
-                </button>
-                <button @click="togglePlaybackSpeed()" class="control-btn speed-btn"
-                  :title="'Velocidade: ' + playbackSpeed + 'x'">
-                  {{ playbackSpeed }}x
-                </button>
-                <button @click="showRouteDetails()" class="control-btn secondary-btn"
-                  :title="KT('attribute.details') || 'Detalhes'">
-                  <i class="fas fa-info"></i>
-                </button>
-              </div>
-            </div>
-          </div>
-        </l-control>
-
-        <!-- ============================================================== -->
-        <!-- PAINEL DE DETALHES DA ROTA (AVANÇADO)                          -->
-        <!-- ============================================================== -->
-        <l-control position="topright">
-          <div v-if="showDetailsPanel && currentRoutePoint" class="route-details-panel">
-            <div class="route-details-header">
-              <div><i class="fas fa-info-circle"></i> {{ KT('attribute.details') || 'Detalhes do Ponto' }}</div>
-              <div class="route-details-close" @click="showDetailsPanel = false"><i class="fas fa-times"></i></div>
-            </div>
-            <div class="route-details-content">
-              <div v-if="currentRoutePoint">
-                <!-- Status Icons Row -->
-                <div class="status-icons-row">
-                  <!-- Ignição -->
-                  <div class="status-icon-item"
-                    :class="{ 'active': currentRoutePoint.attributes?.ignition === true, 'inactive': currentRoutePoint.attributes?.ignition === false }"
-                    :title="KT('device.ignition') + ': ' + (currentRoutePoint.attributes?.ignition ? 'Ligado' : 'Desligado')">
-                    <i class="fas fa-key"></i>
-                  </div>
-                  <!-- Bloqueio -->
-                  <div class="status-icon-item"
-                    :class="{ 'danger': currentRoutePoint.attributes?.blocked === true, 'active': currentRoutePoint.attributes?.blocked === false }"
-                    :title="currentRoutePoint.attributes?.blocked ? KT('device.blocked') : KT('device.unblocked')">
-                    <i :class="currentRoutePoint.attributes?.blocked ? 'fas fa-lock' : 'fas fa-lock-open'"></i>
-                  </div>
-                  <!-- Movimento -->
-                  <div class="status-icon-item"
-                    :class="{ 'active': currentRoutePoint.speed > 0, 'warning': currentRoutePoint.speed === 0 }"
-                    :title="currentRoutePoint.speed > 0 ? 'Em movimento' : 'Parado'">
-                    <i :class="currentRoutePoint.speed > 0 ? 'fas fa-car' : 'fas fa-parking'"></i>
-                  </div>
-                  <!-- Bateria Veículo -->
-                  <div class="status-icon-item" v-if="currentRoutePoint.attributes?.power"
-                    :class="{ 'active': currentRoutePoint.attributes?.power > 12, 'warning': currentRoutePoint.attributes?.power <= 12 && currentRoutePoint.attributes?.power > 10, 'danger': currentRoutePoint.attributes?.power <= 10 }"
-                    :title="'Bateria: ' + (currentRoutePoint.attributes?.power || 0).toFixed(1) + 'V'">
-                    <i class="fas fa-car-battery"></i>
-                  </div>
-                  <!-- Sinal -->
-                  <div class="status-icon-item" v-if="currentRoutePoint.attributes?.rssi"
-                    :class="getSignalClass(currentRoutePoint.attributes?.rssi)"
-                    :title="'Sinal: ' + (currentRoutePoint.attributes?.rssi || 0) + 'dBm'">
-                    <i class="fas fa-signal"></i>
-                  </div>
-                  <!-- Satélites -->
-                  <div class="status-icon-item"
-                    :class="{ 'active': (currentRoutePoint.attributes?.sat || currentRoutePoint.attributes?.satellites || 0) >= 4 }"
-                    :title="'Satélites: ' + (currentRoutePoint.attributes?.sat || currentRoutePoint.attributes?.satellites || 0)">
-                    <i class="fas fa-satellite"></i>
-                  </div>
-                </div>
-
-                <!-- Informações Principais -->
-                <div class="detail-info-grid">
-                  <!-- Velocidade -->
-                  <div class="detail-info-item">
-                    <div class="detail-icon"><i class="fas fa-tachometer-alt"></i></div>
-                    <div class="detail-text">
-                      <span class="detail-value-main">{{ Math.round((currentRoutePoint.speed || 0) * 1.852) }}
-                        km/h</span>
+              <div class="route-details-content">
+                <div v-if="currentRoutePoint">
+                  <!-- Status Icons Row -->
+                  <div class="status-icons-row">
+                    <!-- Ignição -->
+                    <div class="status-icon-item"
+                      :class="{ 'active': currentRoutePoint.attributes?.ignition === true, 'inactive': currentRoutePoint.attributes?.ignition === false }"
+                      :title="KT('device.ignition') + ': ' + (currentRoutePoint.attributes?.ignition ? 'Ligado' : 'Desligado')">
+                      <i class="fas fa-key"></i>
+                    </div>
+                    <!-- Bloqueio -->
+                    <div class="status-icon-item"
+                      :class="{ 'danger': currentRoutePoint.attributes?.blocked === true, 'active': currentRoutePoint.attributes?.blocked === false }"
+                      :title="currentRoutePoint.attributes?.blocked ? KT('device.blocked') : KT('device.unblocked')">
+                      <i :class="currentRoutePoint.attributes?.blocked ? 'fas fa-lock' : 'fas fa-lock-open'"></i>
+                    </div>
+                    <!-- Movimento -->
+                    <div class="status-icon-item"
+                      :class="{ 'active': currentRoutePoint.speed > 0, 'warning': currentRoutePoint.speed === 0 }"
+                      :title="currentRoutePoint.speed > 0 ? 'Em movimento' : 'Parado'">
+                      <i :class="currentRoutePoint.speed > 0 ? 'fas fa-car' : 'fas fa-parking'"></i>
+                    </div>
+                    <!-- Bateria Veículo -->
+                    <div class="status-icon-item" v-if="currentRoutePoint.attributes?.power"
+                      :class="{ 'active': currentRoutePoint.attributes?.power > 12, 'warning': currentRoutePoint.attributes?.power <= 12 && currentRoutePoint.attributes?.power > 10, 'danger': currentRoutePoint.attributes?.power <= 10 }"
+                      :title="'Bateria: ' + (currentRoutePoint.attributes?.power || 0).toFixed(1) + 'V'">
+                      <i class="fas fa-car-battery"></i>
+                    </div>
+                    <!-- Sinal -->
+                    <div class="status-icon-item" v-if="currentRoutePoint.attributes?.rssi"
+                      :class="getSignalClass(currentRoutePoint.attributes?.rssi)"
+                      :title="'Sinal: ' + (currentRoutePoint.attributes?.rssi || 0) + 'dBm'">
+                      <i class="fas fa-signal"></i>
+                    </div>
+                    <!-- Satélites -->
+                    <div class="status-icon-item"
+                      :class="{ 'active': (currentRoutePoint.attributes?.sat || currentRoutePoint.attributes?.satellites || 0) >= 4 }"
+                      :title="'Satélites: ' + (currentRoutePoint.attributes?.sat || currentRoutePoint.attributes?.satellites || 0)">
+                      <i class="fas fa-satellite"></i>
                     </div>
                   </div>
-                  <!-- Direção -->
-                  <div class="detail-info-item">
-                    <div class="detail-icon"><i class="fas fa-compass"></i></div>
-                    <div class="detail-text">
-                      <span class="detail-value-main">{{ getCardinalDirection(currentRoutePoint.course) }} ({{
-                        currentRoutePoint.course || 0 }}°)</span>
+
+                  <!-- Informações Principais -->
+                  <div class="detail-info-grid">
+                    <!-- Velocidade -->
+                    <div class="detail-info-item">
+                      <div class="detail-icon"><i class="fas fa-tachometer-alt"></i></div>
+                      <div class="detail-text">
+                        <span class="detail-value-main">{{ Math.round((currentRoutePoint.speed || 0) * 1.852) }}
+                          km/h</span>
+                      </div>
                     </div>
-                  </div>
-                  <!-- Data/Hora -->
-                  <div class="detail-info-item">
-                    <div class="detail-icon"><i class="fas fa-clock"></i></div>
-                    <div class="detail-text">
-                      <span class="detail-value-main">{{ formatDateTime(currentRoutePoint.deviceTime) }}</span>
+                    <!-- Direção -->
+                    <div class="detail-info-item">
+                      <div class="detail-icon"><i class="fas fa-compass"></i></div>
+                      <div class="detail-text">
+                        <span class="detail-value-main">{{ getCardinalDirection(currentRoutePoint.course) }} ({{
+                          currentRoutePoint.course || 0 }}°)</span>
+                      </div>
                     </div>
-                  </div>
-                  <!-- Bateria -->
-                  <div class="detail-info-item" v-if="currentRoutePoint.attributes?.power">
-                    <div class="detail-icon"><i class="fas fa-car-battery"></i></div>
-                    <div class="detail-text">
-                      <span class="detail-value-main">{{ (currentRoutePoint.attributes?.power || 0).toFixed(1)
+                    <!-- Data/Hora -->
+                    <div class="detail-info-item">
+                      <div class="detail-icon"><i class="fas fa-clock"></i></div>
+                      <div class="detail-text">
+                        <span class="detail-value-main">{{ formatDateTime(currentRoutePoint.deviceTime) }}</span>
+                      </div>
+                    </div>
+                    <!-- Bateria -->
+                    <div class="detail-info-item" v-if="currentRoutePoint.attributes?.power">
+                      <div class="detail-icon"><i class="fas fa-car-battery"></i></div>
+                      <div class="detail-text">
+                        <span class="detail-value-main">{{ (currentRoutePoint.attributes?.power || 0).toFixed(1)
                         }}V</span>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <!-- Endereço -->
-                <div class="detail-address" v-if="currentRoutePoint.address">
-                  <div class="detail-icon"><i class="fas fa-map-marker-alt"></i></div>
-                  <div class="detail-address-text">{{ currentRoutePoint.address }}</div>
-                </div>
+                  <!-- Endereço -->
+                  <div class="detail-address" v-if="currentRoutePoint.address">
+                    <div class="detail-icon"><i class="fas fa-map-marker-alt"></i></div>
+                    <div class="detail-address-text">{{ currentRoutePoint.address }}</div>
+                  </div>
 
-                <!-- Coordenadas -->
-                <div class="detail-coords">
-                  <span class="coords-text">{{ currentRoutePoint.latitude?.toFixed(6) }}, {{
-                    currentRoutePoint.longitude?.toFixed(6) }}</span>
-                </div>
+                  <!-- Coordenadas -->
+                  <div class="detail-coords">
+                    <span class="coords-text">{{ currentRoutePoint.latitude?.toFixed(6) }}, {{
+                      currentRoutePoint.longitude?.toFixed(6) }}</span>
+                  </div>
 
-                <!-- Botões de Ação -->
-                <div class="detail-actions">
-                  <button class="detail-action-btn" @click="copyLocation(currentRoutePoint)"
-                    :title="'Copiar coordenadas'">
-                    <i class="fas fa-copy"></i>
-                  </button>
-                  <button class="detail-action-btn" @click="openInMaps(currentRoutePoint)"
-                    :title="'Abrir no Google Maps'">
-                    <i class="fas fa-external-link-alt"></i>
-                  </button>
-                  <button class="detail-action-btn" @click="openStreetView(currentRoutePoint)" :title="'Street View'">
-                    <i class="fas fa-street-view"></i>
-                  </button>
-                </div>
-              </div>
-              <div v-else class="route-no-point">
-                {{ KT('route.noPointSelected') || 'Nenhum ponto selecionado' }}
-              </div>
-            </div>
-          </div>
-        </l-control>
-
-        <!-- ============================================================== -->
-        <!-- PAINEL COMPACTO DE ROTA - Mini HUD durante playback            -->
-        <!-- ============================================================== -->
-        <l-control position="bottomleft" v-if="store.state.devices.showRoutes && currentRoutePoint">
-          <div class="route-mini-hud">
-            <!-- Linha 1: Ícones de Status Compactos -->
-            <div class="mini-hud-status-row">
-              <!-- Ignição -->
-              <div class="mini-status-icon"
-                :class="{ 'active': currentRoutePoint.attributes?.ignition === true, 'inactive': currentRoutePoint.attributes?.ignition === false }"
-                :title="(KT('device.ignition') || 'Ignição') + ': ' + (currentRoutePoint.attributes?.ignition ? 'Ligado' : 'Desligado')">
-                <i class="fas fa-key"></i>
-              </div>
-              <!-- Bloqueio -->
-              <div class="mini-status-icon"
-                :class="{ 'danger': currentRoutePoint.attributes?.blocked === true, 'active': currentRoutePoint.attributes?.blocked === false }"
-                :title="currentRoutePoint.attributes?.blocked ? (KT('device.blocked') || 'Bloqueado') : (KT('device.unblocked') || 'Desbloqueado')">
-                <i :class="currentRoutePoint.attributes?.blocked ? 'fas fa-lock' : 'fas fa-lock-open'"></i>
-              </div>
-              <!-- Movimento -->
-              <div class="mini-status-icon"
-                :class="{ 'active': currentRoutePoint.speed > 0, 'warning': currentRoutePoint.speed === 0 }"
-                :title="currentRoutePoint.speed > 0 ? (KT('device.moving') || 'Em movimento') : (KT('device.stopped') || 'Parado')">
-                <i :class="currentRoutePoint.speed > 0 ? 'fas fa-car' : 'fas fa-parking'"></i>
-              </div>
-              <!-- Bateria Veículo -->
-              <div class="mini-status-icon" v-if="currentRoutePoint.attributes?.power"
-                :class="{ 'active': currentRoutePoint.attributes?.power > 12, 'warning': currentRoutePoint.attributes?.power <= 12 && currentRoutePoint.attributes?.power > 10, 'danger': currentRoutePoint.attributes?.power <= 10 }"
-                :title="(KT('device.battery') || 'Bateria') + ': ' + (currentRoutePoint.attributes?.power || 0).toFixed(1) + 'V'">
-                <i class="fas fa-car-battery"></i>
-              </div>
-              <!-- Sinal -->
-              <div class="mini-status-icon" v-if="currentRoutePoint.attributes?.rssi"
-                :class="getSignalClass(currentRoutePoint.attributes?.rssi)"
-                :title="(KT('device.signal') || 'Sinal') + ': ' + (currentRoutePoint.attributes?.rssi || 0) + 'dBm'">
-                <i class="fas fa-signal"></i>
-              </div>
-            </div>
-
-            <!-- Linha 2: Info Principal (velocidade, direção, hora, endereço) -->
-            <div class="mini-hud-info-row">
-              <span class="mini-info-item">
-                <i class="fas fa-tachometer-alt"></i>
-                {{ Math.round((currentRoutePoint.speed || 0) * 1.852) }} km/h
-              </span>
-              <span class="mini-info-item">
-                <i class="fas fa-compass"></i>
-                {{ getCardinalDirection(currentRoutePoint.course) }}
-              </span>
-              <span class="mini-info-item">
-                <i class="fas fa-clock"></i>
-                {{ formatDateTime(currentRoutePoint.deviceTime) }}
-              </span>
-            </div>
-
-            <!-- Linha 2.5: Endereço -->
-            <div class="mini-hud-address" v-if="currentRoutePoint.address">
-              <i class="fas fa-map-marker-alt"></i>
-              <span>{{ currentRoutePoint.address }}</span>
-            </div>
-
-            <!-- Linha 3: Botões de Ação -->
-            <div class="mini-hud-actions">
-              <button class="mini-action-btn" @click="showRouteDetails()"
-                :title="KT('attribute.details') || 'Detalhes'">
-                <i class="fas fa-info-circle"></i>
-              </button>
-              <button class="mini-action-btn" @click="copyLocation(currentRoutePoint)"
-                :title="KT('map.copyCoords') || 'Copiar coordenadas'">
-                <i class="fas fa-copy"></i>
-              </button>
-              <button class="mini-action-btn" @click="openInMaps(currentRoutePoint)"
-                :title="KT('map.openMaps') || 'Abrir no Google Maps'">
-                <i class="fas fa-external-link-alt"></i>
-              </button>
-            </div>
-          </div>
-        </l-control>
-
-        <!-- ============================================================== -->
-        <!-- CONTROLES DE ZOOM (canto inferior esquerdo)                    -->
-        <!-- ============================================================== -->
-        <l-control position="bottomleft">
-          <div class="leaflet-control-zoom leaflet-bar leaflet-control">
-            <a class="leaflet-control-zoom-in" href="#" title="Zoom in" role="button" @click.prevent="zoomIn">+</a>
-            <a class="leaflet-control-zoom-out" href="#" title="Zoom out" role="button" @click.prevent="zoomOut">−</a>
-          </div>
-        </l-control>
-
-        <!-- ============================================================== -->
-        <!-- CAMADAS DO MAPA                                                -->
-        <!-- ============================================================== -->
-        <l-tile-layer v-for="(m, mk) in availableMaps" :key="'tsmap' + mk" :name="m.name" layer-type="base"
-          :visible="m.id === selectedMap" :subdomains="m.subdomains" :url="m.url"></l-tile-layer>
-
-        <!-- Camada de Geocercas -->
-        <l-layer-group layer-type="overlay" name="Geocercas">
-          <template v-if="showGeofences && !store.getters['geofences/isEditing']">
-            <kore-fence v-for="(f) in store.getters['geofences/fenceList']" :key="f.id" :geofence="f">
-            </kore-fence>
-          </template>
-          <template v-if="!store.getters['geofences/isEditing']">
-            <kore-fence v-for="(f) in store.getters['geofences/anchorList']" :key="f.id"
-              :color="MAP_CONSTANTS.ANCHOR_COLOR" :geofence="f">
-            </kore-fence>
-          </template>
-          <template v-if="store.getters['geofences/isEditing']">
-            <l-polyline :key="'polyline-' + store.getters['geofences/getLatLngs'].length + '-line'"
-              v-if="store.state.geofences.mapPointEditingType === 'LINESTRING' && store.state.geofences.mapPointEditingParams.length > 0"
-              :lat-lngs="store.getters['geofences/getLatLngs']" :color="MAP_CONSTANTS.GEOFENCE_EDIT_COLOR">
-            </l-polyline>
-
-            <l-polygon :key="'polygon-' + store.getters['geofences/getLatLngs'].length" :no-clip="true"
-              v-else-if="store.state.geofences.mapPointEditingType === 'POLYGON' && store.state.geofences.mapPointEditingParams.length > 0"
-              :lat-lngs="store.getters['geofences/getLatLngs']" :fill-opacity="MAP_CONSTANTS.FILL_OPACITY" :fill="true"
-              :fill-color="MAP_CONSTANTS.GEOFENCE_EDIT_COLOR" :color="MAP_CONSTANTS.GEOFENCE_EDIT_COLOR">
-            </l-polygon>
-
-            <l-circle :key="'circle-' + store.state.geofences.mapPointEditingParams.join('-')"
-              v-else-if="store.state.geofences.mapPointEditingType === 'CIRCLE' && store.state.geofences.mapPointEditingParams.length === 3"
-              :lat-lng="[store.state.geofences.mapPointEditingParams[0], store.state.geofences.mapPointEditingParams[1]]"
-              :radius="parseFloat(store.state.geofences.mapPointEditingParams[2])" :fill="true"
-              :fill-opacity="MAP_CONSTANTS.FILL_OPACITY" :fill-color="MAP_CONSTANTS.GEOFENCE_EDIT_COLOR"
-              :color="MAP_CONSTANTS.GEOFENCE_EDIT_COLOR">
-            </l-circle>
-          </template>
-
-          <!-- Círculo de precisão GPS -->
-          <template v-if="dPosition && store.getters['mapPref']('precision')">
-            <l-circle :interactive="false" :lat-lng="[dPosition.latitude, dPosition.longitude]"
-              :radius="parseFloat(dPosition.accuracy || 20)" :fill="true"
-              :fill-opacity="MAP_CONSTANTS.GPS_PRECISION_OPACITY" :fill-color="MAP_CONSTANTS.GPS_PRECISION_COLOR"
-              :color="MAP_CONSTANTS.GPS_PRECISION_COLOR">
-            </l-circle>
-          </template>
-        </l-layer-group>
-
-        <!-- Camada de Veículos -->
-        <l-layer-group layer-type="overlay" name="Carros" ref="carLayer" :attribution="'Carros'">
-          <l-polyline v-if="store.state.devices.trail !== false" :lat-lngs="store.getters['devices/getTrails']"
-            :color="MAP_CONSTANTS.ROUTE_COLOR">
-          </l-polyline>
-          <kore-canva-marker :map="map" :zoom="zoom" @click="markerClick" @mouseover="markerOver" @mouseout="markerOut"
-            @contextmenu="markerContext">
-          </kore-canva-marker>
-        </l-layer-group>
-
-        <!-- Camada de Rotas -->
-        <l-layer-group v-if="routePoints.length > 0 && store.state.devices.showRoutes" layer-type="overlay" name="Rota"
-          :attribution="'Rota'">
-          <l-polyline v-if="showRoutePoints" :lat-lngs="cptPoints" :color="MAP_CONSTANTS.ROUTE_COLOR"></l-polyline>
-
-          <kore-canva-point v-if="showRouteMarkers" :points="routePoints"
-            @click="openMarkInfo($event)"></kore-canva-point>
-
-          <template v-if="showRoutePoints">
-            <template v-for="(p, k) in routePoints" :key="'mkrs-'+k">
-              <kore-marker v-if="k === 0 || k === routePoints.length - 1"
-                :name="(k === 0) ? 'start' : (k === routePoints.length - 1) ? 'end' : 'point'" :position="p"
-                :type="(k === 0) ? 'start' : (k === routePoints.length - 1) ? 'end' : 'point'" @click="openMarkInfo($event)">
-              </kore-marker>
-            </template>
-          </template>
-        </l-layer-group>
-
-      </LMap>
-
-      <!-- ============================================================== -->
-      <!-- COMPONENTES EXTERNOS DO MAPA                                   -->
-      <!-- ============================================================== -->
-
-      <!-- Street View -->
-      <street-view-dark v-if="store.state.devices?.streetview" />
-
-      <!-- Command Modal -->
-      <CommandModalDark ref="commandModalRef" v-model="commandModalOpen" :device="selectedDevice" />
-
-      <!-- Slider Confirm Modal (para comandos críticos como bloquear/desbloquear) -->
-      <SliderConfirmModal v-model="showSliderConfirm" :title="sliderConfirmData.title"
-        :device-name="sliderConfirmData.deviceName" :message="sliderConfirmData.message"
-        :warning-text="sliderConfirmData.warningText" :slider-text="sliderConfirmData.sliderText"
-        :action-type="sliderConfirmData.actionType" :confirm-callback="sliderConfirmData.callback"
-        @confirm="onSliderConfirmed" @cancel="onSliderCancelled" />
-
-      <!-- Painel Flutuante do Motorista (durante follow) -->
-      <div v-if="showFloatingPanel && floatingPanelDevice" class="floating-follow-panel">
-        <div class="panel-header">
-          <h4>{{ floatingPanelDevice.name }}</h4>
-          <button @click="showFloatingPanel = false" class="close-panel-btn">
-            <i class="fas fa-times"></i>
-          </button>
-        </div>
-
-        <div class="panel-content">
-          <!-- Seção do Motorista -->
-          <div class="driver-section-enhanced">
-            <div class="driver-card-header">
-              <i class="fas fa-user-tie"></i>
-              <span class="section-title">Motorista Atual</span>
-            </div>
-
-            <div class="driver-card-content">
-              <div class="driver-photo-enhanced">
-                <img :src="getDriverPhotoUrl(floatingPanelDevice)" :alt="getDriverName(floatingPanelDevice)"
-                  @error="$event.target.src = '/tarkan/assets/images/drivers/default.png'" class="driver-avatar" />
-                <div class="photo-overlay" v-if="isDriverCNHExpired(floatingPanelDevice)">
-                  <i class="fas fa-exclamation-triangle"></i>
-                </div>
-              </div>
-
-              <div class="driver-details">
-                <div class="driver-main-info">
-                  <div class="driver-name-enhanced">
-                    <strong>{{ getDriverName(floatingPanelDevice) || 'Motorista não identificado' }}</strong>
+                  <!-- Botões de Ação -->
+                  <div class="detail-actions">
+                    <button class="detail-action-btn" @click="copyLocation(currentRoutePoint)"
+                      :title="'Copiar coordenadas'">
+                      <i class="fas fa-copy"></i>
+                    </button>
+                    <button class="detail-action-btn" @click="openInMaps(currentRoutePoint)"
+                      :title="'Abrir no Google Maps'">
+                      <i class="fas fa-external-link-alt"></i>
+                    </button>
+                    <button class="detail-action-btn" @click="openStreetView(currentRoutePoint)" :title="'Street View'">
+                      <i class="fas fa-street-view"></i>
+                    </button>
                   </div>
                 </div>
-
-                <div class="driver-credentials"
-                  v-if="getDriverCNH(floatingPanelDevice) || getDriverCPF(floatingPanelDevice)">
-                  <div class="credential-item" v-if="getDriverCNH(floatingPanelDevice)">
-                    <i class="fas fa-id-card"></i>
-                    <span class="label">CNH:</span>
-                    <span class="value">{{ getDriverCNH(floatingPanelDevice) }}</span>
-                  </div>
-                  <div class="credential-item" v-if="getDriverCPF(floatingPanelDevice)">
-                    <i class="fas fa-user"></i>
-                    <span class="label">CPF:</span>
-                    <span class="value">{{ formatCPF(getDriverCPF(floatingPanelDevice)) }}</span>
-                  </div>
-                </div>
-
-                <div class="driver-expiry-section" v-if="getDriverCNHExpiry(floatingPanelDevice)">
-                  <div class="expiry-item"
-                    :class="{ expired: isDriverCNHExpired(floatingPanelDevice), expiring: isDriverCNHExpiring(floatingPanelDevice) }">
-                    <i class="fas fa-calendar-alt"></i>
-                    <span class="label">Validade CNH:</span>
-                    <span class="expiry-date">{{ new
-                      Date(getDriverCNHExpiry(floatingPanelDevice)).toLocaleDateString('pt-BR')
-                      }}</span>
-                    <span class="expiry-warning" v-if="isDriverCNHExpired(floatingPanelDevice)">
-                      <i class="fas fa-exclamation-triangle"></i> VENCIDA
-                    </span>
-                    <span class="expiry-warning warning" v-else-if="isDriverCNHExpiring(floatingPanelDevice)">
-                      <i class="fas fa-clock"></i> VENCENDO
-                    </span>
-                  </div>
+                <div v-else class="route-no-point">
+                  {{ KT('route.noPointSelected') || 'Nenhum ponto selecionado' }}
                 </div>
               </div>
             </div>
-          </div>
+          </l-control>
 
-          <!-- Foto do Veículo -->
-          <div class="vehicle-image-section">
-            <div class="vehicle-photo-large">
-              <img :src="getDeviceImageUrl(floatingPanelDevice)" :alt="floatingPanelDevice.name"
-                @error="$event.target.src = '/tarkan/assets/images/categories/default.png'" />
-            </div>
-          </div>
+          <!-- ============================================================== -->
+          <!-- PAINEL COMPACTO DE ROTA - Mini HUD durante playback            -->
+          <!-- ============================================================== -->
+          <l-control position="bottomleft" v-if="store.state.devices.showRoutes && currentRoutePoint">
+            <div class="route-mini-hud">
+              <!-- Linha 1: Ícones de Status Compactos -->
+              <div class="mini-hud-status-row">
+                <!-- Ignição -->
+                <div class="mini-status-icon"
+                  :class="{ 'active': currentRoutePoint.attributes?.ignition === true, 'inactive': currentRoutePoint.attributes?.ignition === false }"
+                  :title="(KT('device.ignition') || 'Ignição') + ': ' + (currentRoutePoint.attributes?.ignition ? 'Ligado' : 'Desligado')">
+                  <i class="fas fa-key"></i>
+                </div>
+                <!-- Bloqueio -->
+                <div class="mini-status-icon"
+                  :class="{ 'danger': currentRoutePoint.attributes?.blocked === true, 'active': currentRoutePoint.attributes?.blocked === false }"
+                  :title="currentRoutePoint.attributes?.blocked ? (KT('device.blocked') || 'Bloqueado') : (KT('device.unblocked') || 'Desbloqueado')">
+                  <i :class="currentRoutePoint.attributes?.blocked ? 'fas fa-lock' : 'fas fa-lock-open'"></i>
+                </div>
+                <!-- Movimento -->
+                <div class="mini-status-icon"
+                  :class="{ 'active': currentRoutePoint.speed > 0, 'warning': currentRoutePoint.speed === 0 }"
+                  :title="currentRoutePoint.speed > 0 ? (KT('device.moving') || 'Em movimento') : (KT('device.stopped') || 'Parado')">
+                  <i :class="currentRoutePoint.speed > 0 ? 'fas fa-car' : 'fas fa-parking'"></i>
+                </div>
+                <!-- Bateria Veículo -->
+                <div class="mini-status-icon" v-if="currentRoutePoint.attributes?.power"
+                  :class="{ 'active': currentRoutePoint.attributes?.power > 12, 'warning': currentRoutePoint.attributes?.power <= 12 && currentRoutePoint.attributes?.power > 10, 'danger': currentRoutePoint.attributes?.power <= 10 }"
+                  :title="(KT('device.battery') || 'Bateria') + ': ' + (currentRoutePoint.attributes?.power || 0).toFixed(1) + 'V'">
+                  <i class="fas fa-car-battery"></i>
+                </div>
+                <!-- Sinal -->
+                <div class="mini-status-icon" v-if="currentRoutePoint.attributes?.rssi"
+                  :class="getSignalClass(currentRoutePoint.attributes?.rssi)"
+                  :title="(KT('device.signal') || 'Sinal') + ': ' + (currentRoutePoint.attributes?.rssi || 0) + 'dBm'">
+                  <i class="fas fa-signal"></i>
+                </div>
+              </div>
 
-          <!-- Informações do Veículo -->
-          <div class="vehicle-section">
-            <div class="vehicle-info">
-              <div class="info-row">
-                <i class="fas fa-car"></i>
-                <span class="value">{{ floatingPanelDevice.name }}</span>
-              </div>
-              <div class="info-row" v-if="getVehiclePlate(floatingPanelDevice)">
-                <i class="fas fa-rectangle-ad"></i>
-                <span class="value">{{ getVehiclePlate(floatingPanelDevice) }}</span>
-              </div>
-              <div class="info-row">
-                <i class="fas fa-signal"></i>
-                <span class="value status-badge" :class="getStatusClass(floatingPanelDevice)">
-                  {{ getStatusText(floatingPanelDevice) }}
+              <!-- Linha 2: Info Principal (velocidade, direção, hora, endereço) -->
+              <div class="mini-hud-info-row">
+                <span class="mini-info-item">
+                  <i class="fas fa-tachometer-alt"></i>
+                  {{ Math.round((currentRoutePoint.speed || 0) * 1.852) }} km/h
+                </span>
+                <span class="mini-info-item">
+                  <i class="fas fa-compass"></i>
+                  {{ getCardinalDirection(currentRoutePoint.course) }}
+                </span>
+                <span class="mini-info-item">
+                  <i class="fas fa-clock"></i>
+                  {{ formatDateTime(currentRoutePoint.deviceTime) }}
                 </span>
               </div>
+
+              <!-- Linha 2.5: Endereço -->
+              <div class="mini-hud-address" v-if="currentRoutePoint.address">
+                <i class="fas fa-map-marker-alt"></i>
+                <span>{{ currentRoutePoint.address }}</span>
+              </div>
+
+              <!-- Linha 3: Botões de Ação -->
+              <div class="mini-hud-actions">
+                <button class="mini-action-btn" @click="showRouteDetails()"
+                  :title="KT('attribute.details') || 'Detalhes'">
+                  <i class="fas fa-info-circle"></i>
+                </button>
+                <button class="mini-action-btn" @click="copyLocation(currentRoutePoint)"
+                  :title="KT('map.copyCoords') || 'Copiar coordenadas'">
+                  <i class="fas fa-copy"></i>
+                </button>
+                <button class="mini-action-btn" @click="openInMaps(currentRoutePoint)"
+                  :title="KT('map.openMaps') || 'Abrir no Google Maps'">
+                  <i class="fas fa-external-link-alt"></i>
+                </button>
+              </div>
+            </div>
+          </l-control>
+
+          <!-- ============================================================== -->
+          <!-- CONTROLES DE ZOOM (canto inferior esquerdo)                    -->
+          <!-- ============================================================== -->
+          <l-control position="bottomleft">
+            <div class="leaflet-control-zoom leaflet-bar leaflet-control">
+              <a class="leaflet-control-zoom-in" href="#" title="Zoom in" role="button" @click.prevent="zoomIn">+</a>
+              <a class="leaflet-control-zoom-out" href="#" title="Zoom out" role="button" @click.prevent="zoomOut">−</a>
+            </div>
+          </l-control>
+
+          <!-- ============================================================== -->
+          <!-- CAMADAS DO MAPA                                                -->
+          <!-- ============================================================== -->
+          <l-tile-layer v-for="(m, mk) in availableMaps" :key="'tsmap' + mk" :name="m.name" layer-type="base"
+            :visible="m.id === selectedMap" :subdomains="m.subdomains" :url="m.url"></l-tile-layer>
+
+          <!-- Camada de Geocercas -->
+          <l-layer-group layer-type="overlay" name="Geocercas">
+            <template v-if="showGeofences && !store.getters['geofences/isEditing']">
+              <kore-fence v-for="(f) in store.getters['geofences/fenceList']" :key="f.id" :geofence="f">
+              </kore-fence>
+            </template>
+            <template v-if="!store.getters['geofences/isEditing']">
+              <kore-fence v-for="(f) in store.getters['geofences/anchorList']" :key="f.id"
+                :color="MAP_CONSTANTS.ANCHOR_COLOR" :geofence="f">
+              </kore-fence>
+            </template>
+            <template v-if="store.getters['geofences/isEditing']">
+              <l-polyline :key="'polyline-' + store.getters['geofences/getLatLngs'].length + '-line'"
+                v-if="store.state.geofences.mapPointEditingType === 'LINESTRING' && store.state.geofences.mapPointEditingParams.length > 0"
+                :lat-lngs="store.getters['geofences/getLatLngs']" :color="MAP_CONSTANTS.GEOFENCE_EDIT_COLOR">
+              </l-polyline>
+
+              <l-polygon :key="'polygon-' + store.getters['geofences/getLatLngs'].length" :no-clip="true"
+                v-else-if="store.state.geofences.mapPointEditingType === 'POLYGON' && store.state.geofences.mapPointEditingParams.length > 0"
+                :lat-lngs="store.getters['geofences/getLatLngs']" :fill-opacity="MAP_CONSTANTS.FILL_OPACITY"
+                :fill="true" :fill-color="MAP_CONSTANTS.GEOFENCE_EDIT_COLOR" :color="MAP_CONSTANTS.GEOFENCE_EDIT_COLOR">
+              </l-polygon>
+
+              <l-circle :key="'circle-' + store.state.geofences.mapPointEditingParams.join('-')"
+                v-else-if="store.state.geofences.mapPointEditingType === 'CIRCLE' && store.state.geofences.mapPointEditingParams.length === 3"
+                :lat-lng="[store.state.geofences.mapPointEditingParams[0], store.state.geofences.mapPointEditingParams[1]]"
+                :radius="parseFloat(store.state.geofences.mapPointEditingParams[2])" :fill="true"
+                :fill-opacity="MAP_CONSTANTS.FILL_OPACITY" :fill-color="MAP_CONSTANTS.GEOFENCE_EDIT_COLOR"
+                :color="MAP_CONSTANTS.GEOFENCE_EDIT_COLOR">
+              </l-circle>
+            </template>
+
+            <!-- Círculo de precisão GPS -->
+            <template v-if="dPosition && store.getters['mapPref']('precision')">
+              <l-circle :interactive="false" :lat-lng="[dPosition.latitude, dPosition.longitude]"
+                :radius="parseFloat(dPosition.accuracy || 20)" :fill="true"
+                :fill-opacity="MAP_CONSTANTS.GPS_PRECISION_OPACITY" :fill-color="MAP_CONSTANTS.GPS_PRECISION_COLOR"
+                :color="MAP_CONSTANTS.GPS_PRECISION_COLOR">
+              </l-circle>
+            </template>
+          </l-layer-group>
+
+          <!-- Camada de Veículos -->
+          <l-layer-group layer-type="overlay" name="Carros" ref="carLayer" :attribution="'Carros'">
+            <l-polyline v-if="store.state.devices.trail !== false" :lat-lngs="store.getters['devices/getTrails']"
+              :color="routeColor">
+            </l-polyline>
+            <kore-canva-marker :map="map" :zoom="zoom" @click="markerClick" @mouseover="markerOver"
+              @mouseout="markerOut" @contextmenu="markerContext">
+            </kore-canva-marker>
+          </l-layer-group>
+
+          <!-- Camada de Rotas -->
+          <l-layer-group v-if="fullRoutePoints.length > 0 && store.state.devices.showRoutes" layer-type="overlay"
+            name="Rota" :attribution="'Rota'">
+
+            <!-- POLYLINE 1: Rota completa (SOMENTE visível quando NÃO está em play) -->
+            <l-polyline v-if="fullRoutePoints.length && !isPlayingRoute" :lat-lngs="cptPoints" :color="routeColor"
+              :weight="4" :opacity="0.55">
+            </l-polyline>
+
+            <!-- POLYLINE 2: Rota do play (progressiva, SOMENTE durante play) -->
+            <l-polyline v-if="playRoutePoints.length && isPlayingRoute" :lat-lngs="playRoutePoints" :color="routeColor"
+              :weight="5" :opacity="0.95">
+            </l-polyline>
+
+            <!-- MARKER DO DEVICE: Agora controlado imperativamente via updatePlayVehicleMarker -->
+            <!-- Removido l-marker declarativo para usar L.marker com setLatLng (performance) -->
+
+            <!-- Markers (toggle) -->
+            <kore-canva-point v-if="showRouteMarkers" :points="markerPoints" @click="openMarkInfo($event)">
+            </kore-canva-point>
+
+            <!-- Markers de início/fim (sempre visíveis se showRoutePoints) -->
+            <template v-if="showRoutePoints">
+              <template v-for="(p, k) in fullRoutePoints" :key="'mkrs-'+k">
+                <kore-marker v-if="k === 0 || k === fullRoutePoints.length - 1"
+                  :name="(k === 0) ? 'start' : (k === fullRoutePoints.length - 1) ? 'end' : 'point'" :position="p"
+                  :type="(k === 0) ? 'start' : (k === fullRoutePoints.length - 1) ? 'end' : 'point'"
+                  @click="openMarkInfo($event)">
+                </kore-marker>
+              </template>
+            </template>
+          </l-layer-group>
+
+        </LMap>
+
+        <!-- ============================================================== -->
+        <!-- COMPONENTES EXTERNOS DO MAPA                                   -->
+        <!-- ============================================================== -->
+
+        <!-- Street View -->
+        <street-view-dark v-if="store.state.devices?.streetview" />
+
+        <!-- Command Modal -->
+        <CommandModalDark ref="commandModalRef" v-model="commandModalOpen" :device="selectedDevice" />
+
+        <!-- Slider Confirm Modal (para comandos críticos como bloquear/desbloquear) -->
+        <SliderConfirmModal v-model="showSliderConfirm" :title="sliderConfirmData.title"
+          :device-name="sliderConfirmData.deviceName" :message="sliderConfirmData.message"
+          :warning-text="sliderConfirmData.warningText" :slider-text="sliderConfirmData.sliderText"
+          :action-type="sliderConfirmData.actionType" :confirm-callback="sliderConfirmData.callback"
+          @confirm="onSliderConfirmed" @cancel="onSliderCancelled" />
+
+        <!-- Painel Flutuante do Motorista (durante follow) -->
+        <div v-if="showFloatingPanel && floatingPanelDevice" class="floating-follow-panel">
+          <div class="panel-header">
+            <h4>{{ floatingPanelDevice.name }}</h4>
+            <button @click="showFloatingPanel = false" class="close-panel-btn">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+
+          <div class="panel-content">
+            <!-- Seção do Motorista -->
+            <div class="driver-section-enhanced">
+              <div class="driver-card-header">
+                <i class="fas fa-user-tie"></i>
+                <span class="section-title">Motorista Atual</span>
+              </div>
+
+              <div class="driver-card-content">
+                <div class="driver-photo-enhanced">
+                  <img :src="getDriverPhotoUrl(floatingPanelDevice)" :alt="getDriverName(floatingPanelDevice)"
+                    @error="$event.target.src = '/tarkan/assets/images/drivers/default.png'" class="driver-avatar" />
+                  <div class="photo-overlay" v-if="isDriverCNHExpired(floatingPanelDevice)">
+                    <i class="fas fa-exclamation-triangle"></i>
+                  </div>
+                </div>
+
+                <div class="driver-details">
+                  <div class="driver-main-info">
+                    <div class="driver-name-enhanced">
+                      <strong>{{ getDriverName(floatingPanelDevice) || 'Motorista não identificado' }}</strong>
+                    </div>
+                  </div>
+
+                  <div class="driver-credentials"
+                    v-if="getDriverCNH(floatingPanelDevice) || getDriverCPF(floatingPanelDevice)">
+                    <div class="credential-item" v-if="getDriverCNH(floatingPanelDevice)">
+                      <i class="fas fa-id-card"></i>
+                      <span class="label">CNH:</span>
+                      <span class="value">{{ getDriverCNH(floatingPanelDevice) }}</span>
+                    </div>
+                    <div class="credential-item" v-if="getDriverCPF(floatingPanelDevice)">
+                      <i class="fas fa-user"></i>
+                      <span class="label">CPF:</span>
+                      <span class="value">{{ formatCPF(getDriverCPF(floatingPanelDevice)) }}</span>
+                    </div>
+                  </div>
+
+                  <div class="driver-expiry-section" v-if="getDriverCNHExpiry(floatingPanelDevice)">
+                    <div class="expiry-item"
+                      :class="{ expired: isDriverCNHExpired(floatingPanelDevice), expiring: isDriverCNHExpiring(floatingPanelDevice) }">
+                      <i class="fas fa-calendar-alt"></i>
+                      <span class="label">Validade CNH:</span>
+                      <span class="expiry-date">{{ new
+                        Date(getDriverCNHExpiry(floatingPanelDevice)).toLocaleDateString('pt-BR')
+                        }}</span>
+                      <span class="expiry-warning" v-if="isDriverCNHExpired(floatingPanelDevice)">
+                        <i class="fas fa-exclamation-triangle"></i> VENCIDA
+                      </span>
+                      <span class="expiry-warning warning" v-else-if="isDriverCNHExpiring(floatingPanelDevice)">
+                        <i class="fas fa-clock"></i> VENCENDO
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Foto do Veículo -->
+            <div class="vehicle-image-section">
+              <div class="vehicle-photo-large">
+                <img :src="getDeviceImageUrl(floatingPanelDevice)" :alt="floatingPanelDevice.name"
+                  @error="$event.target.src = '/tarkan/assets/images/categories/default.png'" />
+              </div>
+            </div>
+
+            <!-- Informações do Veículo -->
+            <div class="vehicle-section">
+              <div class="vehicle-info">
+                <div class="info-row">
+                  <i class="fas fa-car"></i>
+                  <span class="value">{{ floatingPanelDevice.name }}</span>
+                </div>
+                <div class="info-row" v-if="getVehiclePlate(floatingPanelDevice)">
+                  <i class="fas fa-rectangle-ad"></i>
+                  <span class="value">{{ getVehiclePlate(floatingPanelDevice) }}</span>
+                </div>
+                <div class="info-row">
+                  <i class="fas fa-signal"></i>
+                  <span class="value status-badge" :class="getStatusClass(floatingPanelDevice)">
+                    {{ getStatusText(floatingPanelDevice) }}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Botões de Ação -->
+            <div class="panel-actions">
+              <el-button size="small" type="primary" @click="openCommandModal(floatingPanelDevice)">
+                <i class="fas fa-terminal"></i> Comando
+              </el-button>
+              <el-button size="small" type="info" @click="viewDriverDetails(floatingPanelDevice)"
+                v-if="getDriverId(floatingPanelDevice)">
+                <i class="fas fa-user"></i> Motorista
+              </el-button>
+              <el-button size="small" type="success" @click="openStreetView(floatingPanelDevice)"
+                v-if="store.state.server.serverInfo?.attributes?.google_api">
+                <i class="fas fa-street-view"></i> Street View
+              </el-button>
             </div>
           </div>
-
-          <!-- Botões de Ação -->
-          <div class="panel-actions">
-            <el-button size="small" type="primary" @click="openCommandModal(floatingPanelDevice)">
-              <i class="fas fa-terminal"></i> Comando
-            </el-button>
-            <el-button size="small" type="info" @click="viewDriverDetails(floatingPanelDevice)"
-              v-if="getDriverId(floatingPanelDevice)">
-              <i class="fas fa-user"></i> Motorista
-            </el-button>
-            <el-button size="small" type="success" @click="openStreetView(floatingPanelDevice)"
-              v-if="store.state.server.serverInfo?.attributes?.google_api">
-              <i class="fas fa-street-view"></i> Street View
-            </el-button>
-          </div>
         </div>
-      </div>
 
+      </div>
     </div>
-  </div>
   </div>
 </template>
 
 <script setup>
+import { devLog, devWarn } from '@/utils/devLog';
+import { startMark, endMark } from '@/utils/devPerf';
+import {
+  formatCPF,
+  normalizeCourse,
+  getCardinalDirection,
+  formatDateTime,
+  getSignalClass
+} from '../map/mapUtils';
+import { useRoutePlayback, TIMELINE_WIDTH } from '../map/useRoutePlayback.js';
+import { useFollowDevice } from '../composables/useFollowDevice.js';
+import { useMapInteraction } from '../composables/useMapInteraction.js';
+// HARDENING: Guards centralizados para validação robusta (imports parciais temporários)
+import {
+  extractLatLng,
+  clampIndex,
+  safeMapOperation
+} from '../map/mapGuards';
+
 import 'element-plus/es/components/input/style/css'
 import 'element-plus/es/components/button/style/css'
 import 'element-plus/es/components/switch/style/css'
@@ -730,7 +775,7 @@ import 'element-plus/es/components/dropdown-menu/style/css'
 import { ElMessage, ElMessageBox, ElTooltip, ElRadio, ElDropdown, ElDropdownMenu, ElDropdownItem, ElNotification, ElSwitch, ElButton, ElInput } from "element-plus";
 
 import { LMap, LTileLayer, LControl, LLayerGroup, LPolyline, LCircle, LPolygon } from "@vue-leaflet/vue-leaflet";
-import ResizeObserver from 'resize-observer-polyfill';
+// REMOVIDO: import ResizeObserver (agora no composable useMapInteraction)
 import KoreMarker from "./kore-marker";
 import KoreFence from "./kore-fence";
 import KoreCanvaMarker from "../test/CanvaMarker";
@@ -740,6 +785,7 @@ import { useStore } from 'vuex';
 import router from "../../routes";
 import KT from "../func/kt";
 import actAnchor from "../func/actAnchor";
+import { useMarkers } from '../composables/useMarkers';
 import L from 'leaflet';
 import 'leaflet.heat';
 // import axios from 'axios';
@@ -785,6 +831,81 @@ const MAP_CONSTANTS = {
 
 const store = useStore();
 const app = getCurrentInstance().appContext.app;
+
+// ============================================================================
+// FOLLOW DEVICE COMPOSABLE
+// ============================================================================
+const followDevice = useFollowDevice({
+  getDevice: (id) => store.getters['devices/getDevice'](id),
+  getPosition: (id) => store.getters['devices/getPosition'](id),
+  getFollowingId: () => store.state.devices.isFollowingId,
+  showTooltip: (html, position) => {
+    if (window.$showTip) {
+      window.$showTip(position, html, true);
+    }
+  },
+  hideTooltip: () => {
+    if (window.$hideTip) {
+      window.$hideTip();
+    }
+  },
+  getMarkerPosition: (deviceId) => {
+    // Buscar posição do marker no DOM (via data-device-id)
+    const markerEl = document.querySelector(`[data-device-id="${deviceId}"]`);
+    if (!markerEl) return null;
+    const rect = markerEl.getBoundingClientRect();
+    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+  },
+  updateInterval: 1000,
+  cacheTTL: 30000,
+  cacheMaxSize: 500
+});
+
+// Aliases para compatibilidade
+// eslint-disable-next-line no-unused-vars
+const tooltipManuallyHidden = followDevice.tooltipManuallyHidden;
+const showFloatingPanel = followDevice.showFloatingPanel;
+const floatingPanelDevice = followDevice.floatingPanelDevice;
+
+// ============================================================================
+// MAP INTERACTION COMPOSABLE
+// ============================================================================
+const mapInteraction = useMapInteraction({
+  getMapObject: () => map.value,
+  getMapContainer: () => mapContainer.value,
+  onMapClick: (e) => {
+    // Lógica de negócio: edição de geofences
+    if (e.latlng && store.state.geofences.mapEditing !== 0) {
+      if (store.state.geofences.mapPointEditingType === 'CIRCLE') {
+        if (store.state.geofences.mapPointEditing !== 2) {
+          store.dispatch("geofences/setupCircle", [e.latlng.lat, e.latlng.lng, 10])
+        } else {
+          store.dispatch("geofences/completeCircle")
+        }
+      } else if (store.state.geofences.mapPointEditingType === 'LINESTRING') {
+        store.dispatch("geofences/setupLine", [e.latlng.lat, e.latlng.lng])
+      } else if (store.state.geofences.mapPointEditingType === 'POLYGON') {
+        store.dispatch("geofences/setupPolygon", [e.latlng.lat, e.latlng.lng])
+      }
+    }
+  },
+  onMapMove: (e) => {
+    // Lógica de negócio: resize de círculo durante edição
+    if (e.latlng &&
+      store.state.geofences.mapPointEditing === 2 &&
+      store.state.geofences.mapPointEditingType === 'CIRCLE' &&
+      store.state.geofences.mapPointEditingParams.length === 3) {
+      store.dispatch(
+        "geofences/setCircleRadius",
+        L.latLng(store.getters["geofences/getCirclePosition"]).distanceTo(e.latlng)
+      );
+    }
+  },
+  onMapInvalidate: () => {
+    // Custom handler se necessário
+    mapInteraction.invalidateSize();
+  }
+});
 
 // PATCH: Computed para filtrar dispositivos baseado no filtro do store
 const deviceFilterId = computed(() => {
@@ -876,12 +997,12 @@ const openSliderConfirm = (options) => {
 };
 
 const onSliderConfirmed = () => {
-  console.log('Slider confirmed');
+  devLog('[SliderConfirm] Slider confirmed');
   showSliderConfirm.value = false;
 };
 
 const onSliderCancelled = () => {
-  console.log('Slider cancelled');
+  devLog('[SliderConfirm] Slider cancelled');
   showSliderConfirm.value = false;
 };
 
@@ -912,9 +1033,8 @@ const openStreetView = (device) => {
 };// Expor função para outros componentes usarem
 window.$openSliderConfirm = openSliderConfirm;
 
-// Painel flutuante do motorista (durante follow)
-const showFloatingPanel = ref(false);
-const floatingPanelDevice = ref(null);
+// REMOVIDO: showFloatingPanel, floatingPanelDevice (agora no composable useFollowDevice)
+// Aliases criados na linha ~863 para compatibilidade
 
 // Cache de URLs de imagens
 const imageUrlCache = ref(new Map());
@@ -1016,12 +1136,7 @@ const isDriverCNHExpiring = (device) => {
   return expiryDate > new Date() && expiryDate < thirtyDaysFromNow;
 };
 
-const formatCPF = (cpf) => {
-  if (!cpf) return '';
-  const cleaned = cpf.replace(/\D/g, '');
-  if (cleaned.length !== 11) return cpf;
-  return `${cleaned.slice(0, 3)}.${cleaned.slice(3, 6)}.${cleaned.slice(6, 9)}-${cleaned.slice(9)}`;
-};
+// formatCPF movido para mapUtils.ts (FASE B1)
 
 const getDeviceImageUrl = (device) => {
   if (!device) return '/tarkan/assets/images/categories/default.png';
@@ -1068,7 +1183,7 @@ const getStatusClass = (device) => {
 // ============================================================================
 
 const openMarkInfo = (e) => {
-  console.log('openMarkInfo', e);
+  devLog('[kore-map] openMarkInfo', e);
 }
 
 // ============================================================================
@@ -1109,47 +1224,13 @@ const updateVisibleLabels = throttle((prefs) => {
   });
 }, 150);
 
+// ⚡ OPT-6: Shallow watch suficiente (detecta mudança de referência)
 watch(mapLabelPrefs, (newPrefs) => {
   updateVisibleLabels(newPrefs);
 }, { deep: true })
 
-watch(() => store.state.devices.toggleCalor, (newVal) => {
-  showMapadeCalor.value = newVal;
-  if (newVal) {
-    showCalorLayer();
-  } else {
-    hideCalorLayer();
-  }
-});
-
-watch(() => store.state.devices.togglePontos, (newVal) => {
-  showPontos.value = newVal;
-  if (newVal) {
-    showPontosLayer();
-  } else {
-    hidePontosLayer();
-  }
-});
-
-
-watch(() => store.state.devices.togglePontosCorrelacao, (newVal) => {
-  showPontosCorrelacao.value = newVal;
-  if (newVal) {
-    showPontosCorrelacaoLayer();
-  } else {
-    hidePontosCorrelacaoLayer();
-  }
-});
-
-
-watch(() => store.state.devices.showCalorCorrelacao, (newVal) => {
-  showMapadeCalorCorrelacao.value = newVal;
-  if (newVal) {
-    showMapadeCalorCorrelacaoLayer();
-  } else {
-    hideCalorCorrelacaoLayer();
-  }
-});
+// REMOVIDO: Watchers toggleCalor, togglePontos, togglePontosCorrelacao, showCalorCorrelacao
+// Esses controlavam iframes legados que foram removidos (COMMIT 1)
 
 // ============================================================================
 // GUARD RAIL: Event listeners de teclado para Ctrl+Click
@@ -1192,17 +1273,15 @@ const softResetMap = () => {
   store.commit("devices/clearRoute");
   routePoints.value = [];
   showRoutePoints.value = false;
-  
+
   // Limpar layers do mapa
   if (carLayer.value?.leafletObject) {
     carLayer.value.leafletObject.clearLayers();
   }
-  
-  // Forçar recalcular tamanho
-  if (map.value?.leafletObject) {
-    map.value.leafletObject.invalidateSize();
-  }
-  
+
+  // Forçar recalcular tamanho (via composable)
+  mapInteraction.invalidateSize();
+
   // Reconstruir markers (se store tem ação)
   if (store.dispatch) {
     store.dispatch('devices/rebuildMarkers').catch(() => {
@@ -1259,120 +1338,424 @@ const updateMapBounds = throttle(() => {
 
 const routePoints = ref([]);
 
-// ULTRA ENTERPRISE 3: Simplify algorithm inline (Douglas-Peucker)
-// Evita dependência externa, leve e eficiente
-const simplifyRoute = (points, tolerance) => {
-  if (points.length <= 2) return points;
+// REMOVIDO simplifyRoute e routeForPolyline - não são mais usados
+// cptPoints agora usa fullRoutePoints diretamente (já normalizado)
 
-  const getSqSegDist = (p, p1, p2) => {
-    let x = p1.longitude;
-    let y = p1.latitude;
-    let dx = p2.longitude - x;
-    let dy = p2.latitude - y;
+devLog('[kore-map.vue] 🔵 Criando ROUTE LAYERS refs...');
 
-    if (dx !== 0 || dy !== 0) {
-      const t = ((p.longitude - x) * dx + (p.latitude - y) * dy) / (dx * dx + dy * dy);
-      if (t > 1) {
-        x = p2.longitude;
-        y = p2.latitude;
-      } else if (t > 0) {
-        x += dx * t;
-        y += dy * t;
-      }
-    }
+// ============================================================================
+// ROUTE LAYERS - Camadas separadas para evitar sobreposição
+// ============================================================================
+const fullRoutePoints = ref([]);     // Rota completa SEMPRE visível
+const playRoutePoints = ref([]);     // Rota progressiva do play (por cima)
+const markerPoints = ref([]);        // Markers (toggle)
+const showRouteMarkers = ref(false); // Toggle "Mostrar Marcadores"
+const showHeat = ref(false);         // Toggle "Mapa de Calor"
+// FASE D1: REMOVIDO lastShowMarkersBeforeHeat (LayerManager stub)
+// FASE D1: heatLayer agora gerenciado internamente pelo layerManager
 
-    dx = p.longitude - x;
-    dy = p.latitude - y;
-    return dx * dx + dy * dy;
-  };
+// ============================================================================
+// PLAY VEHICLE MARKER - Marcador imperativo para performance (setLatLng)
+// ============================================================================
+// eslint-disable-next-line no-unused-vars
+const playVehicleMarker = ref(null);  // LEGADO: mantido por compatibilidade (ref será populado)
+const followPlay = ref(true);         // Follow mode: mapa acompanha o veículo durante play
+let playTickCounter = 0;              // Contador de ticks para otimizar panTo (a cada N ticks)
 
-  const simplifyDouglasPeucker = (points, sqTolerance) => {
-    const len = points.length;
-    const markers = new Uint8Array(len);
-    let first = 0;
-    let last = len - 1;
-    const stack = [];
-    const newPoints = [];
+// FASE D1: COURSE_CHANGE_THRESHOLD (3°) movido para MapLayerManager (interno)
+const FOLLOW_PAN_INTERVAL = 5;     // a cada N ticks faz panTo (evita animação contínua)
 
-    markers[first] = markers[last] = 1;
+// FASE 13.4.1: Follow play inteligente (anti-jitter)
+const SAFE_VIEWPORT_PADDING = 0.20;  // 20% de padding - marker pode sair dessa área antes de pan
+let lastPanTime = 0;                  // Timestamp do último pan (throttle)
+const PAN_THROTTLE_MS = 200;          // Mínimo de 200ms entre pans
 
-    while (last) {
-      let maxSqDist = 0;
-      let index = 0;
+// FASE 13.4.2: User override - suspender follow quando usuário interage
+let followPlaySuspendedUntil = 0;    // Timestamp até quando suspender follow
+const USER_OVERRIDE_DURATION = 5000;  // 5 segundos de suspensão ao interagir
 
-      for (let i = first + 1; i < last; i++) {
-        const sqDist = getSqSegDist(points[i], points[first], points[last]);
-        if (sqDist > maxSqDist) {
-          index = i;
-          maxSqDist = sqDist;
-        }
-      }
+// FASE 13.4.3: Preview marker efêmero para feedback visual
+// eslint-disable-next-line no-unused-vars
+let previewMarker = null;              // CircleMarker temporário ao clicar em ponto
 
-      if (maxSqDist > sqTolerance) {
-        markers[index] = 1;
-        stack.push(first, index, index, last);
-      }
+// ============================================================================
+// COR DA ROTA CONFIGURÁVEL - COMMIT 3
+// ============================================================================
+const ROUTE_COLOR_OPTIONS = [
+  { value: '#05a7e3', label: 'Azul Padrão' },
+  { value: '#FF5733', label: 'Laranja' },
+  { value: '#28a745', label: 'Verde' },
+  { value: '#dc3545', label: 'Vermelho' },
+  { value: '#6f42c1', label: 'Roxo' },
+  { value: '#fd7e14', label: 'Amarelo' },
+  { value: '#20c997', label: 'Turquesa' },
+  { value: '#e83e8c', label: 'Rosa' },
+];
 
-      last = stack.pop();
-      first = stack.pop();
-    }
+// Lê cor salva do localStorage, ou usa padrão
+const savedRouteColor = localStorage.getItem('kore-route-color') || '#05a7e3';
+const routeColor = ref(savedRouteColor);
 
-    for (let i = 0; i < len; i++) {
-      if (markers[i]) newPoints.push(points[i]);
-    }
-
-    return newPoints;
-  };
-
-  return simplifyDouglasPeucker(points, tolerance * tolerance);
+// Função para mudar cor da rota
+const setRouteColor = (color) => {
+  routeColor.value = color;
+  localStorage.setItem('kore-route-color', color);
+  devLog('[kore-map] 🎨 Cor da rota alterada para:', color);
 };
 
-// ULTRA ENTERPRISE 3: Rota simplificada para polyline (visual)
-const routeForPolyline = computed(() => {
-  const pts = routePoints.value || [];
-  if (pts.length <= 300) return pts; // Rotas pequenas não precisam simplificar
+devLog('[kore-map.vue] ✅ ROUTE LAYERS refs criados');
 
-  // Simplificar para ~200-300 pontos visuais (tolerance ajustável)
-  return simplifyRoute(pts, 0.00008);
-});
-
-const showRoutePoints = ref(true);
-const showRouteMarkers = ref(false);
-const showMapadeCalor = ref(false);
-const showPercurso = ref(false);
-const showPontos = ref(false);
-const showPontosCorrelacao = ref(false);
-const showMapadeCalorCorrelacao = ref(false);
-
-// Referência para a camada de mapa de calor
-const heatmapLayer = ref(null);
+// Ref legado mantido apenas para compatibilidade com componentes externos
+const showRoutePoints = ref(true);   // Mantido para não quebrar código existente
+// REMOVIDO: showMapadeCalor, showPercurso, showPontos, showPontosCorrelacao, showMapadeCalorCorrelacao
+// Esses controlavam iframes legados removidos no COMMIT 1
 
 // ============================================================================
-// PLAYBACK STATE - Controle de reprodução de rotas
+// PLAYBACK STATE - Controle de reprodução de rotas (usando useRoutePlayback)
+// FASE C1: Totalmente migrado para composable puro (FASE C1 COMPLETA)
 // ============================================================================
-const routePlayState = ref(false); // true = reproduzindo, false = pausado
-const routePlayPos = ref(0); // Posição atual na timeline (pixels)
-const routePlayIndex = ref(0); // Índice do ponto atual na rota
+
+// Refs locais para compatibilidade com template e código existente
+const isPlayingRoute = ref(false); // COMMIT 1: Controla visibilidade da rota durante play
 const currentRoutePoint = ref(null); // Ponto atual da rota para exibir detalhes
-const playbackSpeed = ref(1); // Velocidade de reprodução (1x, 2x, 4x, 8x)
-const playbackInterval = ref(null); // Intervalo de reprodução
 const isDragging = ref(false); // Se está arrastando a timeline
 const showDetailsPanel = ref(false); // Se mostra o painel de detalhes
-const PLAYBACK_SPEEDS = [1, 2, 4, 8, 16]; // Velocidades disponíveis
-const TIMELINE_WIDTH = 350; // Largura da timeline em pixels
+
+/**
+ * Callback executado a cada tick do playback
+ * Atualiza marker, rota progressiva e follow pan
+ */
+const handlePlaybackTick = (index) => {
+  startMark('playbackTick');
+  
+  if (routePoints.value.length === 0) {
+    endMark('playbackTick');
+    return;
+  }
+
+  // Atualizar ponto atual
+  currentRoutePoint.value = routePoints.value[index];
+
+  // Atualiza o ponto na store para sincronizar com a lista do histórico
+  store.commit("devices/setRoutePlayPoint", index);
+
+  // Adiciona ponto à camada de play progressiva (NOVO)
+  if (currentRoutePoint.value) {
+    const lat = currentRoutePoint.value[0] || currentRoutePoint.value.latitude;
+    const lng = currentRoutePoint.value[1] || currentRoutePoint.value.longitude;
+    const course = currentRoutePoint.value[3] || currentRoutePoint.value.course || 0;
+
+    // FASE 13.4.4: Validação defensiva de coordenadas
+    if (lat != null && lng != null && !isNaN(lat) && !isNaN(lng)) {
+      // 🔧 DEBUG: Log do tick (DEV only)
+      if (process.env.NODE_ENV === 'development') {
+        devLog('[PLAY] tick idx:', index, 'lat:', lat, 'lng:', lng, 'course:', course);
+      }
+      pushPlayPoint([lat, lng]);
+      // 🚗 Atualiza marcador do veículo (imperativo, usa setLatLng)
+      updatePlayVehicleMarker(lat, lng, course);
+
+      // 📍 FASE 13.4.1: Follow Mode com smartPan (anti-jitter + throttle)
+      playTickCounter++;
+      if (followPlay.value && playTickCounter % FOLLOW_PAN_INTERVAL === 0) {
+        smartPan(lat, lng);
+      }
+    }
+  }
+
+  // Move o marcador do veículo no mapa (ícone do device no CanvaMarker)
+  if (currentRoutePoint.value) {
+    const point = currentRoutePoint.value;
+    const lat = point[0] || point.latitude;
+    const lng = point[1] || point.longitude;
+    const course = point[3] || point.course || 0;
+
+    // FASE 13.4.4: Validação defensiva
+    if (lat != null && lng != null && !isNaN(lat) && !isNaN(lng)) {
+      // ⚡ OPT-3: Cache de device (só busca se ID mudou)
+      const deviceId = parseInt(store.state.devices.applyFilters.showOnlyId);
+      if (deviceId !== _cachedDeviceId) {
+        _cachedDevice = store.getters['devices/getDevice'](deviceId);
+        _cachedDeviceId = deviceId;
+      }
+
+      if (_cachedDevice && _cachedDevice.icon) {
+        // Suporta tanto array (CanvaMarker) quanto objeto único
+        const marker = Array.isArray(_cachedDevice.icon) ? _cachedDevice.icon[0] : _cachedDevice.icon;
+
+        if (marker && typeof marker.moveTo === 'function') {
+          // Move o marcador com animação suave
+          const animationDuration = 200 / playback.speed.value;
+          marker.moveTo(L.latLng(lat, lng), animationDuration);
+
+          // FASE 13.4.4: Só atualiza rotação se marker.options.img existir
+          if (marker.options && marker.options.img) {
+            marker.options.img.rotate = normalizeCourse(course);
+          }
+        }
+      }
+    }
+  }
+  endMark('playbackTick');
+};
+
+/**
+ * Callback executado quando estado do playback muda
+ * Sincroniza refs locais com estado do composable
+ */
+const handleStateChange = (state) => {
+  // Sincronizar estado de playing com visibilidade da rota
+  if (state.isPlaying && !isPlayingRoute.value) {
+    isPlayingRoute.value = true;
+    resetPlay(); // Limpa rota progressiva ao iniciar
+  }
+  
+  if (!state.isPlaying && !state.isPaused && isPlayingRoute.value) {
+    // Stop: restaura rota completa
+    isPlayingRoute.value = false;
+  }
+};
+
+/**
+ * Callback executado quando playback completa
+ */
+const handlePlaybackComplete = () => {
+  devLog('[PLAY] Playback completado');
+};
+
+// Inicializar playback composable (será configurado após carregar rota)
+let playback = null;
+
+/**
+ * Inicializa o playback com os callbacks
+ * Chamado ao carregar rota
+ */
+// eslint-disable-next-line no-unused-vars
+const initializePlayback = (totalPoints) => {
+  playback = useRoutePlayback({
+    totalPoints,
+    initialSpeed: 1,
+    callbacks: {
+      onTick: handlePlaybackTick,
+      onStateChange: handleStateChange,
+      onComplete: handlePlaybackComplete
+    }
+  });
+  
+  devLog('[PLAYBACK] Inicializado com', totalPoints, 'pontos');
+};
+
+// Getters para acessar estado do playback (compatibilidade)
+const routePlayState = computed(() => playback?.isPlaying.value || false);
+// eslint-disable-next-line no-unused-vars
+const routePlayIndex = computed(() => playback?.currentIndex.value || 0);
+const routePlayPos = computed(() => playback?.timelinePosition.value || 0);
+const playbackSpeed = computed(() => playback?.speed.value || 1);
+
+// ============================================================================
+// PLAYBACK DEVICE MARKER - Marker animado seguindo o play
+// ============================================================================
+// ⚡ OPT-1: Cache para evitar recriação de objeto
+let _cachedMarkerPos = null;
+let _cachedPointsLength = 0;
+
+// eslint-disable-next-line no-unused-vars
+const playDeviceMarkerPos = computed(() => {
+  if (!isPlayingRoute.value || !playRoutePoints.value?.length) return null;
+  
+  // Cache hit: mesmo array, retornar objeto cacheado
+  if (_cachedPointsLength === playRoutePoints.value.length && _cachedMarkerPos) {
+    return _cachedMarkerPos;
+  }
+  
+  const p = playRoutePoints.value[playRoutePoints.value.length - 1];
+  if (!p) return null;
+  // Suporta [lat, lng] ou {latitude, longitude}
+  const lat = p[0] ?? p.latitude ?? p.lat;
+  const lng = p[1] ?? p.longitude ?? p.lng;
+  if (lat == null || lng == null) return null;
+  
+  // Cache miss: criar e cachear
+  _cachedMarkerPos = { lat, lng };
+  _cachedPointsLength = playRoutePoints.value.length;
+  return _cachedMarkerPos;
+});
+
+// NOTA: playDeviceMarkerCourse removido - agora usa getPlayVehicleIcon() diretamente
+
+// 🔧 DEBUG: Log quando playRoutePoints muda (DEV only)
+// ⚡ OPT-5: Debounce para evitar spam no console
+let _playPointsLogTimer = null;
+
+watch(() => playRoutePoints.value.length, (len) => {
+  if (process.env.NODE_ENV !== 'development' || len === 0) return;
+  
+  // Debounce: só log após 500ms de inatividade
+  if (_playPointsLogTimer) clearTimeout(_playPointsLogTimer);
+  _playPointsLogTimer = setTimeout(() => {
+    const last = playRoutePoints.value[len - 1];
+    devLog('[PLAY] points len:', len, 'last:', last);
+  }, 500);
+});
+
+// FASE D1: REMOVIDO - playDeviceIconUrl não mais usado (LayerManager stub)
+// TODO(E3): Remover código relacionado ao layerManager
+
+// FASE E1.1: setupUserInteractionListeners REMOVIDO
+// Agora gerenciado via mapInteraction.onMapEvents() no mapReady
+
+// normalizeCourse movido para mapUtils.ts (FASE B1)
+
+/**
+ * FASE 13.4.1: Verifica se um ponto está dentro da "safe box" do viewport
+ * Safe box = viewport com padding de 20% em cada borda
+ * @param {number} lat - Latitude do ponto
+ * @param {number} lng - Longitude do ponto
+ * @returns {boolean} true se está na safe box (não precisa pan)
+ */
+const isInSafeViewport = (lat, lng) => {
+  const leafletMap = map.value?.leafletObject;
+  if (!leafletMap || lat == null || lng == null) return true; // fallback: não pan
+
+  const bounds = leafletMap.getBounds();
+  const latRange = bounds.getNorth() - bounds.getSouth();
+  const lngRange = bounds.getEast() - bounds.getWest();
+
+  // Aplicar padding de 20%
+  const latPadding = latRange * SAFE_VIEWPORT_PADDING;
+  const lngPadding = lngRange * SAFE_VIEWPORT_PADDING;
+
+  const safeBounds = L.latLngBounds(
+    [bounds.getSouth() + latPadding, bounds.getWest() + lngPadding],
+    [bounds.getNorth() - latPadding, bounds.getEast() - lngPadding]
+  );
+
+  return safeBounds.contains([lat, lng]);
+};
+
+/**
+ * FASE 13.4.1: Pan inteligente com throttle e safe viewport
+ * Só faz pan se necessário (marker saiu da safe box) e respeitando throttle
+ * @param {number} lat - Latitude alvo
+ * @param {number} lng - Longitude alvo
+ */
+const smartPan = (lat, lng) => {
+  const now = Date.now();
+  
+  // ⚡ OPT-4: Validações baratas primeiro (ordem otimizada)
+  if (now < followPlaySuspendedUntil) {
+    return; // Follow suspenso - não fazer pan
+  }
+  
+  // Throttle ANTES de bounds check (barato)
+  if (now - lastPanTime < PAN_THROTTLE_MS) {
+    return; // Muito cedo para novo pan
+  }
+  
+  // Verificar se está na safe box (cálculo pesado só se passou throttle)
+  if (isInSafeViewport(lat, lng)) {
+    return; // Não precisa pan - ainda está visível
+  }
+
+  // Fazer pan
+  map.value?.leafletObject?.panTo([lat, lng], { animate: true, duration: 0.25 });
+  lastPanTime = now;
+};
+
+/**
+ * Cria ícone Leaflet DivIcon para o marcador de play
+ * @param {number} course - Ângulo de rotação (já normalizado)
+ * @returns {L.DivIcon}
+ */
+// FASE D1: getPlayVehicleIcon() removido - agora privado no MapLayerManager._createVehicleIcon()
+
+/**
+ * [FASE D1] Atualiza ou cria o marcador do veículo durante o play
+ * ⚠️ LEGADO: Função mantida por compatibilidade, DELEGA para layerManager
+ * @param {number} lat - Latitude
+ * @param {number} lng - Longitude  
+ * @param {number} course - Ângulo de rotação (0-360)
+ */
+const updatePlayVehicleMarker = () => {
+  startMark('updatePlayVehicleMarker');
+  
+  // FASE D1: STUB - Layer Manager não implementado (remoção futura)
+  // TODO(E3): Remover stubs do layerManager
+  
+  endMark('updatePlayVehicleMarker');
+};
+
+/**
+ * [FASE D1] Remove o marcador do veículo do play
+ * ⚠️ LEGADO: Função mantida por compatibilidade, DELEGA para layerManager
+ */
+const clearPlayVehicleMarker = () => {
+  // FASE D1: STUB - Layer Manager não implementado (remoção futura)
+  // TODO(E3): Remover stubs do layerManager
+  
+  // Resetar contador de ticks
+  playTickCounter = 0;
+  devLog('[PLAY] 🚨 Vehicle marker removido (stub)');
+};
+
+/**
+ * Preview/Seek de ponto na timeline (FASE 4 + FASE 13.4.3)
+ * - Se estiver tocando (isPlayingRoute): muda o ponto atual e continua do novo ponto
+ * - Se NÃO estiver tocando: apenas mostra preview do marcador + panTo
+ * - FASE 13.4.3: Adiciona feedback visual com halo temporário (2s)
+ * @param {Object} payload - { point, index }
+ */
+const previewRoutePoint = (payload) => {
+  if (!payload || !payload.point) return;
+
+  const { point, index } = payload;
+
+  // HARDENING: Extrair lat/lng com validação robusta
+  const latLng = extractLatLng(point, 'previewRoutePoint');
+  if (!latLng) {
+    devWarn('[SEEK] Preview ignorado: coordenadas inválidas');
+    return;
+  }
+
+  const [lat, lng] = latLng;
+  const course = point[3] ?? point.course ?? 0;
+
+  devLog('[SEEK] Preview/Seek para índice:', index, 'lat:', lat, 'lng:', lng);
+
+  // Atualizar marcador do veículo (funciona tanto em play quanto em preview)
+  updatePlayVehicleMarker(lat, lng, course);
+
+  // FASE 13.4.3: STUB - Layer Manager não implementado
+  // TODO(E3): Remover stubs do layerManager
+
+  // Pan suave para o ponto (sempre, é ação do usuário)
+  // HARDENING: Usar safeMapOperation para evitar crash se mapa não pronto
+  safeMapOperation(map.value?.leafletObject, 'previewRoutePoint.panTo', (leafletMap) => {
+    // Limpar suspensão temporariamente para este seek manual
+    const previousSuspension = followPlaySuspendedUntil;
+    followPlaySuspendedUntil = 0;
+    leafletMap.panTo([lat, lng], { animate: true, duration: 0.25 });
+    // Restaurar suspensão se estava ativa
+    if (previousSuspension > Date.now()) {
+      followPlaySuspendedUntil = previousSuspension;
+    }
+  });
+
+  // Se estiver tocando, atualizar índice na store para sincronizar
+  // FASE C1: Usar playback.seek() ao invés de manipular índice diretamente
+  if (isPlayingRoute.value && playback) {
+    const safeIndex = clampIndex(index, routePoints.value.length, 'previewRoutePoint');
+    playback.seek(safeIndex);
+  }
+};
 
 // ============================================================================
 // TOOLTIP FOLLOW STATE - Estado do tooltip ao seguir dispositivo
 // ============================================================================
-let tooltipUpdateInterval = null;
-const tooltipManuallyHidden = ref(false); // Se o tooltip foi fechado manualmente
-
-// Resetar estado do tooltip quando muda o dispositivo seguido
-watch(() => store.state.devices.isFollowingId, (newVal) => {
-  if (newVal) {
-    tooltipManuallyHidden.value = false;
-  }
-});
+// TOOLTIP E FOLLOW - Gerenciado por useFollowDevice composable
+// ============================================================================
+// REMOVIDO: tooltipUpdateInterval, tooltipManuallyHidden, showFloatingPanel, floatingPanelDevice
+// Agora gerenciados pelo composable useFollowDevice
 
 // Posição do dispositivo para círculo de precisão GPS
 const dPosition = computed(() => {
@@ -1384,27 +1767,17 @@ const dPosition = computed(() => {
 });
 
 app.provide("showRouteMarkers", showRouteMarkers);
-app.provide("showMapadeCalor", showMapadeCalor);
-app.provide("showPercurso", showPercurso);
-app.provide("showPontos", showPontos);
-app.provide("showPontosCorrelacao", showPontosCorrelacao);
+// REMOVIDO: provides legados showMapadeCalor, showPercurso, showPontos, showPontosCorrelacao
 
 const eyeFilter = ref('');
-let resizeObserver = null;
-let stopFollowingWatch = null; // Handle para parar o watcher quando desmontar
+// REMOVIDO: resizeObserver (agora no composable useMapInteraction)
+// REMOVIDO: stopFollowingWatch (agora no composable useFollowDevice)
 
 // ============================================================================
 // EVENT HANDLERS - Funções nomeadas para proper cleanup de event listeners
 // ============================================================================
 
-// Handler para invalidação do mapa
-const handleMapInvalidate = () => {
-  if (map.value?.leafletObject) {
-    requestAnimationFrame(() => {
-      map.value?.leafletObject?.invalidateSize()
-    })
-  }
-}
+// REMOVIDO: handleMapInvalidate (agora no composable useMapInteraction)
 
 // Handler para abrir painel flutuante (document event)
 const onOpenFloatingPanel = (event) => {
@@ -1425,24 +1798,16 @@ const onTraccarEvent = (event) => {
 };
 
 onMounted(() => {
-  resizeObserver = new ResizeObserver(() => {
-    if (map.value?.leafletObject?.invalidateSize) {
-      map.value.leafletObject.invalidateSize()
-    }
-  })
-
-  if (mapContainer.value) {
-    resizeObserver.observe(mapContainer.value)
-  }
-
-  window.addEventListener('map:invalidate', handleMapInvalidate)
+  // REMOVIDO: ResizeObserver manual (agora no composable useMapInteraction)
+  // Bind dos handlers de geofence após mapa pronto
+  mapInteraction.bindGeofenceHandlers();
 
   // ============================================================================
   // EVENT LISTENERS - Eventos do sistema (com funções nomeadas para cleanup)
   // ============================================================================
 
-  // Listener para fechar o tooltip de follow
-  document.addEventListener("hideFollowTooltip", hideTooltipManually);
+  // Listener para fechar o tooltip de follow (delegado ao composable)
+  document.addEventListener("hideFollowTooltip", () => followDevice.hideTooltipManually());
 
   // Listener para abrir o panel flotante
   document.addEventListener("openFloatingPanel", onOpenFloatingPanel);
@@ -1454,54 +1819,27 @@ onMounted(() => {
   window.addEventListener("keydown", handleKeyDown);
   window.addEventListener("keyup", handleKeyUp);
 
-  // ============================================================================
-  // WATCHER - Observador para mudanças no seguimento de dispositivo
-  // Movido para fora do onMounted para facilitar cleanup
-  // ============================================================================
-  stopFollowingWatch = watch(() => store.state.devices.isFollowingId, (newValue, oldValue) => {
-    try {
-      if (!newValue && oldValue) {
-        // Se deixou de seguir, parar o intervalo e ocultar tooltip
-        if (tooltipUpdateInterval) {
-          clearInterval(tooltipUpdateInterval);
-          tooltipUpdateInterval = null;
-          window.$hideTip();
-        }
-        showFloatingPanel.value = false;
-      } else if (newValue && !oldValue) {
-        // Se começou a seguir, criar intervalo para atualizar tooltip
-        if (!tooltipUpdateInterval) {
-          tooltipUpdateInterval = setInterval(updateFollowTooltip, 1000);
-        }
-      } else if (newValue && oldValue && newValue !== oldValue) {
-        // Se mudou de dispositivo, atualizar o panel flotante
-        updateFloatingPanel();
-      }
-    } catch (error) {
-      console.error("Erro no watcher de seguimento:", error);
-    }
-  });
+  // REMOVIDO: watcher de isFollowingId (agora no composable useFollowDevice)
 })
 
 onUnmounted(() => {
-  // Cleanup ResizeObserver
-  if (mapContainer.value && resizeObserver) {
-    resizeObserver.unobserve(mapContainer.value)
-  }
-  resizeObserver?.disconnect()
-  resizeObserver = null
-
-  // Cleanup custom event listener
-  window.removeEventListener('map:invalidate', handleMapInvalidate)
+  // FASE E2.1: Cleanup Markers composable
+  markers.cleanup();
+  devLog('[Cleanup] Markers composable destruído');
   
-  // ULTRA ENTERPRISE 2: Cleanup listener de bounds (lazy load)
-  const m = map.value?.leafletObject;
-  if (m) {
-    m.off('moveend zoomend', updateMapBounds);
-  }
+  // Cleanup FollowDevice composable (FASE D3)
+  followDevice.cleanup();
+  
+  // FASE E1.1: Cleanup MapInteraction composable (remove TODOS os listeners automaticamente)
+  mapInteraction.cleanup();
+
+  // FASE E1.1: Cleanup manual de bounds REMOVIDO - agora feito pelo composable
+
+  // FASE D1: STUB - Layer Manager não implementado, cleanup removido
+  // TODO(E3): Remover stubs do layerManager
 
   // Cleanup de event listeners do sistema (usando funções nomeadas)
-  document.removeEventListener("hideFollowTooltip", hideTooltipManually);
+  document.removeEventListener("hideFollowTooltip", () => followDevice.hideTooltipManually());
   document.removeEventListener("openFloatingPanel", onOpenFloatingPanel);
   document.removeEventListener("traccarEvent", onTraccarEvent);
 
@@ -1509,23 +1847,22 @@ onUnmounted(() => {
   window.removeEventListener('keydown', handleKeyDown)
   window.removeEventListener('keyup', handleKeyUp)
 
-  // Cleanup do watcher de seguimento
-  if (stopFollowingWatch) {
-    stopFollowingWatch();
-    stopFollowingWatch = null;
+  // REMOVIDO: stopFollowingWatch (agora no composable)
+
+  // FASE C1: Cleanup do playback composable
+  if (playback) {
+    playback.cleanup();
+    playback = null;
+    devLog('[Cleanup] Playback composable destruído');
   }
 
-  // Cleanup do playback interval
-  if (playbackInterval.value) {
-    clearInterval(playbackInterval.value)
-    playbackInterval.value = null
-  }
-
-  // Cleanup do tooltip update interval
-  if (tooltipUpdateInterval) {
-    clearInterval(tooltipUpdateInterval);
-    tooltipUpdateInterval = null;
-  }
+  // FASE C2 + D3: Cleanup do follow composable
+  followDevice.cleanup();
+  devLog('[Cleanup] FollowDevice composable destruído');
+  
+  // FASE E1.1: Cleanup MapInteraction composable (remove TODOS os listeners automaticamente)
+  mapInteraction.cleanup();
+  devLog('[Cleanup] MapInteraction composable destruído');
 
   // Cleanup de referência global do mapa
   if (window.$map) {
@@ -1571,45 +1908,55 @@ const _availableTypes = ref([
 const center = ref(MAP_CONSTANTS.DEFAULT_CENTER);
 const zoomForce = ref(MAP_CONSTANTS.DEFAULT_ZOOM);
 
-// ULTRA ENTERPRISE 3: cptPoints agora usa routeForPolyline (simplificado) ao invés de routePoints bruto
+// cptPoints agora usa fullRoutePoints (já normalizado) - FONTE ÚNICA DE VERDADE
 const cptPoints = computed(() => {
-  // Usar rota simplificada para visual (economia massiva em rotas grandes)
-  return routeForPolyline.value.map(p => [p.latitude || p[0], p.longitude || p[1]]);
+  // Usar fullRoutePoints que já está normalizado e ordenado por normalizeRoutePoints
+  // Garantir que polyline e markers usam EXATAMENTE os mesmos pontos
+  return fullRoutePoints.value.map(p => [p[0], p[1]]);
 });
 
 const changeMap = (id) => {
-  let map = 1;
-  switch (id) {
-    case 1:
-      map = 'googleST';
-      break;
-    case 2:
-      map = 'googleTR';
-      break;
-    case 3:
-      map = 'googleSN';
-      break;
-  }
-
-  store.dispatch("setMap", map);
+  // Salvar diretamente no localStorage para persistência imediata
+  localStorage.setItem('selectedMapId', String(id));
+  // Forçar reatividade atualizando o ref
+  currentMapId.value = id;
+  // console.log('[Map] Mapa alterado para:', id);
 }
 
 const mapReady = (e) => {
-  console.log('mapReady', e);
+  // console.log('mapReady', e);
   window.$map = e;
-  
-  // ULTRA ENTERPRISE 2: Registrar listener de bounds para lazy load
+
+  // FASE E1.1: Registrar listeners via composable (zero memory leak)
   const m = map.value?.leafletObject;
   if (m) {
     m.whenReady(() => {
       updateMapBounds(); // Atualizar bounds inicial
-      m.on('moveend zoomend', updateMapBounds);
       
+      // FASE E1.1: Usar composable para gerenciar listeners
+      const onUserInteraction = () => {
+        if (followPlay.value && isPlayingRoute.value) {
+          followPlaySuspendedUntil = Date.now() + USER_OVERRIDE_DURATION;
+          devLog('[FASE 13.4.2] Follow suspenso por interação do usuário (5s)');
+        }
+      };
+      
+      mapInteraction.onMapEvents([
+        { event: 'moveend', handler: updateMapBounds },
+        { event: 'zoomend', handler: updateMapBounds },
+        { event: 'dragstart', handler: onUserInteraction },
+        { event: 'zoomstart', handler: onUserInteraction }
+      ]);
+
+      // FASE C1: STUB - useMapFollow não implementado (remoção futura)
+      // TODO(E3): Remover stub do mapFollow ou implementar useMapFollow
+      // mapFollow.setupUserInteractionListeners({ requirePlaying: true });
+
       // 🎯 HANDSHAKE: Emitir evento quando mapa está 100% pronto
-      window.dispatchEvent(new CustomEvent('tarkan:mapReady', { 
-        detail: { map: window.$map } 
+      window.dispatchEvent(new CustomEvent('tarkan:mapReady', {
+        detail: { map: window.$map }
       }));
-      console.log('✅ [MapReady] window.$map disponível');
+      // console.log('✅ [MapReady] window.$map disponível');
     });
   }
 }
@@ -1618,25 +1965,9 @@ const zoomUpdated = (z) => {
   zoom.value = z;
 }
 
-const selectedMap = computed(() => {
-  const userMap = (store.state.auth && store.state.auth['map']) ? store.state.auth['map'] : undefined;
-  const serverMap = (store.state.server.serverInfo && store.state.server.serverInfo['map']) ? store.state.server.serverInfo['map'] : 'openstreet'
-
-  const map = userMap || serverMap;
-
-  switch (map) {
-    case "googleSN":
-      return 3;
-    case "googleTR":
-      return 2;
-    case "googleST":
-      return 1;
-  }
-
-
-  return 1;
-
-});
+// Mapa selecionado - lê do localStorage com fallback para 1 (Google Maps)
+const currentMapId = ref(parseInt(localStorage.getItem('selectedMapId') || '1', 10));
+const selectedMap = computed(() => currentMapId.value);
 
 const showGeofences = computed({
   get: () => {
@@ -1649,23 +1980,17 @@ const showGeofences = computed({
   }
 });
 
+// Lista de mapas disponíveis - consolidada para evitar redundância
 const availableMaps = ref([
-  // Google Maps
-  { id: 1, name: 'Google Maps', subdomains: ['mt0', 'mt1', 'mt2', 'mt3'], url: 'https://{s}.google.com/vt/lyrs=m@221097413&x={x}&y={y}&z={z}&hl=pt-BR' },
+  // Google Maps - os mais usados
+  { id: 1, name: 'Google Ruas', subdomains: ['mt0', 'mt1', 'mt2', 'mt3'], url: 'https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&hl=pt-BR' },
   { id: 2, name: 'Google Satélite', subdomains: ['mt0', 'mt1', 'mt2', 'mt3'], url: 'https://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}&hl=pt-BR' },
-  { id: 3, name: 'Google Tráfego', subdomains: ['mt0', 'mt1', 'mt2', 'mt3'], url: 'https://{s}.google.com/vt/lyrs=m@221097413,traffic&x={x}&y={y}&z={z}&hl=pt-BR' },
-  { id: 4, name: 'Google Terreno', subdomains: ['mt0', 'mt1', 'mt2', 'mt3'], url: 'https://{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}&hl=pt-BR' },
-  // Google Maps Dark Mode
-  { id: 5, name: 'Google Dark', subdomains: ['mt0', 'mt1', 'mt2', 'mt3'], url: 'https://{s}.google.com/vt/lyrs=m@221097413&x={x}&y={y}&z={z}&hl=pt-BR&apistyle=s.e%3Ag%7Cp.c%3A%23ff212121%2Cs.e%3Al.i%7Cp.v%3Aoff%2Cs.e%3Al.t.f%7Cp.c%3A%23ff757575%2Cs.e%3Al.t.s%7Cp.c%3A%23ff212121%2Cs.t%3A1%7Cs.e%3Ag%7Cp.c%3A%23ff757575%2Cs.t%3A17%7Cs.e%3Al.t.f%7Cp.c%3A%23ff9e9e9e%2Cs.t%3A21%7Cp.v%3Aoff%2Cs.t%3A19%7Cs.e%3Al.t.f%7Cp.c%3A%23ffbdbdbd%2Cs.t%3A2%7Cs.e%3Al.t.f%7Cp.c%3A%23ff757575%2Cs.t%3A40%7Cs.e%3Ag%7Cp.c%3A%23ff181818%2Cs.t%3A40%7Cs.e%3Al.t.f%7Cp.c%3A%23ff616161%2Cs.t%3A3%7Cs.e%3Ag%7Cp.c%3A%23ff2c2c2c%2Cs.t%3A3%7Cs.e%3Al.t.f%7Cp.c%3A%23ff9e9e9e%2Cs.t%3A49%7Cs.e%3Ag.f%7Cp.c%3A%23ff2c2c2c%2Cs.t%3A49%7Cs.e%3Al.t.f%7Cp.c%3A%23ff9e9e9e%2Cs.t%3A4%7Cs.e%3Ag%7Cp.c%3A%23ff746855%2Cs.t%3A4%7Cs.e%3Ag.s%7Cp.c%3A%23ff1f2835%2Cs.t%3A4%7Cs.e%3Al.t.f%7Cp.c%3A%23ffd59563%2Cs.t%3A6%7Cs.e%3Ag%7Cp.c%3A%23ff17263c%2Cs.t%3A6%7Cs.e%3Al.t.f%7Cp.c%3A%23ff515c6d%2Cs.t%3A6%7Cs.e%3Al.t.s%7Cp.c%3A%23ff17263c' },
-  { id: 6, name: 'Google Dark Tráfego', subdomains: ['mt0', 'mt1', 'mt2', 'mt3'], url: 'https://{s}.google.com/vt/lyrs=m@221097413,traffic&x={x}&y={y}&z={z}&hl=pt-BR&apistyle=s.e%3Ag%7Cp.c%3A%23ff212121%2Cs.e%3Al.i%7Cp.v%3Aoff%2Cs.e%3Al.t.f%7Cp.c%3A%23ff757575%2Cs.e%3Al.t.s%7Cp.c%3A%23ff212121%2Cs.t%3A1%7Cs.e%3Ag%7Cp.c%3A%23ff757575%2Cs.t%3A17%7Cs.e%3Al.t.f%7Cp.c%3A%23ff9e9e9e%2Cs.t%3A21%7Cp.v%3Aoff%2Cs.t%3A19%7Cs.e%3Al.t.f%7Cp.c%3A%23ffbdbdbd%2Cs.t%3A2%7Cs.e%3Al.t.f%7Cp.c%3A%23ff757575%2Cs.t%3A40%7Cs.e%3Ag%7Cp.c%3A%23ff181818%2Cs.t%3A40%7Cs.e%3Al.t.f%7Cp.c%3A%23ff616161%2Cs.t%3A3%7Cs.e%3Ag%7Cp.c%3A%23ff2c2c2c%2Cs.t%3A3%7Cs.e%3Al.t.f%7Cp.c%3A%23ff9e9e9e%2Cs.t%3A49%7Cs.e%3Ag.f%7Cp.c%3A%23ff2c2c2c%2Cs.t%3A49%7Cs.e%3Al.t.f%7Cp.c%3A%23ff9e9e9e%2Cs.t%3A4%7Cs.e%3Ag%7Cp.c%3A%23ff746855%2Cs.t%3A4%7Cs.e%3Ag.s%7Cp.c%3A%23ff1f2835%2Cs.t%3A4%7Cs.e%3Al.t.f%7Cp.c%3A%23ffd59563%2Cs.t%3A6%7Cs.e%3Ag%7Cp.c%3A%23ff17263c%2Cs.t%3A6%7Cs.e%3Al.t.f%7Cp.c%3A%23ff515c6d%2Cs.t%3A6%7Cs.e%3Al.t.s%7Cp.c%3A%23ff17263c' },
-  // OpenStreetMap
-  { id: 7, name: 'OpenStreetMap', subdomains: ['a', 'b', 'c'], url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png' },
-  // CartoDB
-  { id: 8, name: 'Carto Light', subdomains: ['a', 'b', 'c', 'd'], url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png' },
-  { id: 9, name: 'Carto Dark', subdomains: ['a', 'b', 'c', 'd'], url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' },
-  // Esri
-  { id: 10, name: 'Esri WorldStreetMap', subdomains: [], url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}' },
-  { id: 11, name: 'Esri WorldImagery', subdomains: [], url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}' },
+  { id: 3, name: 'Google Trânsito', subdomains: ['mt0', 'mt1', 'mt2', 'mt3'], url: 'https://{s}.google.com/vt/lyrs=m,traffic&x={x}&y={y}&z={z}&hl=pt-BR' },
+  // OpenStreetMap - gratuito e confiável
+  { id: 4, name: 'OpenStreetMap', subdomains: ['a', 'b', 'c'], url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png' },
+  // Carto - mapas clean para dashboards
+  { id: 5, name: 'Light', subdomains: ['a', 'b', 'c', 'd'], url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png' },
+  { id: 6, name: 'Dark', subdomains: ['a', 'b', 'c', 'd'], url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' },
 ]);
 
 const availableTypes = computed(() => {
@@ -1789,159 +2114,122 @@ const toggleMapSearch = () => {
 
 /**
  * Inicia/continua a reprodução da rota
+ * FASE C1: Delega para playback composable
  */
 const runPlayRoute = () => {
-  if (routePoints.value.length === 0) return;
-
-  routePlayState.value = true;
-
-  const baseDelay = 2500; // 2.5 segundos base (igual ao dark)
-  const delay = baseDelay / playbackSpeed.value;
-
-  if (playbackInterval.value) {
-    clearInterval(playbackInterval.value);
-  }
-
-  const playNextPoint = () => {
-    if (routePlayIndex.value < routePoints.value.length - 1) {
-      routePlayIndex.value++;
-      updatePlaybackPosition();
-      playbackInterval.value = setTimeout(playNextPoint, delay);
-    } else {
-      pausePlayRoute();
-    }
-  };
-
-  playbackInterval.value = setTimeout(playNextPoint, delay);
+  if (!playback || routePoints.value.length === 0) return;
+  playback.play();
 };
 
 /**
  * Pausa a reprodução
+ * FASE C1: Delega para playback composable
  */
 const pausePlayRoute = () => {
-  routePlayState.value = false;
-  if (playbackInterval.value) {
-    clearTimeout(playbackInterval.value);
-    playbackInterval.value = null;
-  }
+  if (!playback) return;
+  playback.pause();
 };
 
 /**
  * Para a reprodução e volta ao início
+ * FASE C1: Delega para playback composable
  */
 const stopPlayRoute = () => {
-  pausePlayRoute();
-  routePlayIndex.value = 0;
-  routePlayPos.value = 0;
+  if (!playback) return;
+  
+  playback.stop();
+  
+  // Limpar estado visual
+  isPlayingRoute.value = false;
   currentRoutePoint.value = routePoints.value[0] || null;
+  resetPlay(); // Limpa rota progressiva
+  clearPlayVehicleMarker(); // 🚗 Remove marcador do veículo
 };
 
 /**
  * Reinicia a reprodução do início
+ * FASE C1: Delega para playback composable
  */
 const restartPlayRoute = () => {
-  stopPlayRoute();
-  runPlayRoute();
+  if (!playback) return;
+  
+  resetPlay();
+  playback.restart();
 };
 
 /**
  * Avança para o próximo ponto
+ * FASE C1: Delega para playback composable
  */
 const moveForward = () => {
-  if (routePlayIndex.value < routePoints.value.length - 1) {
-    routePlayIndex.value++;
-    updatePlaybackPosition();
-  }
+  if (!playback) return;
+  playback.forward();
 };
 
 /**
  * Retrocede para o ponto anterior
+ * FASE C1: Delega para playback composable
  */
 const moveBackward = () => {
-  if (routePlayIndex.value > 0) {
-    routePlayIndex.value--;
-    updatePlaybackPosition();
-  }
+  if (!playback) return;
+  playback.backward();
 };
 
 /**
  * Alterna entre velocidades de reprodução
+ * FASE C1: Delega para playback composable
  */
 const togglePlaybackSpeed = () => {
-  const currentIndex = PLAYBACK_SPEEDS.indexOf(playbackSpeed.value);
-  const nextIndex = (currentIndex + 1) % PLAYBACK_SPEEDS.length;
-  playbackSpeed.value = PLAYBACK_SPEEDS[nextIndex];
-
-  // Se está reproduzindo, reinicia com nova velocidade
-  if (routePlayState.value) {
-    pausePlayRoute();
-    runPlayRoute();
-  }
+  if (!playback) return;
+  playback.toggleSpeed();
 };
 
 /**
- * Atualiza a posição visual da timeline, move o marcador e o ponto atual
+ * Define velocidade de reprodução (FASE 5 - controle externo)
+ * @param {number} speed - Velocidade desejada (1, 2, 5, 10, etc.)
+ * FASE C1: Delega para playback composable
  */
-const updatePlaybackPosition = () => {
-  if (routePoints.value.length === 0) return;
-
-  const progress = routePlayIndex.value / (routePoints.value.length - 1);
-  routePlayPos.value = progress * (TIMELINE_WIDTH - 20);
-  currentRoutePoint.value = routePoints.value[routePlayIndex.value];
-
-  // Atualiza o ponto na store para sincronizar com a lista do histórico
-  store.commit("devices/setRoutePlayPoint", routePlayIndex.value);
-
-  // Move o marcador do veículo no mapa
-  if (currentRoutePoint.value) {
-    const point = currentRoutePoint.value;
-    const lat = point[0] || point.latitude;
-    const lng = point[1] || point.longitude;
-    const course = point[3] || point.course || 0;
-
-    if (lat && lng) {
-      // Obtém o dispositivo atual para mover seu ícone
-      const deviceId = parseInt(store.state.devices.applyFilters.showOnlyId);
-      const device = store.getters['devices/getDevice'](deviceId);
-
-      if (device && device.icon) {
-        // Move o marcador com animação suave
-        const animationDuration = 200 / playbackSpeed.value;
-        device.icon.moveTo(L.latLng(lat, lng), animationDuration);
-        if (device.icon.options && device.icon.options.img) {
-          device.icon.options.img.rotate = course;
-        }
-      }
-
-      // Centraliza o mapa no ponto atual
-      map.value?.leafletObject?.panTo([lat, lng], { animate: true, duration: 0.3 });
-    }
-  }
+const setPlaybackSpeed = (speed) => {
+  if (!playback || typeof speed !== 'number' || speed < 1) return;
+  playback.setSpeed(speed);
 };
+
+/**
+ * Retorna velocidade atual de reprodução (FASE 5 - getter externo)
+ * @returns {number}
+ */
+const getPlaybackSpeed = () => playbackSpeed.value;
+
+// ⚡ OPT-3: Cache de device (mantido para handlePlaybackTick)
+let _cachedDeviceId = null;
+let _cachedDevice = null;
 
 /**
  * Clica na timeline para mover para posição
+ * FASE C1: Usa playback.seekByProgress()
  */
 const moveTimelinePosition = (event) => {
-  if (routePoints.value.length === 0) return;
+  if (!playback || routePoints.value.length === 0) return;
 
   const rect = event.target.getBoundingClientRect();
   const clickX = event.clientX - rect.left;
   const progress = Math.max(0, Math.min(1, clickX / (TIMELINE_WIDTH - 20)));
 
-  routePlayIndex.value = Math.round(progress * (routePoints.value.length - 1));
-  updatePlaybackPosition();
+  playback.seekByProgress(progress);
 };
 
 /**
  * Inicia o arrasto da timeline
+ * FASE C1: Usa playback.seekByProgress()
  */
 const startDrag = (event) => {
+  if (!playback) return;
+  
   event.preventDefault();
   isDragging.value = true;
 
   const onDrag = (e) => {
-    if (!isDragging.value) return;
+    if (!isDragging.value || !playback) return;
 
     const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
     const timeline = document.querySelector('.timeline-track');
@@ -1949,8 +2237,7 @@ const startDrag = (event) => {
 
     const rect = timeline.getBoundingClientRect();
     const progress = Math.max(0, Math.min(1, (clientX - rect.left) / (TIMELINE_WIDTH - 20)));
-    routePlayIndex.value = Math.round(progress * (routePoints.value.length - 1));
-    updatePlaybackPosition();
+    playback.seekByProgress(progress);
   };
 
   const stopDrag = () => {
@@ -1974,37 +2261,7 @@ const showRouteDetails = () => {
   showDetailsPanel.value = !showDetailsPanel.value;
 };
 
-/**
- * Retorna a direção cardinal baseada no curso
- */
-const getCardinalDirection = (course) => {
-  if (course === null || course === undefined) return 'N/A';
-
-  const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-  const index = Math.round(course / 45) % 8;
-  return directions[index];
-};
-
-/**
- * Formata data/hora
- */
-const formatDateTime = (dateString) => {
-  if (!dateString) return 'N/A';
-
-  try {
-    const date = new Date(dateString);
-    return date.toLocaleString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    });
-  } catch {
-    return dateString;
-  }
-};
+// getCardinalDirection e formatDateTime movidos para mapUtils.ts (FASE B1)
 
 // ============================================================================
 // FUNÇÕES AUXILIARES UI - Helpers para o painel de detalhes
@@ -2043,99 +2300,8 @@ const openInMaps = (point) => {
   window.open(url, '_blank');
 };
 
-/**
- * Retorna o ícone de bateria baseado no nível
- */
-const getBatteryIcon = (level) => {
-  if (level === undefined || level === null) return 'fas fa-battery-empty';
-
-  if (level >= 90) return 'fas fa-battery-full';
-  if (level >= 70) return 'fas fa-battery-three-quarters';
-  if (level >= 40) return 'fas fa-battery-half';
-  if (level >= 10) return 'fas fa-battery-quarter';
-  return 'fas fa-battery-empty';
-};
-
-/**
- * Retorna a classe CSS baseada no nível de bateria
- */
-const getBatteryClass = (level) => {
-  if (level === undefined || level === null) return '';
-
-  if (level >= 50) return 'active';
-  if (level >= 20) return 'warning';
-  return 'danger';
-};
-
-/**
- * Retorna a classe CSS baseada na temperatura
- */
-const getTemperatureClass = (temp) => {
-  if (temp === undefined || temp === null) return '';
-
-  if (temp > 80) return 'danger';
-  if (temp > 60) return 'warning';
-  if (temp < 0) return 'info';
-  return 'active';
-};
-
-/**
- * Retorna a classe CSS baseada no sinal RSSI
- */
-const getSignalClass = (rssi) => {
-  if (rssi === undefined || rssi === null) return '';
-
-  // RSSI geralmente é negativo, valores mais próximos de 0 são melhores
-  if (rssi > -70) return 'active';
-  if (rssi > -85) return 'warning';
-  return 'danger';
-};
-
-/**
- * Formata o valor de um atributo de forma inteligente
- */
-const formatAttributeValue = (key, value) => {
-  if (value === undefined || value === null) return '-';
-
-  // Distâncias
-  if (key.toLowerCase().includes('distance') || key.toLowerCase().includes('odometer')) {
-    if (typeof value === 'number') {
-      return (value / 1000).toFixed(2) + ' km';
-    }
-  }
-
-  // Percentuais
-  if (key.toLowerCase().includes('level') || key.toLowerCase().includes('percent')) {
-    return Math.round(value) + '%';
-  }
-
-  // Voltagens
-  if (key.toLowerCase().includes('power') || key.toLowerCase().includes('battery') || key.toLowerCase().includes('voltage')) {
-    if (typeof value === 'number' && value < 100) {
-      return value.toFixed(1) + 'V';
-    }
-  }
-
-  // Temperaturas
-  if (key.toLowerCase().includes('temp')) {
-    return value + '°C';
-  }
-
-  // Booleanos
-  if (typeof value === 'boolean') {
-    return value ? (KT('yes') || 'Sim') : (KT('no') || 'Não');
-  }
-
-  // Datas
-  if (key.toLowerCase().includes('time') || key.toLowerCase().includes('date')) {
-    const date = new Date(value);
-    if (!isNaN(date.getTime())) {
-      return date.toLocaleString();
-    }
-  }
-
-  return String(value);
-};
+// getBatteryIcon, getBatteryClass, getTemperatureClass, getSignalClass, formatAttributeValue
+// movidos para ../map/mapUtils.ts (FASE B1)
 
 // Lista de atributos principais para o grid
 const mainAttributes = ['ignition', 'blocked', 'sat', 'satellites', 'power', 'totalDistance', 'battery', 'batteryLevel', 'distance', 'hours', 'temperature', 'fuel', 'motion'];
@@ -2159,585 +2325,180 @@ const filteredAttributes = computed(() => {
 // ============================================================================
 
 /**
- * Fecha o tooltip manualmente
+ * FASE C2: Follow functions delegadas ao composable useFollowDevice
+ * hideTooltipManually, updateFloatingPanel, updateFollowTooltip, buildTooltipHtml
+ * Todas movidas para useFollowDevice.ts (zero memory leaks, cache LRU + TTL)
  */
-const hideTooltipManually = () => {
-  tooltipManuallyHidden.value = true;
-  showFloatingPanel.value = false;
-  if (window.$hideTip) {
-    window.$hideTip();
-  }
-};
 
-/**
- * Atualiza o painel flotante
- */
-const updateFloatingPanel = () => {
-  if (!showFloatingPanel.value || !floatingPanelDevice.value) return;
+// Delegação para compatibilidade
+// eslint-disable-next-line no-unused-vars
+const hideTooltipManually = () => followDevice.hideTooltipManually();
+// eslint-disable-next-line no-unused-vars
+const updateFloatingPanel = () => followDevice.updateFloatingPanel();
 
-  const followingId = store.state.devices.isFollowingId;
-  if (followingId && followingId !== floatingPanelDevice.value.id) {
-    const updatedDevice = store.getters["devices/getDevice"](followingId);
-    if (updatedDevice) {
-      floatingPanelDevice.value = updatedDevice;
-    }
-  }
-};
-
-/**
- * Atualiza o tooltip quando o veículo está em modo seguimento
- */
-const updateFollowTooltip = () => {
-  const deviceId = store.state.devices.isFollowingId;
-  // Se o ID não existe ou o tooltip foi fechado manualmente, não mostrar
-  if (!deviceId || tooltipManuallyHidden.value) return;
-
-  const device = store.getters["devices/getDevice"](deviceId);
-  const position = store.getters["devices/getPosition"](deviceId);
-
-  if (device && position && window.$showTip && map.value) {
-    // Determinar cor do status de conexão
-    let connectionStatusColor = '#e6a23c';
-    if (device.lastUpdate === null || (device.status !== 'online' && device.status !== 'offline')) {
-      connectionStatusColor = '#e6a23c';
-    } else if (device.status === 'online' && position && position.speed > 6) {
-      connectionStatusColor = '#409eff';
-    } else if (device.status === 'online') {
-      connectionStatusColor = '#67c23a';
-    } else {
-      connectionStatusColor = '#f56c6c';
-    }
-
-    // Conteúdo do tooltip de seguimento com botões de ação
-    // Verificar se existe motorista para mostrar botão do painel
-    const driverIdCheck = position.attributes?.driverUniqueId || device.attributes?.driverUniqueId;
-    const hasDriver = !!driverIdCheck;
-
-    let tooltipContent = `<div style="padding:10px;min-width:280px;position:relative;">
-      <!-- Botões de ação -->
-      <div style="position:absolute;top:6px;right:6px;display:flex;gap:2px;z-index:1000;">
-        ${hasDriver ? `<!-- Botão de panel flotante do motorista -->
-        <div onclick="document.dispatchEvent(new CustomEvent('openFloatingPanel', { detail: { deviceId: ${deviceId} } }));" style="background-color:rgba(255,255,255,0.15);width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;" title="Ver motorista">
-          <i class="fas fa-id-card" style="color:white;font-size:9px;"></i>
-        </div>` : ''}
-        <!-- Botão de fechar -->
-        <div onclick="document.dispatchEvent(new CustomEvent('hideFollowTooltip'));" style="background-color:rgba(255,255,255,0.15);width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;">
-          <i class="fas fa-times" style="color:white;font-size:9px;"></i>
-        </div>
-      </div>
-      
-      <!-- Nome do dispositivo com círculo de status -->
-      <div style="font-weight:bold;color:#ffffff;text-align:center;font-size:14px;margin-bottom:10px;padding-right:20px;display:flex;align-items:center;justify-content:center;">
-        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background-color:${connectionStatusColor};margin-right:6px;flex-shrink:0;"></span>
-        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${device.name}</span>
-      </div>`;
-
-    // Grid de ícones de status
-    if (position.attributes) {
-      tooltipContent += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:10px;">';
-
-      // 1. Ignição
-      const ignitionColor = position.attributes.ignition ? '#4ade80' : '#ef4444';
-      tooltipContent += `<div style="background:rgba(255,255,255,0.15);border-radius:4px;width:30px;height:34px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:${ignitionColor};">
-        <i class="fas fa-key" style="margin-bottom:1px;font-size:14px;"></i>
-        <span style="font-size:10px;text-align:center;color:#ffffff;">${position.attributes.ignition ? 'LIG' : 'DES'}</span>
-      </div>`;
-
-      // 2. Bloqueio
-      let isBlocked = false;
-      if (position.attributes.blocked !== undefined) {
-        if (typeof position.attributes.blocked === 'boolean') {
-          isBlocked = position.attributes.blocked;
-        } else if (typeof position.attributes.blocked === 'string') {
-          isBlocked = position.attributes.blocked.toLowerCase() === 'true';
-        } else if (typeof position.attributes.blocked === 'number') {
-          isBlocked = position.attributes.blocked !== 0;
-        }
-      }
-      const blockedColor = isBlocked ? '#ef4444' : '#4ade80';
-      tooltipContent += `<div style="background:rgba(255,255,255,0.15);border-radius:4px;width:30px;height:34px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:${blockedColor};">
-        <i class="fas ${isBlocked ? 'fa-lock' : 'fa-lock-open'}" style="margin-bottom:1px;font-size:14px;"></i>
-        <span style="font-size:10px;text-align:center;color:#ffffff;">${isBlocked ? 'BLO' : 'DES'}</span>
-      </div>`;
-
-      // 3. Bateria do veículo (power)
-      let powerColor = '#94a3b8';
-      let powerValue = 'N/A';
-      if (position.attributes.power) {
-        const power = parseFloat(position.attributes.power);
-        powerValue = power.toFixed(1) + 'v';
-        powerColor = power < 11.5 ? '#ef4444' : (power < 12.5 ? '#f59e0b' : '#4ade80');
-      }
-      tooltipContent += `<div style="background:rgba(255,255,255,0.15);border-radius:4px;width:30px;height:34px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:${powerColor};">
-        <i class="fas fa-car-battery" style="margin-bottom:1px;font-size:14px;"></i>
-        <span style="font-size:9px;text-align:center;color:#ffffff;">${powerValue}</span>
-      </div>`;
-
-      // 4. Bateria interna
-      let batteryColor = '#94a3b8';
-      let batteryValue = 'N/A';
-      let batteryIcon = 'fas fa-battery-empty';
-      if (position.attributes.batteryLevel) {
-        const batteryLevel = parseInt(position.attributes.batteryLevel);
-        batteryValue = batteryLevel + '%';
-        batteryColor = batteryLevel < 30 ? '#ef4444' : (batteryLevel < 70 ? '#f59e0b' : '#4ade80');
-        // Definir ícone baseado no nível
-        if (batteryLevel >= 90) batteryIcon = 'fas fa-battery-full';
-        else if (batteryLevel >= 70) batteryIcon = 'fas fa-battery-three-quarters';
-        else if (batteryLevel >= 40) batteryIcon = 'fas fa-battery-half';
-        else if (batteryLevel >= 10) batteryIcon = 'fas fa-battery-quarter';
-        else batteryIcon = 'fas fa-battery-empty';
-      } else if (position.attributes.battery) {
-        const battery = parseFloat(position.attributes.battery);
-        batteryValue = battery.toFixed(1) + 'v';
-        batteryColor = battery < 3.2 ? '#ef4444' : (battery < 3.7 ? '#f59e0b' : '#4ade80');
-        // Para voltagem, usar ícone baseado em faixas de tensão
-        if (battery >= 4.0) batteryIcon = 'fas fa-battery-full';
-        else if (battery >= 3.7) batteryIcon = 'fas fa-battery-three-quarters';
-        else if (battery >= 3.5) batteryIcon = 'fas fa-battery-half';
-        else if (battery >= 3.2) batteryIcon = 'fas fa-battery-quarter';
-        else batteryIcon = 'fas fa-battery-empty';
-      }
-      tooltipContent += `<div style="background:rgba(255,255,255,0.15);border-radius:4px;width:30px;height:34px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:${batteryColor};">
-        <i class="${batteryIcon}" style="margin-bottom:1px;font-size:14px;"></i>
-        <span style="font-size:9px;text-align:center;color:#ffffff;">${batteryValue}</span>
-      </div>`;
-
-      // 5. Combustível
-      let fuelColor = '#94a3b8';
-      let fuelValue = 'N/A';
-      if (position.attributes.fuel !== undefined) {
-        const fuel = parseInt(position.attributes.fuel);
-        fuelValue = fuel + 'L';
-        fuelColor = fuel < 25 ? '#ef4444' : (fuel < 50 ? '#f59e0b' : '#4ade80');
-      }
-      tooltipContent += `<div style="background:rgba(255,255,255,0.15);border-radius:4px;width:30px;height:34px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:${fuelColor};">
-        <i class="fas fa-gas-pump" style="margin-bottom:1px;font-size:14px;"></i>
-        <span style="font-size:9px;text-align:center;color:#ffffff;">${fuelValue}</span>
-      </div>`;
-
-      // 6. Velocidade
-      const speedKmh = Math.round(position.speed * 1.852);
-      const speedColor = speedKmh > 0 ? '#4ade80' : '#94a3b8';
-      tooltipContent += `<div style="background:rgba(255,255,255,0.15);border-radius:4px;width:30px;height:34px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:${speedColor};">
-        <i class="fas fa-tachometer-alt" style="margin-bottom:1px;font-size:14px;"></i>
-        <span style="font-size:9px;text-align:center;color:#ffffff;">${speedKmh}km</span>
-      </div>`;
-
-      // 7. Satélites
-      let satellitesColor = '#94a3b8';
-      let satellitesValue = 'N/A';
-      if (position.attributes.satellites !== undefined || position.attributes.sat !== undefined) {
-        const sat = parseInt(position.attributes.satellites || position.attributes.sat);
-        satellitesValue = sat.toString();
-        satellitesColor = sat < 4 ? '#ef4444' : (sat < 8 ? '#f59e0b' : '#4ade80');
-      }
-      tooltipContent += `<div style="background:rgba(255,255,255,0.15);border-radius:4px;width:30px;height:34px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:${satellitesColor};">
-        <i class="fas fa-satellite" style="margin-bottom:1px;font-size:14px;"></i>
-        <span style="font-size:9px;text-align:center;color:#ffffff;">${satellitesValue}</span>
-      </div>`;
-
-      tooltipContent += '</div>';
-
-      // Endereço/Coordenadas
-      if (position.address) {
-        const address = position.address.length > 45 ? position.address.substring(0, 45) + '...' : position.address;
-        tooltipContent += `<div style="color:#ffffff;font-size:9px;margin-bottom:6px;text-align:center;border-top:1px solid rgba(255,255,255,0.2);padding-top:6px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:260px;">
-          <i class="fas fa-map-marker-alt" style="margin-right:4px;color:#60a5fa;"></i>${address}
-        </div>`;
-      } else {
-        tooltipContent += `<div style="color:#ffffff;font-size:9px;margin-bottom:6px;text-align:center;border-top:1px solid rgba(255,255,255,0.2);padding-top:6px;">
-          <i class="fas fa-map-marker-alt" style="margin-right:4px;color:#60a5fa;"></i>${position.latitude.toFixed(6)}, ${position.longitude.toFixed(6)}
-        </div>`;
-      }
-
-      // Motorista
-      const driverUniqueId = position.attributes?.driverUniqueId || device.attributes?.driverUniqueId;
-      if (driverUniqueId) {
-        const driver = store.getters['drivers/getDriverByUniqueId'](driverUniqueId);
-        const driverInfo = driver?.name || driverUniqueId;
-        tooltipContent += `<div style="color:#ffffff;font-size:9px;margin-bottom:6px;text-align:center;">
-          <i class="fas fa-user" style="margin-right:4px;color:#34d399;"></i>${driverInfo}
-        </div>`;
-      }
-
-      // Linha inferior com data/hora e ângulo
-      let bottomLine = '';
-      if (device.lastUpdate) {
-        const lastUpdateDate = new Date(device.lastUpdate);
-        const formattedDate = lastUpdateDate.toLocaleDateString() + ' ' + lastUpdateDate.toLocaleTimeString();
-        bottomLine += `<i class="fas fa-clock" style="color:#a78bfa;margin-right:4px;"></i>${formattedDate} `;
-      }
-
-      if (position.course !== undefined && position.course !== null) {
-        const angle = Math.round(position.course);
-        const direction = angle >= 0 && angle <= 180 ? 'N' : 'S';
-        bottomLine += `<i class="fas fa-compass" style="color:#fbbf24;margin-left:8px;margin-right:4px;"></i>${angle}°${direction} `;
-      }
-
-      if (bottomLine) {
-        tooltipContent += `<div style="color:#ffffff;font-size:10px;margin-bottom:6px;text-align:center;">
-          ${bottomLine}
-        </div>`;
-      }
-    }
-
-    tooltipContent += '</div>';
-
-    // Posição do tooltip
-    const markPoint = map.value.leafletObject.latLngToContainerPoint(L.latLng(position.latitude, position.longitude));
-    const left = markPoint.x + (router.currentRoute.value.meta.shown ? 553 : 73);
-    const top = markPoint.y;
-
-    window.$showTip({ left: left + 'px', top: top + 'px' }, tooltipContent, true);
-  }
-};
+// REMOVIDO: updateFollowTooltip (agora no composable)
+// REMOVIDO: buildTooltipHtml (agora no composable com cache LRU)
+// REMOVIDO: tooltipCache (agora no composable)
 
 /**
  * Controles de zoom
  */
 const zoomIn = () => {
-  if (map.value?.leafletObject) {
-    map.value.leafletObject.zoomIn();
-  }
+  mapInteraction.zoomIn();
 };
 
 const zoomOut = () => {
-  if (map.value?.leafletObject) {
-    map.value.leafletObject.zoomOut();
-  }
+  mapInteraction.zoomOut();
 };
 
-const markerOut = () => {
-  window.$hideTip();
-}
-
-/**
- * FIX 2 ENTERPRISE: Debounce helper inline
- */
-const debounce = (fn, delay) => {
-  let timeoutId;
-  return (...args) => {
-    clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => fn(...args), delay);
-  };
-};
-
-/**
- * FIX 2 ENTERPRISE: Cache de tooltips por deviceId
- * Regenera apenas quando device/position mudam
- */
-const tooltipCache = new Map();
-
-const buildTooltipHtml = (deviceId, device, position, connectionStatusColor) => {
-  // Verificar se cache é válido (lastUpdate não mudou)
-  const cacheKey = `${deviceId}_${device.lastUpdate}_${position?.speed}_${device.status}`;
-  if (tooltipCache.has(cacheKey)) {
-    return tooltipCache.get(cacheKey);
-  }
-
-  // Limpar cache se ficar muito grande (>500 entradas)
-  if (tooltipCache.size > 500) {
-    const entriesToDelete = Array.from(tooltipCache.keys()).slice(0, 250);
-    entriesToDelete.forEach(key => tooltipCache.delete(key));
-  }
-
-  // Tooltip DARK com estilo profissional
-  let html = `<div style="padding:10px;min-width:260px;background:rgba(0,0,0,0.88);border-radius:8px;">`;
-
-  // Header: Nome com círculo de status
-  html += `<div style="font-weight:bold;color:#ffffff;text-align:center;font-size:14px;margin-bottom:10px;display:flex;align-items:center;justify-content:center;">
-    <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background-color:${connectionStatusColor};margin-right:6px;flex-shrink:0;"></span>
-    <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${device.name}</span>
-  </div>`;
-
-  if (position) {
-    const speed = Math.round((position.speed || 0) * 1.852);
-    const ignition = position.attributes?.ignition;
-    const sat = position.attributes?.sat || position.attributes?.satellites || 0;
-    const battery = position.attributes?.battery || position.attributes?.batteryLevel;
-    const power = position.attributes?.power;
-    const fuel = position.attributes?.fuel || position.attributes?.fuelLevel;
-
-    // Detectar bloqueio de forma consistente
-    let isBlocked = false;
-    if (position.attributes?.blocked !== undefined) {
-      if (typeof position.attributes.blocked === 'boolean') {
-        isBlocked = position.attributes.blocked;
-      } else if (typeof position.attributes.blocked === 'string') {
-        isBlocked = position.attributes.blocked.toLowerCase() === 'true';
-      } else if (typeof position.attributes.blocked === 'number') {
-        isBlocked = position.attributes.blocked !== 0;
-      }
-    }
-
-    // Grid DARK de 7 ícones em linha (estilo profissional)
-    html += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:10px;">';
-
-    // 1. Ignição
-    const ignitionColor = ignition ? '#4ade80' : '#ef4444';
-    html += `<div style="background:rgba(255,255,255,0.15);border-radius:4px;width:30px;height:34px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:${ignitionColor};">
-      <i class="fas fa-key" style="margin-bottom:1px;font-size:14px;"></i>
-      <span style="font-size:10px;text-align:center;color:#ffffff;">${ignition ? 'LIG' : 'DES'}</span>
-    </div>`;
-
-    // 2. Bloqueio
-    const blockedColor = isBlocked ? '#ef4444' : '#4ade80';
-    html += `<div style="background:rgba(255,255,255,0.15);border-radius:4px;width:30px;height:34px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:${blockedColor};">
-      <i class="fas ${isBlocked ? 'fa-lock' : 'fa-lock-open'}" style="margin-bottom:1px;font-size:14px;"></i>
-      <span style="font-size:10px;text-align:center;color:#ffffff;">${isBlocked ? 'BLO' : 'DES'}</span>
-    </div>`;
-
-    // 3. Bateria do veículo (power)
-    let powerColor = '#94a3b8';
-    let powerValue = 'N/A';
-    if (power !== undefined && power !== null) {
-      const powerV = parseFloat(power);
-      powerValue = powerV.toFixed(1) + 'v';
-      powerColor = powerV < 11.5 ? '#ef4444' : (powerV < 12.5 ? '#f59e0b' : '#4ade80');
-    }
-    html += `<div style="background:rgba(255,255,255,0.15);border-radius:4px;width:30px;height:34px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:${powerColor};">
-      <i class="fas fa-car-battery" style="margin-bottom:1px;font-size:14px;"></i>
-      <span style="font-size:9px;text-align:center;color:#ffffff;">${powerValue}</span>
-    </div>`;
-
-    // 4. Bateria interna
-    let batteryColor = '#94a3b8';
-    let batteryValue = 'N/A';
-    let batteryIcon = 'fas fa-battery-empty';
-    if (battery !== undefined && battery !== null) {
-      const batteryVal = parseFloat(battery);
-      if (batteryVal > 100) {
-        // É voltagem
-        batteryValue = batteryVal.toFixed(1) + 'v';
-        batteryColor = batteryVal < 3.2 ? '#ef4444' : (batteryVal < 3.7 ? '#f59e0b' : '#4ade80');
-        // Ícone baseado em faixas de tensão
-        if (batteryVal >= 4.0) batteryIcon = 'fas fa-battery-full';
-        else if (batteryVal >= 3.7) batteryIcon = 'fas fa-battery-three-quarters';
-        else if (batteryVal >= 3.5) batteryIcon = 'fas fa-battery-half';
-        else if (batteryVal >= 3.2) batteryIcon = 'fas fa-battery-quarter';
-        else batteryIcon = 'fas fa-battery-empty';
-      } else {
-        // É porcentagem
-        batteryValue = Math.round(batteryVal) + '%';
-        batteryColor = batteryVal < 30 ? '#ef4444' : (batteryVal < 70 ? '#f59e0b' : '#4ade80');
-        // Ícone baseado em porcentagem
-        if (batteryVal >= 90) batteryIcon = 'fas fa-battery-full';
-        else if (batteryVal >= 70) batteryIcon = 'fas fa-battery-three-quarters';
-        else if (batteryVal >= 40) batteryIcon = 'fas fa-battery-half';
-        else if (batteryVal >= 10) batteryIcon = 'fas fa-battery-quarter';
-        else batteryIcon = 'fas fa-battery-empty';
-      }
-    }
-    html += `<div style="background:rgba(255,255,255,0.15);border-radius:4px;width:30px;height:34px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:${batteryColor};">
-      <i class="${batteryIcon}" style="margin-bottom:1px;font-size:14px;"></i>
-      <span style="font-size:9px;text-align:center;color:#ffffff;">${batteryValue}</span>
-    </div>`;
-
-    // 5. Combustível
-    let fuelColor = '#94a3b8';
-    let fuelValue = 'N/A';
-    if (fuel !== undefined && fuel !== null) {
-      const fuelVal = parseFloat(fuel);
-      fuelValue = Math.round(fuelVal) + 'L';
-      fuelColor = fuelVal < 25 ? '#ef4444' : (fuelVal < 50 ? '#f59e0b' : '#4ade80');
-    }
-    html += `<div style="background:rgba(255,255,255,0.15);border-radius:4px;width:30px;height:34px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:${fuelColor};">
-      <i class="fas fa-gas-pump" style="margin-bottom:1px;font-size:14px;"></i>
-      <span style="font-size:9px;text-align:center;color:#ffffff;">${fuelValue}</span>
-    </div>`;
-
-    // 6. Velocidade
-    const speedColor = speed > 0 ? '#4ade80' : '#94a3b8';
-    html += `<div style="background:rgba(255,255,255,0.15);border-radius:4px;width:30px;height:34px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:${speedColor};">
-      <i class="fas fa-tachometer-alt" style="margin-bottom:1px;font-size:14px;"></i>
-      <span style="font-size:9px;text-align:center;color:#ffffff;">${speed}km</span>
-    </div>`;
-
-    // 7. Satélites
-    const satVal = parseInt(sat);
-    const satellitesColor = satVal < 4 ? '#ef4444' : (satVal < 8 ? '#f59e0b' : '#4ade80');
-    html += `<div style="background:rgba(255,255,255,0.15);border-radius:4px;width:30px;height:34px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:${satellitesColor};">
-      <i class="fas fa-satellite" style="margin-bottom:1px;font-size:14px;"></i>
-      <span style="font-size:9px;text-align:center;color:#ffffff;">${satVal || 'N/A'}</span>
-    </div>`;
-
-    html += '</div>'; // Fecha grid
-
-    // Endereço ou coordenadas - estilo DARK
-    if (position.address) {
-      const address = position.address.length > 45 ? position.address.substring(0, 45) + '...' : position.address;
-      html += `<div style="color:#ffffff;font-size:9px;margin-bottom:6px;text-align:center;border-top:1px solid rgba(255,255,255,0.2);padding-top:6px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:260px;">
-        <i class="fas fa-map-marker-alt" style="margin-right:4px;color:#60a5fa;"></i>${address}
-      </div>`;
-    } else if (position.latitude && position.longitude) {
-      html += `<div style="color:#ffffff;font-size:9px;margin-bottom:6px;text-align:center;border-top:1px solid rgba(255,255,255,0.2);padding-top:6px;">
-        <i class="fas fa-map-marker-alt" style="margin-right:4px;color:#60a5fa;"></i>${position.latitude.toFixed(6)}, ${position.longitude.toFixed(6)}
-      </div>`;
-    }
-
-    // Motorista (se disponível)
-    const driverUniqueId = position.attributes?.driverUniqueId || device.attributes?.driverUniqueId;
-    if (driverUniqueId) {
-      const driverObj = store.getters['drivers/getDriverByUniqueId']?.(driverUniqueId);
-      const driverName = driverObj?.name || driverUniqueId;
-      html += `<div style="color:#ffffff;font-size:9px;margin-bottom:6px;text-align:center;">
-        <i class="fas fa-user" style="margin-right:4px;color:#34d399;"></i>${driverName}
-      </div>`;
-    }
-
-    // Linha inferior: Data/hora, ângulo, estado - estilo DARK
-    const lastUpdate = device.lastUpdate ? new Date(device.lastUpdate) : null;
-    const course = position.course;
-    const deviceState = device.attributes?.['device.state'];
-    const isAdmin = store.state.auth.user?.administrator;
-
-    let bottomLine = '';
-
-    // Data/hora com ícone
-    if (lastUpdate) {
-      const formattedDate = lastUpdate.toLocaleDateString() + ' ' + lastUpdate.toLocaleTimeString();
-      bottomLine += `<i class="fas fa-clock" style="color:#a78bfa;margin-right:4px;"></i>${formattedDate} `;
-    }
-
-    // Ângulo/direção com ícone
-    if (course !== undefined && course !== null) {
-      const angle = Math.round(course);
-      const direction = angle >= 0 && angle <= 180 ? 'N' : 'S';
-      bottomLine += `<i class="fas fa-compass" style="color:#fbbf24;margin-left:8px;margin-right:4px;"></i>${angle}°${direction} `;
-    }
-
-    // Estado do dispositivo (apenas admin) com ícones
-    if (isAdmin && deviceState) {
-      let stateIcon = '';
-      let stateColor = '';
-      let stateText = deviceState;
-      switch (deviceState) {
-        case 'installed':
-          stateText = 'Instalado';
-          stateIcon = 'fa-check-circle';
-          stateColor = '#67c23a';
-          break;
-        case 'in_service':
-          stateText = 'Em Serviço';
-          stateIcon = 'fa-tools';
-          stateColor = '#f59e0b';
-          break;
-        case 'in_stock':
-          stateText = 'Estoque';
-          stateIcon = 'fa-box';
-          stateColor = '#6b7280';
-          break;
-        case 'with_failures':
-          stateText = 'Com Falhas';
-          stateIcon = 'fa-exclamation-triangle';
-          stateColor = '#ef4444';
-          break;
-        case 'company':
-          stateText = 'Empresa';
-          stateIcon = 'fa-building';
-          stateColor = '#3b82f6';
-          break;
-        case 'withdrawn':
-          stateText = 'Retirado';
-          stateIcon = 'fa-archive';
-          stateColor = '#dc2626';
-          break;
-        default:
-          stateIcon = 'fa-info-circle';
-          stateColor = '#94a3b8';
-      }
-      bottomLine += `<i class="fas ${stateIcon}" style="color:${stateColor};margin-left:8px;margin-right:4px;"></i>${stateText}`;
-    }
-
-    if (bottomLine) {
-      html += `<div style="color:#ffffff;font-size:10px;margin-bottom:6px;text-align:center;">
-        ${bottomLine}
-      </div>`;
-    }
-  }
-
-  html += `</div>`;
-  
-  // Armazenar no cache
-  tooltipCache.set(cacheKey, html);
-  return html;
-};
-
-/**
- * Mostra tooltip rico com informações do dispositivo
- * FIX 2 ENTERPRISE: Agora com cache + debounce (40ms) para hover suave em 1000+ veículos
- * Grid visual DARK de 7 ícones: ignição, bloqueio, energia, bateria, combustível, velocidade, satélites
- * Estilo profissional igual ao kore-map-dark.vue
- */
-const markerOver = debounce((e) => {
-  const deviceId = (e.target) ? e.target.options.id : e;
-  const device = store.getters['devices/getDevice'](deviceId);
-  const position = store.getters['devices/getPosition'](deviceId);
-
-  if (!map.value?.leafletObject || !device) return;
-
-  const markPoint = map.value.leafletObject.latLngToContainerPoint(e.target._latlng);
-  const left = markPoint.x + (router.currentRoute.value.meta.shown ? 553 : 73);
-  const top = markPoint.y;
-
-  // Determinar cor do status de conexão (azul=movendo, verde=parado online, vermelho=offline, amarelo=desconhecido)
-  let connectionStatusColor = '#e6a23c';
-  if (device.lastUpdate === null || (device.status !== 'online' && device.status !== 'offline')) {
-    connectionStatusColor = '#e6a23c'; // amarelo - desconhecido
-  } else if (device.status === 'online' && position && position.speed > 6) {
-    connectionStatusColor = '#409eff'; // azul - movendo
-  } else if (device.status === 'online') {
-    connectionStatusColor = '#67c23a'; // verde - online parado
-  } else {
-    connectionStatusColor = '#f56c6c'; // vermelho - offline
-  }
-
-  // FIX 2 ENTERPRISE: Usar cache quando possível
-  const html = buildTooltipHtml(deviceId, device, position, connectionStatusColor);
-
-  window.$showTip({ left: left + 'px', top: (top) + 'px' }, html, true);
-}, 40); // 40ms debounce para hover suave
+// FASE E2.1: Funções de marcador (markerOut, markerOver, markerClick, markerContext)
+// agora são fornecidas pelo composable useMarkers (importado acima).
+// Cache LRU, debounce adaptativo, cooldown e sanitização gerenciados pelo composable.
 
 const flyToDevice = (device) => {
   const position = store.getters["devices/getPosition"](device.id);
   const zoom = store.state.server.serverInfo?.attributes?.['web.selectZoom'] ?? MAP_CONSTANTS.FLY_TO_ZOOM;
 
   if (position) {
-    // GUARD RAIL: setTimeout duplo necessário para garantir que o mapa esteja pronto
-    // TODO: Investigar se podemos usar nextTick ou evento do Leaflet ao invés disso
-    setTimeout(() => {
-      setTimeout(() => {
-        map.value?.leafletObject?.flyTo(
-          [position.latitude, position.longitude],
-          zoom,
-          { animate: true, duration: MAP_CONSTANTS.FLY_DURATION }
-        );
-      }, MAP_CONSTANTS.FLY_DELAY);
-    }, MAP_CONSTANTS.FLY_DELAY);
+    // FASE E1.1: Delegado ao composable (agora usa whenReady ao invés de setTimeout)
+    mapInteraction.flyTo(
+      position.latitude,
+      position.longitude,
+      zoom,
+      { animate: true, duration: MAP_CONSTANTS.FLY_DURATION }
+    );
   }
 }
 
 
-const markerClick = (e) => {
-  const deviceId = (e.target) ? e.target.options.id : e;
-  router.push('/devices/' + deviceId);
-  const device = store.getters['devices/getDevice'](deviceId);
-  store.commit("devices/setFollow", deviceId);
-  device.icon.bringToFront();
-  flyToDevice(device);
-}
 
 
+
+// ============================================================================
+// ROUTE MANAGEMENT FUNCTIONS - Gerenciamento de camadas de rota
+// ============================================================================
+
+/**
+ * Normaliza pontos da rota: converte para [lat, lng], filtra inválidos, ordena por tempo
+ * @param {Array} rawPoints - Pontos brutos (podem ser [lat,lng] ou {latitude, longitude})
+ * @returns {Array} Array normalizado de [lat, lng, ...extras]
+ */
+const normalizeRoutePoints = (rawPoints) => {
+  if (!Array.isArray(rawPoints) || rawPoints.length === 0) return [];
+
+  // Filtrar pontos válidos e normalizar formato
+  const normalized = rawPoints
+    .filter(p => {
+      if (!p) return false;
+      const lat = Array.isArray(p) ? p[0] : p.latitude;
+      const lng = Array.isArray(p) ? p[1] : p.longitude;
+      return lat != null && lng != null && !isNaN(lat) && !isNaN(lng);
+    })
+    .map(p => {
+      if (Array.isArray(p)) {
+        // Já está em formato [lat, lng, ...], preservar extras
+        return p;
+      } else {
+        // Converter objeto para array [lat, lng, speed, time, ...]
+        return [
+          p.latitude,
+          p.longitude,
+          p.altitude || 0,
+          p.speed || 0,
+          p.course || 0,
+          p.fixTime || p.serverTime || p.deviceTime || Date.now(),
+          p // Preservar objeto original como último elemento
+        ];
+      }
+    });
+
+  // Ordenar por tempo (último elemento se objeto, ou índice 5 se array)
+  normalized.sort((a, b) => {
+    const timeA = typeof a[a.length - 1] === 'object'
+      ? (a[a.length - 1].fixTime || a[a.length - 1].serverTime || a[a.length - 1].deviceTime || 0)
+      : (a[5] || 0);
+    const timeB = typeof b[b.length - 1] === 'object'
+      ? (b[b.length - 1].fixTime || b[b.length - 1].serverTime || b[b.length - 1].deviceTime || 0)
+      : (b[5] || 0);
+    return timeA - timeB;
+  });
+
+  return normalized;
+};
+
+/**
+ * Desenha a rota completa no mapa (sempre visível)
+ * @param {Array} points - Array de pontos [lat, lng] ou objetos com latitude/longitude
+ */
+const drawFullRoute = (points) => {
+  startMark('drawFullRoute');
+  const arr = Array.isArray(points) ? points : [];
+  devLog('[kore-map] drawFullRoute chamado com', arr.length, 'pontos');
+
+  // NORMALIZAR: converter formato, filtrar inválidos, ordenar por tempo
+  const normalized = normalizeRoutePoints(arr);
+  devLog('[kore-map] Após normalização:', normalized.length, 'pontos válidos');
+
+  fullRoutePoints.value = normalized;
+
+  // Markers seguem a rota completa (se toggle ativado)
+  markerPoints.value = arr;
+
+  // Manter compatibilidade com código legado
+  routePoints.value = arr;
+  endMark('drawFullRoute');
+};
+
+/**
+ * Reseta a rota do play (limpa apenas a camada de reprodução)
+ */
+const resetPlay = () => {
+  playRoutePoints.value = [];
+  clearPlayVehicleMarker(); // 🚗 Remove marcador do veículo ao resetar
+};
+
+/**
+ * Adiciona um ponto à rota do play (reprodução progressiva)
+ * @param {Array|Object} point - Ponto [lat, lng] ou {latitude, longitude}
+ */
+const pushPlayPoint = (point) => {
+  if (!point) return;
+
+  // Normalizar formato do ponto
+  const normalized = Array.isArray(point)
+    ? point
+    : [point.latitude || point[0], point.longitude || point[1]];
+
+  playRoutePoints.value = [...playRoutePoints.value, normalized];
+};
+
+/**
+ * Atualiza a rota no mapa (função principal exposta para components externos)
+ * @param {Array} points - Array de pontos da rota
+ * @param {Boolean} show - Se true, mostra markers; se false, oculta markers
+ */
 const updateRoute = (points, show = true) => {
+  devLog('[kore-map] updateRoute chamado:', points.length, 'pontos, show =', show);
 
   if (points.length) {
     store.commit("devices/setRoute", true);
   }
 
+  // Desenhar rota completa SEMPRE (nova arquitetura)
+  drawFullRoute(points);
 
-  routePoints.value = points;
-  showRoutePoints.value = show;
+  // "show" agora controla apenas MARKERS, não a polyline
+  if (typeof show === 'boolean') {
+    showRouteMarkers.value = show;
+  } else {
+    showRouteMarkers.value = true;
+  }
+
+  // Resetar play ao carregar nova rota
+  resetPlay();
+
+  // Manter compatibilidade com código legado
+  showRoutePoints.value = true; // Rota sempre visível agora
 
   if (points.length > 0) {
     let tmp = [];
@@ -2746,14 +2507,26 @@ const updateRoute = (points, show = true) => {
     }
 
     setTimeout(() => {
-
       // eslint-disable-next-line no-undef
       const bds = L.latLngBounds(tmp);
-      //map.value.leafletObject.flyTo([points[0][0],points[0][1]], 12, {animate: true, duration: 1.5});
       map.value?.leafletObject?.fitBounds(bds);
     }, 300);
   }
 }
+
+/**
+ * Toggle Heatmap - 100% VUE/LEAFLET (sem PHP/iframe)
+ * @param {Boolean} enabled - Se true, ativa heatmap; se false, desativa
+ * COMMIT 2: Ao ligar heatmap, desliga play automaticamente
+ */
+const toggleHeatmap = (enabled) => {
+  showHeat.value = !!enabled;
+
+  // FASE D1: STUB - Layer Manager não implementado
+  // TODO(E3): Remover stubs do layerManager ou implementar LayerManager
+  devWarn('[toggleHeatmap] Funcionalidade temporariamente desabilitada (LayerManager pendente)');
+  showHeat.value = false;
+};
 
 
 const setMapCenter = (pos) => {
@@ -2761,496 +2534,27 @@ const setMapCenter = (pos) => {
 }
 window.$setMapCenter = setMapCenter;
 
+// REMOVIDO: mapClick (lógica movida para composable useMapInteraction)
+// REMOVIDO: mapMove (lógica movida para composable useMapInteraction)
+// REMOVIDO: mapMoveThrottleTimer (agora gerenciado pelo composable)
+
+// Delegates para manter compatibilidade com template
 const mapClick = (e) => {
-  if (e.latlng && store.state.geofences.mapEditing !== 0) {
-    if (store.state.geofences.mapPointEditingType === 'CIRCLE') {
-      if (store.state.geofences.mapPointEditing !== 2) {
-        store.dispatch("geofences/setupCircle", [e.latlng.lat, e.latlng.lng, 10])
-      } else {
-        store.dispatch("geofences/completeCircle")
-      }
-    } else if (store.state.geofences.mapPointEditingType === 'LINESTRING') {
-      store.dispatch("geofences/setupLine", [e.latlng.lat, e.latlng.lng])
-    } else if (store.state.geofences.mapPointEditingType === 'POLYGON') {
-      store.dispatch("geofences/setupPolygon", [e.latlng.lat, e.latlng.lng])
-    }
+  // Delegado ao composable via callback onMapClick
+  if (mapInteraction && e.latlng) {
+    mapInteraction.bindGeofenceHandlers();
   }
-}
-
-// ============================================================================
-// GUARD RAIL: Throttle no mapMove
-// O evento mousemove dispara ~60x/segundo. Sem throttle, isso causa:
-// 1. Dispatch excessivo para store
-// 2. Re-renders desnecessários
-// 3. Lag visual durante edição de círculo
-// ============================================================================
-let mapMoveThrottleTimer = null;
-const MAP_MOVE_THROTTLE_MS = 16; // ~60fps
-
-const mapMove = (e) => {
-  if (mapMoveThrottleTimer) return;
-
-  mapMoveThrottleTimer = setTimeout(() => {
-    mapMoveThrottleTimer = null;
-
-    if (e.latlng &&
-      store.state.geofences.mapPointEditing === 2 &&
-      store.state.geofences.mapPointEditingType === 'CIRCLE' &&
-      store.state.geofences.mapPointEditingParams.length === 3) {
-      store.dispatch(
-        "geofences/setCircleRadius",
-        L.latLng(store.getters["geofences/getCirclePosition"]).distanceTo(e.latlng)
-      );
-    }
-  }, MAP_MOVE_THROTTLE_MS);
-}
-
-const markerContext = async (evt, e) => {
-  let addSep = false;
-
-  const deviceId = (evt.target && evt.target.options && evt.target.options.id) ? evt.target.options.id : e;
-  const user = store.state.auth;
-  const device = store.getters["devices/getDevice"](deviceId);
-  const position = store.getters["devices/getPosition"](deviceId)
-  let availableSaved = [];
-  let commands = [];
-
-  if (device.status !== 'online') {
-    commands.push({
-      text: KT('actions.offline'), cb: () => {
-        ElMessageBox.confirm(
-          KT('actions.offline_message', device),
-          'Warning',
-          {
-            confirmButtonText: KT('OK'),
-            cancelButtonText: KT('Cancel'),
-            type: 'warning',
-          }
-        ).then(() => {
-          console.log("OK")
-        }).catch(() => {
-          ElMessage.error(KT('userCancel'));
-        })
-      }
-    });
-  } else {
-    window.$traccar.getTypeCommands(deviceId).then((response) => {
-      const availableTypesCommand = response.data;
-      availableTypesCommand.forEach((c) => {
-        commands.push({
-          text: KT('actions.' + c.type), cb: () => {
-            ElMessageBox.confirm(
-              KT('device.confirm_command', device),
-              'Warning',
-              {
-                confirmButtonText: KT('OK'),
-                cancelButtonText: KT('Cancel'),
-                type: 'warning',
-              }
-            ).then(() => {
-              window.$traccar.sendCommand({ deviceId: deviceId, type: c.type });
-              ElNotification({
-                title: KT('success'),
-                message: KT('device.command_sent'),
-                type: 'success',
-              });
-            }).catch(() => {
-              ElMessage.error(KT('userCancel'));
-            })
-          }
-        });
-      });
-      window.$traccar.getAvailableCommands(deviceId).then((response) => {
-        availableSaved = response.data;
-
-        if (commands.length > 0 && availableSaved.length > 0) {
-          commands.push({ text: 'separator' });
-        }
-
-        availableSaved.forEach((c) => {
-          commands.push({
-            text: c.description, cb: () => {
-              ElMessageBox.confirm(
-                KT('device.confirm_command', device),
-                'Warning',
-                {
-                  confirmButtonText: KT('OK'),
-                  cancelButtonText: KT('Cancel'),
-                  type: 'warning',
-                }
-              ).then(() => {
-                window.$traccar.sendCommand({ ...c, ...{ deviceId: deviceId } });
-                ElNotification({
-                  title: KT('success'),
-                  message: KT('device.command_sent'),
-                  type: 'success',
-                });
-              }).catch(() => {
-                ElMessage.error(KT('userCancel'));
-              })
-            }
-          });
-        });
-      })
-    });
-  }
-
-  let tmp = [];
-  tmp.push({
-    text: KT('device.details'),
-    icon: 'fas fa-info-circle',
-    cb: () => {
-      router.push('/devices/' + deviceId);
-    }
-  });
-
-  tmp.push({
-    text: KT('device.zoom'),
-    icon: 'fas fa-search-plus',
-    cb: () => {
-      flyToDevice(device);
-    }
-  });
-
-  if (store.state.devices.isFollowingId === deviceId) {
-    tmp.push({
-      text: KT('device.unfollow'),
-      icon: 'fas fa-eye-slash',
-      cb: () => {
-        window.$hideTip();
-        // Detener el intervalo de actualización del tooltip
-        if (tooltipUpdateInterval) {
-          clearInterval(tooltipUpdateInterval);
-          tooltipUpdateInterval = null;
-        }
-        store.commit("devices/setFollow", 0);
-
-        // Desactivar Street View si está activado
-        if (store.state.devices.streetview) {
-          store.dispatch("devices/toggleStreet");
-        }
-      }
-    });
-  } else {
-    tmp.push({
-      text: KT('device.follow'),
-      icon: 'fas fa-eye',
-      cb: () => {
-        store.commit("devices/setFollow", deviceId);
-        flyToDevice(device);
-
-        // Iniciar la actualización del tooltip
-        if (tooltipUpdateInterval) {
-          clearInterval(tooltipUpdateInterval);
-        }
-        tooltipUpdateInterval = setInterval(updateFollowTooltip, 1000);
-        updateFollowTooltip(); // Actualizar inmediatamente
-
-        // Activar Street View si hay token de Google disponible
-        const googleApiKey = store.getters['server/getAttribute']('google_api');
-        if (googleApiKey && googleApiKey.trim() !== '') {
-          // Solo activar Street View si no está ya activado
-          if (!store.state.devices.streetview) {
-            store.dispatch("devices/toggleStreet");
-          }
-        }
-      }
-    });
-  }
-
-  if (store.state.devices.trail === deviceId) {
-    tmp.push({
-      text: KT('device.untrail'),
-      icon: 'fas fa-route',
-      cb: () => {
-        store.commit("devices/setTrail", false)
-      }
-    });
-  } else {
-    tmp.push({
-      text: KT('device.trail'),
-      icon: 'fas fa-map-signs',
-      cb: () => {
-        store.commit("devices/setTrail", deviceId);
-        flyToDevice(device);
-      }
-    });
-  }
-
-  let shareOpen = [];
-  shareOpen.push({
-    text: KT('device.openMaps'),
-    icon: 'fas fa-map-marked-alt',
-    cb: () => {
-      const elm = document.createElement("a");
-      elm.target = "_blank";
-      elm.href = 'http://maps.google.com/maps?q=loc:' + position.latitude + "," + position.longitude;
-      document.body.appendChild(elm);
-      elm.click();
-      document.body.removeChild(elm);
-    }
-  });
-
-  shareOpen.push({
-    text: KT('device.openStreet'),
-    icon: 'fas fa-street-view',
-    cb: () => {
-      const link = 'https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=' + position.latitude + ',' + position.longitude + '&heading=' + position.course + '&pitch=10&fov=80';
-      const elm = document.createElement("a");
-      elm.target = "_blank";
-      elm.href = link;
-      document.body.appendChild(elm);
-      elm.click();
-    }
-  });
-
-  tmp.push({
-    text: KT('device.openExternal'),
-    icon: 'fas fa-external-link-alt',
-    submenu: shareOpen
-  });
-
-  let shares = [];
-
-  if (store.state.server.isPlus && store.getters.advancedPermissions(25)) {
-    shares.push({
-      text: KT('device.shareLink'),
-      icon: 'fas fa-link',
-      cb: () => {
-        editShareRef.value.newShare(device.id);
-      }
-    });
-  }
-
-  shares.push({
-    text: KT('device.shareMaps'),
-    icon: 'fas fa-map-pin',
-    cb: () => {
-      if (navigator.share) {
-        navigator.share({
-          title: device.name,
-          url: 'http://maps.google.com/maps?q=loc:' + position.latitude + "," + position.longitude
-        }).then(() => {
-          console.log('Thanks for sharing!');
-        }).catch(console.error);
-      } else {
-        const elm = document.createElement("input");
-        elm.value = 'http://maps.google.com/maps?q=loc:' + position.latitude + "," + position.longitude;
-        document.body.appendChild(elm);
-        elm.select();
-        document.execCommand("copy");
-        document.body.removeChild(elm);
-        ElMessage.success('Copiado para área de transferência');
-      }
-    }
-  });
-
-  shares.push({
-    text: KT('device.shareStreet'),
-    icon: 'fas fa-road',
-    cb: () => {
-      const link = 'https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=' + position.latitude + ',' + position.longitude + '&heading=' + position.course + '&pitch=10&fov=80';
-      if (navigator.share) {
-        navigator.share({
-          title: device.name,
-          url: link
-        }).then(() => {
-          console.log('Thanks for sharing!');
-        }).catch(console.error);
-      } else {
-        const elm = document.createElement("input");
-        elm.value = link;
-        document.body.appendChild(elm);
-        elm.select();
-        document.execCommand("copy");
-        document.body.removeChild(elm);
-        ElMessage.success('Copiado para área de transferência');
-      }
-    }
-  });
-
-  tmp.push({
-    text: KT('device.share'),
-    icon: 'fas fa-share-alt',
-    submenu: shares
-  });
-
-  addSep = true;
-
-  if (store.state.server.isPlus && store.getters.advancedPermissions(9)) {
-    if (addSep) {
-      tmp.push({ text: 'separator' });
-      addSep = false;
-    }
-    const isAnchored = store.getters['geofences/isAnchored'](device.id);
-    tmp.push({
-      text: KT((isAnchored) ? 'actions.anchorDisable' : 'actions.anchorEnable'),
-      icon: 'fas fa-anchor',
-      cb: () => {
-        actAnchor(device.id);
-      }
-    });
-  }
-
-  if (position.attributes.blocked && store.getters.advancedPermissions(11)) {
-    if (addSep) {
-      tmp.push({ text: 'separator' });
-      addSep = false;
-    }
-    tmp.push({
-      disabled: (device.status !== 'online'),
-      icon: 'fas fa-unlock',
-      text: KT('device.unlock'), cb: () => {
-        // Usar SliderConfirmModal para comandos críticos
-        openSliderConfirm({
-          title: KT('device.unlock') || 'Desbloquear Veículo',
-          deviceName: device.name,
-          message: KT('device.confirm_unlock', device) || `Deseja desbloquear o veículo "${device.name}"?`,
-          warningText: device.status !== 'online'
-            ? (KT('device.offline_warning') || 'Atenção: Dispositivo offline. O comando será executado quando ficar online.')
-            : '',
-          sliderText: 'Deslize para desbloquear',
-          actionType: 'success',
-          callback: async () => {
-            const changeNative = availableSaved.find((a) => a.attributes['tarkan.changeNative'] && a.attributes['tarkan.changeNative'] === 'engineResume');
-            if (changeNative) {
-              await window.$traccar.sendCommand({ ...changeNative, ...{ deviceId: deviceId } });
-            } else {
-              await window.$traccar.sendCommand({ deviceId: deviceId, type: "engineResume" });
-            }
-            ElNotification({
-              title: KT('success'),
-              message: KT('device.command_sent'),
-              type: 'success',
-            });
-          }
-        });
-      }
-    });
-  } else if (store.getters.advancedPermissions(10)) {
-    if (addSep) {
-      tmp.push({ text: 'separator' });
-      addSep = false;
-    }
-    tmp.push({
-      disabled: (device.status !== 'online'),
-      icon: 'fas fa-lock',
-      text: KT('device.lock'), cb: () => {
-        // Usar SliderConfirmModal para comandos críticos
-        openSliderConfirm({
-          title: KT('device.lock') || 'Bloquear Veículo',
-          deviceName: device.name,
-          message: KT('device.confirm_lock', device) || `Deseja bloquear o veículo "${device.name}"?`,
-          warningText: device.status !== 'online'
-            ? (KT('device.offline_warning') || 'Atenção: Dispositivo offline. O comando será executado quando ficar online.')
-            : '',
-          sliderText: 'Deslize para bloquear',
-          actionType: 'danger',
-          callback: async () => {
-            const changeNative = availableSaved.find((a) => a.attributes['tarkan.changeNative'] && a.attributes['tarkan.changeNative'] === 'engineStop');
-            if (changeNative) {
-              await window.$traccar.sendCommand({ ...changeNative, ...{ deviceId: deviceId } });
-            } else {
-              await window.$traccar.sendCommand({ deviceId: deviceId, type: "engineStop" });
-            }
-            ElNotification({
-              title: KT('success'),
-              message: KT('device.command_sent'),
-              type: 'success',
-            });
-          }
-        });
-      }
-    });
-  }
-
-  if (store.getters.advancedPermissions(12)) {
-    if (addSep) {
-      tmp.push({ text: 'separator' });
-      addSep = false;
-    }
-    tmp.push({
-      text: KT('device.send_command'),
-      icon: 'fas fa-terminal',
-      submenu: commands
-    });
-  }
-
-  let attributions = [];
-  attributions.push({
-    text: KT('geofence.geofences'),
-    icon: 'fas fa-map-marker-alt',
-    cb: () => {
-      linkObjectsRef.value.showObjects({ deviceId: device.id, type: 'geofences' });
-    }
-  });
-
-  attributions.push({
-    text: KT('attribute.computedAttributes'),
-    icon: 'fas fa-calculator',
-    cb: () => {
-      linkObjectsRef.value.showObjects({ deviceId: device.id, type: 'attributes' });
-    }
-  });
-
-  attributions.push({
-    text: KT('driver.drivers'),
-    icon: 'fas fa-user',
-    cb: () => {
-      linkObjectsRef.value.showObjects({ deviceId: device.id, type: 'drivers' });
-    }
-  });
-
-  attributions.push({
-    text: KT('command.savedCommands'),
-    icon: 'fas fa-tasks',
-    cb: () => {
-      linkObjectsRef.value.showObjects({ deviceId: device.id, type: 'commands' });
-    }
-  });
-
-  attributions.push({
-    text: KT('notification.notifications'),
-    icon: 'fas fa-bell',
-    cb: () => {
-      linkObjectsRef.value.showObjects({ deviceId: device.id, type: 'notifications' });
-    }
-  });
-
-  attributions.push({
-    text: KT('maintenance.maintenances'),
-    icon: 'fas fa-wrench',
-    cb: () => {
-      linkObjectsRef.value.showObjects({ deviceId: device.id, type: 'maintence' });
-    }
-  });
-
-  if (store.getters.advancedPermissions(14)) {
-    tmp.push({
-      text: KT('device.attributions'),
-      icon: 'fas fa-tags',
-      submenu: attributions
-    });
-
-    tmp.push({
-      text: KT('device.edit'),
-      icon: 'fas fa-edit',
-      cb: () => {
-        editDeviceRef.value.editDevice(deviceId);
-      }
-    });
-  }
-  if (store.state.server.isPlus && user.administrator) {
-    tmp.push({
-      text: KT('device.logs'),
-      icon: 'fas fa-file-alt',
-      cb: () => {
-        logObjectsRef.value.showLogs({ deviceId: deviceId });
-      }
-    });
-  }
-  contextMenuRef.value.openMenu({ evt: evt.originalEvent || evt, menus: tmp })
 };
+
+// eslint-disable-next-line no-unused-vars
+const mapMove = (e) => {
+  // Delegado ao composable via callback onMapMove
+  // Throttle gerenciado internamente pelo composable
+};
+
+
+
+devLog('[kore-map.vue] 🔵 Registrando provides...');
 
 const contextMenuRef = inject("contextMenu");
 const logObjectsRef = inject("log-objects");
@@ -3259,62 +2563,92 @@ const editSharesRef = inject("edit-shares");
 const editShareRef = inject("edit-share");
 const editDeviceRef = inject("edit-device");
 
+// ============================================================================
+// FASE E2.1: Integração do useMarkers composable
+// ============================================================================
+const markers = useMarkers({
+  store,
+  router,
+  mapApi: mapInteraction,
+  followApi: followDevice,
+  env: {
+    isEnterprise: !!store.state.server.serverInfo?.attributes?.['tarkan.enterprise'],
+    debugFlag: process.env.NODE_ENV !== 'production'
+  },
+  ui: {
+    editDevice: editDeviceRef,
+    editShare: editShareRef,
+    linkObjects: linkObjectsRef,
+    logObjects: logObjectsRef,
+    contextMenu: contextMenuRef,
+    sliderConfirm: openSliderConfirm,
+    actAnchor: actAnchor,
+    messageBox: ElMessageBox,
+    message: ElMessage,
+    notification: ElNotification
+  },
+  utils: { KT }
+});
+
+// Destructure das funções do composable
+const { markerOver, markerOut, markerClick, markerContext } = markers;
+
+devLog('[kore-map.vue] ✅ useMarkers integrado:', { markerOver: !!markerOver, markerClick: !!markerClick, markerContext: !!markerContext });
+
 app.provide('markerClick', markerClick);
 app.provide('flyToDevice', flyToDevice)
 app.provide('updateRoute', updateRoute)
+app.provide('resetPlayRoute', resetPlay)
+app.provide('pushPlayPoint', pushPlayPoint)
+app.provide('toggleHeatmap', toggleHeatmap)
 app.provide('markerContext', markerContext);
 
+// COMMIT 1: Provide para controle de play externo
+app.provide('isPlayingRoute', isPlayingRoute);
+app.provide('setRoutePlaying', (v) => { isPlayingRoute.value = !!v; });
 
-const showPercursoLayer = () => {
-  showPercurso.value = true;
-};
-
-const hidePercursoLayer = () => {
-  showPercurso.value = false;
-};
-
-const showCalorLayer = () => {
-  showMapadeCalor.value = true;
-
-  // Criar camada de mapa de calor se houver pontos de rota
-  if (routePoints.value.length > 0 && map.value?.leafletObject) {
-    // Preparar dados para o heatmap: [lat, lng, intensidade]
-    const heatData = routePoints.value.map(p => {
-      // Usar velocidade como intensidade (normalizada)
-      const intensity = Math.min(p[3] || 1, 100) / 100;
-      return [p[0], p[1], intensity || 0.5];
-    });
-
-    // Remover camada existente se houver
-    if (heatmapLayer.value) {
-      map.value.leafletObject.removeLayer(heatmapLayer.value);
-    }
-
-    // Criar nova camada de mapa de calor
-    heatmapLayer.value = L.heatLayer(heatData, {
-      radius: 25,
-      blur: 15,
-      maxZoom: 17,
-      gradient: {
-        0.0: 'blue',
-        0.3: 'cyan',
-        0.5: 'lime',
-        0.7: 'yellow',
-        1.0: 'red'
-      }
-    }).addTo(map.value.leafletObject);
+// FASE 3: Provide para controle do follow mode
+app.provide('followPlay', followPlay);
+app.provide('setFollowPlay', (v) => {
+  followPlay.value = !!v;
+  // FASE 13.4.2: Limpar suspensão quando usuário ativa follow manualmente
+  if (v) {
+    followPlaySuspendedUntil = 0;
   }
-};
+});
 
-const hideCalorLayer = () => {
-  showMapadeCalor.value = false;
+// FASE 4: Provide para seek/preview de ponto na timeline
+app.provide('previewRoutePoint', previewRoutePoint);
 
-  // Remover camada de mapa de calor
-  if (heatmapLayer.value && map.value?.leafletObject) {
-    map.value.leafletObject.removeLayer(heatmapLayer.value);
-    heatmapLayer.value = null;
-  }
-};
+// FASE 5: Provides para controle de playback externo
+app.provide('runPlayRoute', runPlayRoute);
+app.provide('pausePlayRoute', pausePlayRoute);
+app.provide('stopPlayRoute', stopPlayRoute);
+app.provide('setPlaybackSpeed', setPlaybackSpeed);
+app.provide('getPlaybackSpeed', getPlaybackSpeed);
+app.provide('playbackSpeed', playbackSpeed);
+app.provide('routePlayState', routePlayState);
+
+// COMMIT 3: Provides para cor da rota configurável
+app.provide('routeColor', routeColor);
+app.provide('setRouteColor', setRouteColor);
+app.provide('ROUTE_COLOR_OPTIONS', ROUTE_COLOR_OPTIONS);
+
+devLog('[kore-map] ✅ Provides registrados:', {
+  markerClick: !!markerClick,
+  flyToDevice: !!flyToDevice,
+  updateRoute: !!updateRoute,
+  resetPlayRoute: !!resetPlay,
+  pushPlayPoint: !!pushPlayPoint,
+  toggleHeatmap: !!toggleHeatmap,
+  markerContext: !!markerContext,
+  routeColor: routeColor.value,
+  setRouteColor: !!setRouteColor
+});
+
+// ============================================================================
+// FUNÇÕES DE CONTROLE DE MARKERS (MANTIDAS)
+// ============================================================================
 const showMarkersLayer = () => {
   showRouteMarkers.value = true;
 };
@@ -3322,42 +2656,13 @@ const hideMarkersLayerr = () => {
   showRouteMarkers.value = false;
 };
 
-const showPontosLayer = () => {
-  showPontos.value = true;
-};
-
-const hidePontosLayer = () => {
-  showPontos.value = false;
-};
-
-
-const showPontosCorrelacaoLayer = () => {
-  showPontosCorrelacao.value = true;
-};
-
-const hidePontosCorrelacaoLayer = () => {
-  showPontosCorrelacao.value = false;
-};
-
-const showMapadeCalorCorrelacaoLayer = () => {
-  showMapadeCalorCorrelacao.value = true;
-};
-
-const hideCalorCorrelacaoLayer = () => {
-  showMapadeCalorCorrelacao.value = false;
-};
-
-
-app.provide("showPercursoLayer", showPercursoLayer);
-app.provide("hidePercursoLayer", hidePercursoLayer);
-app.provide("showCalorLayer", showCalorLayer);
-app.provide("hideCalorLayer", hideCalorLayer);
 app.provide("showMarkersLayer", showMarkersLayer);
 app.provide("hideMarkersLayerr", hideMarkersLayerr);
-app.provide("showPontosLayer", showPontosLayer);
-app.provide("hidePontosLayer", hidePontosLayer);
-app.provide("showPontosCorrelacaoLayer", showPontosCorrelacaoLayer);
-app.provide("hidePontosCorrelacaoLayer", hidePontosCorrelacaoLayer);
+
+// REMOVIDO COMMIT 2: Funções legadas de show/hide layers
+// showPercursoLayer, hidePercursoLayer, showPontosLayer, hidePontosLayer
+// showPontosCorrelacaoLayer, hidePontosCorrelacaoLayer, showMapadeCalorCorrelacaoLayer, hideCalorCorrelacaoLayer
+// Essas controlavam iframes PHP agora removidos - usar apenas toggleHeatmap para heatmap
 </script>
 
 <style scoped>
@@ -3441,13 +2746,19 @@ app.provide("hidePontosCorrelacaoLayer", hidePontosCorrelacaoLayer);
   background: rgba(0, 0, 0, 0.55);
   padding: 6px;
   border-radius: 10px;
-  
+
   /* PATCH: Anti-scale/zoom herdado de transforms do painel */
   transform: none !important;
   zoom: 1;
   font-size: 12px;
   line-height: 1.2;
   contain: layout paint;
+
+  /* FIX: For\u00e7ar dimens\u00f5es compactas em qualquer contexto */
+  width: auto !important;
+  height: auto !important;
+  max-width: 42px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 /* Reforçar reset em filhos do contador */
@@ -3645,6 +2956,26 @@ app.provide("hidePontosCorrelacaoLayer", hidePontosCorrelacaoLayer);
 
 .kore-map-root .control-btn.speed-btn:hover {
   background: #bfdbfe;
+}
+
+/* ============================================================================ */
+/* MARKER DO DEVICE ANIMADO DURANTE PLAYBACK                                    */
+/* ============================================================================ */
+.play-device-marker {
+  transition: transform 0.2s ease-out;
+  animation: playMarkerPulse 1.5s infinite;
+}
+
+@keyframes playMarkerPulse {
+
+  0%,
+  100% {
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
+  }
+
+  50% {
+    filter: drop-shadow(0 4px 12px rgba(5, 167, 227, 0.6));
+  }
 }
 
 /* ============================================================================ */
@@ -4128,20 +3459,20 @@ app.provide("hidePontosCorrelacaoLayer", hidePontosCorrelacaoLayer);
     border-radius: 8px;
     gap: 0;
   }
-  
+
   .kore-map-root .vertical-controls-container .el-button {
     min-width: 22px;
     height: 22px;
     font-size: 10px;
     margin-bottom: 0;
   }
-  
+
   .kore-map-root .status-counters {
     flex-direction: row;
     flex-wrap: wrap;
     justify-content: center;
   }
-  
+
   .kore-map-root .status-counters .counter {
     width: 28px;
     height: 24px;
@@ -4634,12 +3965,12 @@ app.provide("hidePontosCorrelacaoLayer", hidePontosCorrelacaoLayer);
     max-width: 180px;
     padding: 3px;
   }
-  
+
   .kore-map-popper .el-dropdown-menu__item {
     padding: 0;
     font-size: 10px;
   }
-  
+
   .kore-map-popper .section-title {
     padding: 4px 8px;
     font-size: 9px;

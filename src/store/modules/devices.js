@@ -135,6 +135,179 @@ if (typeof window !== 'undefined') {
     window.__getPerfReport = generateBenchmarkReport;
 }
 
+// ============================================
+// FUNÇÃO INTERNA: refreshOneDevice (não é action)
+// ============================================
+// Extraída para fora da action para poder ser chamada sem retornar Promise
+// Isso evita o bug onde dispatch() sempre retorna Promise (truthy) em vez do boolean real
+function refreshOneDeviceInternal(context, fk){
+    const f = context.state.deviceList[fk];
+    if (!f || !f.icon) return false;
+
+    // Helper: compatibilidade icon array/object
+    const eachIcon = (fn) => {
+        const icons = Array.isArray(f.icon) ? f.icon : [f.icon].filter(Boolean);
+        icons.forEach(i => { try { fn(i); } catch(e){ if(PERF_DEBUG) console.warn('eachIcon error:', e); } });
+    };
+
+    const statusFilter = context.state.applyFilters.statusFilter;
+    const motionFilter = context.state.applyFilters.motionFilter;
+    const stateFilter = context.state.applyFilters.stateFilter;
+    const combinedStatusFilter = context.state.applyFilters.combinedStatusFilter;
+    const advancedFilter = context.state.applyFilters.advancedFilter;
+    const filterQuery = window.localStorage.getItem("query") || false;
+    const position = context.getters.getPosition(f.id);
+
+    let visible = true;
+    let gotFiltered = false;
+
+    // 1. FILTRO DE BUSCA (query text)
+    if(filterQuery){
+        gotFiltered = true;
+        visible = false;
+        eachIcon(i => i.remove?.());
+
+        for(let k of Object.keys(f)){
+            if(k==='status' && String(f[k]).toLowerCase().replace('unknown','desconhecido').match(filterQuery.toLowerCase())){
+                visible = true;
+                break;
+            }else if(String(f[k]).toLowerCase().match(filterQuery.toLowerCase())){
+                visible = true;
+                break;
+            }
+        }
+
+        if (!visible && f.attributes) {
+            for(let k of Object.keys(f.attributes)){
+                if(f.attributes[k] && f.attributes[k].toString().toLowerCase().match(filterQuery.toLowerCase())){
+                    visible = true;
+                    break;
+                }
+            }
+        }
+
+        if (visible) {
+            eachIcon(i => {
+                if (i.options?.el) i.options.el.classList.add('filter-visible');
+                i.addToMap?.();
+            });
+        }
+        return visible;
+    }
+
+    // 2. FILTRO DISPOSITIVO ÚNICO (showOnlyId)
+    if(context.state.applyFilters.showOnlyId !== 0){
+        gotFiltered = true;
+        visible = (f.id === context.state.applyFilters.showOnlyId);
+        if (visible) {
+            eachIcon(i => {
+                if (i.options?.el) i.options.el.classList.add('filter-visible');
+                i.addToMap?.();
+            });
+        } else {
+            eachIcon(i => {
+                if (i.options?.el) i.options.el.classList.remove('filter-visible');
+                i.remove?.();
+            });
+        }
+        return visible;
+    }
+
+    // 3. FILTROS COMBINADOS (categoria + status + state + advanced)
+    if (!f.category) f.category = 'default';
+
+    // 3.1 Categoria oculta
+    if (context.state.applyFilters.hideCategory.find(c => c === f.category)) {
+        visible = false;
+        gotFiltered = true;
+    }
+
+    // 3.2 stateFilter (device.state)
+    if (visible && stateFilter !== 'all') {
+        if (!f.attributes?.['device.state'] || f.attributes['device.state'] !== stateFilter) {
+            visible = false;
+            gotFiltered = true;
+        }
+    }
+
+    // 3.3 statusFilter básico
+    if (visible && statusFilter !== 'all') {
+        if (f.status !== statusFilter) {
+            visible = false;
+            gotFiltered = true;
+        }
+    }
+
+    // 3.4 motionFilter (só online + motion=true)
+    if (visible && motionFilter) {
+        if (f.status !== 'online' || !position?.attributes?.motion) {
+            visible = false;
+            gotFiltered = true;
+        }
+    }
+
+    // 3.5 combinedStatusFilter (online/offline/unknown/moving/stopped)
+    if (visible && combinedStatusFilter !== 'all' && statusFilter === 'all' && !motionFilter) {
+        switch(combinedStatusFilter) {
+            case 'online':
+                if (f.status !== 'online') visible = false;
+                break;
+            case 'offline':
+                if (f.status !== 'offline') visible = false;
+                break;
+            case 'unknown':
+                if (f.status !== 'unknown') visible = false;
+                break;
+            case 'moving':
+                if (f.status !== 'online' || !position?.attributes?.motion) visible = false;
+                break;
+            case 'stopped':
+                if (f.status !== 'online' || position?.attributes?.motion) visible = false;
+                break;
+        }
+        if (!visible) gotFiltered = true;
+    }
+
+    // 3.6 advancedFilter (anchor/driver/ignition/locked)
+    if (visible && advancedFilter.type !== 'none') {
+        switch(advancedFilter.type) {
+            case 'anchor':
+                if (!context.rootGetters['geofences/isAnchored']?.(f.id)) visible = false;
+                break;
+            case 'driver':
+                if (!position?.attributes?.driverUniqueId) visible = false;
+                break;
+            case 'ignition':
+                if (position?.attributes?.ignition !== advancedFilter.value) visible = false;
+                break;
+            case 'locked':
+                if (position?.attributes?.blocked !== advancedFilter.value) visible = false;
+                break;
+        }
+        if (!visible) gotFiltered = true;
+    }
+
+    // 4. APLICAR VISIBILIDADE + HOOK CSS
+    if (visible) {
+        eachIcon(i => {
+            if (i.options?.el) i.options.el.classList.add('filter-visible');
+            i.addToMap?.();
+        });
+    } else {
+        eachIcon(i => {
+            if (i.options?.el) i.options.el.classList.remove('filter-visible');
+            i.remove?.();
+        });
+    }
+
+    // 5. NOTIFICAR ROOT SE HÁ FILTROS ATIVOS
+    if (gotFiltered) {
+        context.dispatch("setFiltering", true, { root: true });
+    }
+
+    return visible;
+}
+
 export default {
     namespaced: true,
     state: () => ({
@@ -404,6 +577,9 @@ export default {
         toggleMotionFilter(state){
           state.applyFilters.motionFilter = !state.applyFilters.motionFilter;
         },
+        setFilterCount(state, count){
+            state.filterCount = count;
+        },
         updateDeviceAttributes(state, payload){
             // Atualizar apenas atributos localmente (sem backend) - UX rápida
             const { id, attributes } = payload;
@@ -422,9 +598,6 @@ export default {
         toggleStreet(state){
             state.streetview = !state.streetview;
         },
-        togglePercurso(state, value) {
-        state.togglePercurso = value !== undefined ? value : !state.togglePercurso;
-    },
     toggleCalor(state, value) {
       state.toggleCalor = value !== undefined ? value : !state.toggleCalor;
     },
@@ -599,9 +772,17 @@ export default {
                                     const pendingPos = buffer.pending;
                                     const dev = state.deviceList[pendingPos.deviceId];
                                     if (dev && dev.icon && typeof window.L !== 'undefined') {
-                                        // eslint-disable-next-line no-undef
-                                        dev.icon.moveTo(L.latLng(pendingPos.latitude, pendingPos.longitude), 300);
-                                        dev.icon.options.img.rotate = pendingPos.course;
+                                        // Helper: compatibilidade icon array/object
+                                        const eachIcon = (fn) => {
+                                            const icons = Array.isArray(dev.icon) ? dev.icon : [dev.icon].filter(Boolean);
+                                            icons.forEach(i => { try { fn(i); } catch(e){ if(PERF_DEBUG) console.warn('eachIcon error:', e); } });
+                                        };
+                                        
+                                        eachIcon(i => {
+                                            // eslint-disable-next-line no-undef
+                                            i.moveTo?.(L.latLng(pendingPos.latitude, pendingPos.longitude), 300);
+                                            if (i.options?.img) i.options.img.rotate = pendingPos.course;
+                                        });
                                     }
                                     buffer.lastUpdate = Date.now();
                                     buffer.pending = null;
@@ -692,9 +873,17 @@ export default {
                                         const pendingPos = buffer.pending;
                                         const dev = state.deviceList[pendingPos.deviceId];
                                         if (dev && dev.icon && typeof window.L !== 'undefined') {
-                                            // eslint-disable-next-line no-undef
-                                            dev.icon.moveTo(L.latLng(pendingPos.latitude, pendingPos.longitude), 300);
-                                            dev.icon.options.img.rotate = pendingPos.course;
+                                            // Helper: compatibilidade icon array/object
+                                            const eachIcon = (fn) => {
+                                                const icons = Array.isArray(dev.icon) ? dev.icon : [dev.icon].filter(Boolean);
+                                                icons.forEach(i => { try { fn(i); } catch(e){ if(PERF_DEBUG) console.warn('eachIcon error:', e); } });
+                                            };
+                                            
+                                            eachIcon(i => {
+                                                // eslint-disable-next-line no-undef
+                                                i.moveTo?.(L.latLng(pendingPos.latitude, pendingPos.longitude), 300);
+                                                if (i.options?.img) i.options.img.rotate = pendingPos.course;
+                                            });
                                         }
                                         buffer.lastUpdate = Date.now();
                                         buffer.pending = null;
@@ -737,9 +926,9 @@ export default {
                     }
                     if(window.$updateMapaPercurso && !isInReportMode){
                         try {
-                            window.$updatePercurso(device.id);
+                            window.$updateMapaPercurso(device.id);
                         } catch (err) {
-                            console.warn('Erro em $updatePercurso:', err);
+                            console.warn('Erro em $updateMapaPercurso:', err);
                         }
                     }
                 }
@@ -760,171 +949,9 @@ export default {
             context.commit("setSorting",p);
         },
         refreshOneDevice(context, fk){
-            const f = context.state.deviceList[fk];
-            if (!f || !f.icon) return false;
-
-            // Helper: compatibilidade icon array/object
-            const eachIcon = (fn) => {
-                const icons = Array.isArray(f.icon) ? f.icon : [f.icon].filter(Boolean);
-                icons.forEach(i => { try { fn(i); } catch(e){ if(PERF_DEBUG) console.warn('eachIcon error:', e); } });
-            };
-
-            const statusFilter = context.state.applyFilters.statusFilter;
-            const motionFilter = context.state.applyFilters.motionFilter;
-            const stateFilter = context.state.applyFilters.stateFilter;
-            const combinedStatusFilter = context.state.applyFilters.combinedStatusFilter;
-            const advancedFilter = context.state.applyFilters.advancedFilter;
-            const filterQuery = window.localStorage.getItem("query") || false;
-            const position = context.getters.getPosition(f.id);
-
-            let visible = true;
-            let gotFiltered = false;
-
-            // 1. FILTRO DE BUSCA (query text)
-            if(filterQuery){
-                gotFiltered = true;
-                visible = false;
-                eachIcon(i => i.remove?.());
-
-                for(let k of Object.keys(f)){
-                    if(k==='status' && String(f[k]).toLowerCase().replace('unknown','desconhecido').match(filterQuery.toLowerCase())){
-                        visible = true;
-                        break;
-                    }else if(String(f[k]).toLowerCase().match(filterQuery.toLowerCase())){
-                        visible = true;
-                        break;
-                    }
-                }
-
-                if (!visible && f.attributes) {
-                    for(let k of Object.keys(f.attributes)){
-                        if(f.attributes[k] && f.attributes[k].toString().toLowerCase().match(filterQuery.toLowerCase())){
-                            visible = true;
-                            break;
-                        }
-                    }
-                }
-
-                if (visible) {
-                    eachIcon(i => {
-                        if (i.options?.el) i.options.el.classList.add('filter-visible');
-                        i.addToMap?.();
-                    });
-                }
-                return visible;
-            }
-
-            // 2. FILTRO DISPOSITIVO ÚNICO (showOnlyId)
-            if(context.state.applyFilters.showOnlyId !== 0){
-                gotFiltered = true;
-                visible = (f.id === context.state.applyFilters.showOnlyId);
-                if (visible) {
-                    eachIcon(i => {
-                        if (i.options?.el) i.options.el.classList.add('filter-visible');
-                        i.addToMap?.();
-                    });
-                } else {
-                    eachIcon(i => {
-                        if (i.options?.el) i.options.el.classList.remove('filter-visible');
-                        i.remove?.();
-                    });
-                }
-                return visible;
-            }
-
-            // 3. FILTROS COMBINADOS (categoria + status + state + advanced)
-            if (!f.category) f.category = 'default';
-
-            // 3.1 Categoria oculta
-            if (context.state.applyFilters.hideCategory.find(c => c === f.category)) {
-                visible = false;
-                gotFiltered = true;
-            }
-
-            // 3.2 stateFilter (device.state)
-            if (visible && stateFilter !== 'all') {
-                if (!f.attributes?.['device.state'] || f.attributes['device.state'] !== stateFilter) {
-                    visible = false;
-                    gotFiltered = true;
-                }
-            }
-
-            // 3.3 statusFilter básico
-            if (visible && statusFilter !== 'all') {
-                if (f.status !== statusFilter) {
-                    visible = false;
-                    gotFiltered = true;
-                }
-            }
-
-            // 3.4 motionFilter (só online + motion=true)
-            if (visible && motionFilter) {
-                if (f.status !== 'online' || !position?.attributes?.motion) {
-                    visible = false;
-                    gotFiltered = true;
-                }
-            }
-
-            // 3.5 combinedStatusFilter (online/offline/unknown/moving/stopped)
-            if (visible && combinedStatusFilter !== 'all' && statusFilter === 'all' && !motionFilter) {
-                switch(combinedStatusFilter) {
-                    case 'online':
-                        if (f.status !== 'online') visible = false;
-                        break;
-                    case 'offline':
-                        if (f.status !== 'offline') visible = false;
-                        break;
-                    case 'unknown':
-                        if (f.status !== 'unknown') visible = false;
-                        break;
-                    case 'moving':
-                        if (f.status !== 'online' || !position?.attributes?.motion) visible = false;
-                        break;
-                    case 'stopped':
-                        if (f.status !== 'online' || position?.attributes?.motion) visible = false;
-                        break;
-                }
-                if (!visible) gotFiltered = true;
-            }
-
-            // 3.6 advancedFilter (anchor/driver/ignition/locked)
-            if (visible && advancedFilter.type !== 'none') {
-                switch(advancedFilter.type) {
-                    case 'anchor':
-                        if (!context.rootGetters['geofences/isAnchored']?.(f.id)) visible = false;
-                        break;
-                    case 'driver':
-                        if (!position?.attributes?.driverUniqueId) visible = false;
-                        break;
-                    case 'ignition':
-                        if (position?.attributes?.ignition !== advancedFilter.value) visible = false;
-                        break;
-                    case 'locked':
-                        if (position?.attributes?.blocked !== advancedFilter.value) visible = false;
-                        break;
-                }
-                if (!visible) gotFiltered = true;
-            }
-
-            // 4. APLICAR VISIBILIDADE + HOOK CSS
-            if (visible) {
-                eachIcon(i => {
-                    if (i.options?.el) i.options.el.classList.add('filter-visible');
-                    i.addToMap?.();
-                });
-            } else {
-                eachIcon(i => {
-                    if (i.options?.el) i.options.el.classList.remove('filter-visible');
-                    i.remove?.();
-                });
-            }
-
-            // 5. NOTIFICAR ROOT SE HÁ FILTROS ATIVOS
-            if (gotFiltered) {
-                context.dispatch("setFiltering", true, { root: true });
-            }
-
-            return visible;
+            // ATENÇÃO: Esta action chama a função interna e retorna boolean
+            // Para evitar problemas com Promise, use a função interna diretamente quando possível
+            return refreshOneDeviceInternal(context, fk);
         },
         toggleHiddenFilter(context,value){
             context.commit("toggleHiddenFilter",value);
@@ -960,7 +987,8 @@ export default {
                     const chunkEnd = Math.min(index + REFRESH_CHUNK_SIZE, totalDevices);
                     
                     for (let i = index; i < chunkEnd; i++) {
-                        const isVisible = context.dispatch("refreshOneDevice", deviceKeys[i]);
+                        // ✅ CORREÇÃO: chamar função interna diretamente (não dispatch que retorna Promise)
+                        const isVisible = refreshOneDeviceInternal(context, deviceKeys[i]);
                         if (isVisible) visibleCount++;
                     }
                     
@@ -970,7 +998,8 @@ export default {
                         // Próximo chunk no próximo frame
                         requestAnimationFrame(processChunk);
                     } else {
-                        context.state.filterCount = visibleCount;
+                        // ✅ CORREÇÃO: usar commit em vez de atribuição direta (Vuex pattern)
+                        context.commit("setFilterCount", visibleCount);
                         const elapsed = performance.now() - perfStart;
                         perfLog('refreshDevices (chunked)', perfStart, `total:${totalDevices}, visible:${visibleCount}`);
                         recordRefreshDevicesTime(elapsed);
@@ -981,10 +1010,12 @@ export default {
             } else {
                 // Processamento síncrono para listas pequenas
                 deviceKeys.forEach((f) => {
-                    const isVisible = context.dispatch("refreshOneDevice", f);
+                    // ✅ CORREÇÃO: chamar função interna diretamente (não dispatch que retorna Promise)
+                    const isVisible = refreshOneDeviceInternal(context, f);
                     if (isVisible) visibleCount++;
                 });
-                context.state.filterCount = visibleCount;
+                // ✅ CORREÇÃO: usar commit em vez de atribuição direta (Vuex pattern)
+                context.commit("setFilterCount", visibleCount);
                 const elapsed = performance.now() - perfStart;
                 perfLog('refreshDevices (sync)', perfStart, `total:${totalDevices}, visible:${visibleCount}`);
                 recordRefreshDevicesTime(elapsed);
@@ -1022,9 +1053,6 @@ export default {
         },
         toggleStreet(context){
             context.commit("toggleStreet")
-        },
-        togglePercurso(context){
-            context.commit("togglePercurso")
         },
         toggleCalor(context){
             context.commit("toggleCalor")
@@ -1093,7 +1121,7 @@ export default {
             });
         },
         load(context,waitDevice=true){
-            return new Promise((resolve)=> {
+            return new Promise((resolve, reject)=> {
 
                 if(waitDevice) {
 
@@ -1112,8 +1140,17 @@ export default {
                                 })
 
                                 resolve();
-                            })
+                            }).catch((err) => {
+                                console.error('❌ [devices/load] Erro ao carregar devices:', err);
+                                reject(err);
+                            });
+                        }).catch((err) => {
+                            console.error('❌ [devices/load] Erro ao carregar modelos:', err);
+                            reject(err);
                         });
+                    }).catch((err) => {
+                        console.error('❌ [devices/load] Erro no waitForDevice:', err);
+                        reject(err);
                     });
                 }else{
                     const traccar = window.$traccar;
@@ -1127,7 +1164,10 @@ export default {
                         })
 
                         resolve();
-                    })
+                    }).catch((err) => {
+                        console.error('❌ [devices/load] Erro ao carregar devices (no wait):', err);
+                        reject(err);
+                    });
 
                 }
             });
@@ -1219,7 +1259,11 @@ export default {
                     }
 
                     resolve();
-                })
+                }).catch((err) => {
+                    console.warn('⚠️ [positions] Erro ao carregar posições (pode ser abort normal):', err.message);
+                    // Resolve mesmo com erro para não bloquear o fluxo
+                    resolve();
+                });
             });
         }
     }

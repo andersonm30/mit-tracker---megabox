@@ -48,7 +48,7 @@ const toggleState = (event, integration) => {
   if (!integration.settings || integration.settings === false) {
     configure(integration);
   } else {
-    console.log("toggleState");
+    // console.log("toggleState");
   }
 }
 
@@ -94,7 +94,10 @@ const safeIntegrations = computed(() => {
 });
 
 onMounted(() => {
-  store.dispatch("integrations/load");
+  // Verificar se módulo integrations existe antes de fazer dispatch
+  if (store._actions?.['integrations/load']) {
+    store.dispatch("integrations/load");
+  } // else: Módulo integrations/load não disponível - skip
 })
 
 const title = ref('');

@@ -41,7 +41,7 @@
 
 
             <el-button
-                v-if="store.state.server.isPlus && store.state.auth.administrator"
+                v-if="store.state.auth.administrator"
                 @mouseleave="hideTip" @mouseenter.stop="showTip($event,KT('user.logs'))"
                 plain :disabled="selected===0" @click="logObjectsRef.showLogs({userId: selected});">
               <i class="fas fa-clipboard-list"></i>

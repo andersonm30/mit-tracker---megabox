@@ -1,6 +1,21 @@
 import { createApp } from 'vue'
 import App from './App.vue'
 
+// ✨ Suprime warnings conhecidos do Vue
+const originalWarn = console.warn;
+console.warn = (...args) => {
+  const msg = args[0];
+  if (typeof msg === 'string') {
+    // Ignora warnings conhecidos que não afetam a funcionalidade
+    if (msg.includes('App already provides property') ||
+        msg.includes('Invalid prop: type check failed for prop "subdomains"') ||
+        msg.includes('Extraneous non-props attributes')) {
+      return;
+    }
+  }
+  originalWarn.apply(console, args);
+};
+
 // import A from './license.js';
 
 import Tarkan from './tarkan/tarkanConnector'
@@ -40,10 +55,10 @@ function isWebView() {
 
 // Inicializa o Firebase apenas se não estiver no WebView
 if (window.location.protocol === 'https:' && !isWebView()) {
-  console.log('Inicializando o Firebase na aplicação web');
+  // console.log('Inicializando o Firebase na aplicação web');
   // Inicialize o Firebase aqui, se necessário
 } else {
-  console.log('Não inicializando o Firebase no WebView');
+  // console.log('Não inicializando o Firebase no WebView');
 }
 
 // Defina a função no objeto global window
