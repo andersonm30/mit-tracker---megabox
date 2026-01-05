@@ -3,29 +3,36 @@ import { resolve } from 'path';
 
 export default defineConfig({
   test: {
-    // Ambiente de teste
-    environment: 'node',
+    // Ambiente de teste - happy-dom para simular DOM sem browser
+    environment: 'happy-dom',
     
-    // Diretório de testes
-    include: ['tests/unit/**/*.spec.{js,ts}'],
+    // Diretório de testes - incluir src/__tests__ e tests/unit
+    include: [
+      'tests/unit/**/*.spec.{js,ts}',
+      'src/__tests__/**/*.test.{js,ts}'
+    ],
     
     // Cobertura de código
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
-      include: ['src/utils/**/*.{js,ts}'],
+      include: [
+        'src/utils/**/*.{js,ts}',
+        'src/tarkan/composables/**/*.{js,ts}',
+        'src/composables/**/*.{js,ts}'
+      ],
       exclude: ['node_modules', 'tests'],
       reportsDirectory: './coverage'
     },
     
     // Timeouts
-    testTimeout: 5000,
-    hookTimeout: 5000,
+    testTimeout: 10000,
+    hookTimeout: 10000,
     
     // Reporter
     reporters: ['verbose'],
     
-    // Globals (opcional - permite usar describe/it/expect sem import)
+    // Globals (permite usar describe/it/expect sem import)
     globals: true
   },
   
