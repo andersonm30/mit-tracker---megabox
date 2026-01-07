@@ -43,6 +43,7 @@ import store from "./store/index"
 import KT from './tarkan/func/kt'
 import './registerServiceWorker'
 import i18n from './lang/index'
+import { RuntimeApiPlugin } from '@/plugins/runtimeApi'
 
 // Importa o axios para fazer requisições HTTP
 import axios from 'axios'
@@ -91,6 +92,6 @@ app.use(i18n).mixin({
   methods: {
     KT: KT
   }
-}).use(store).use(Tarkan, tarkanUrl).use(Traccar, serverUrl).use(routes);
+}).use(store).use(Tarkan, tarkanUrl).use(Traccar, serverUrl).use(RuntimeApiPlugin).use(routes);
 
 app.mount('#app');

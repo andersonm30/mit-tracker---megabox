@@ -83,13 +83,13 @@
       </div>
 
       <div id="logo">
-        <img v-if="store.state.server?.labelConf?.headLogo?.image" src="/tarkan/assets/custom/logo.png"
+        <img v-if="headLogo?.image" src="/tarkan/assets/custom/logo.png"
           @click="$router.push('/')" style="width: 11rem; cursor: pointer;" alt="Logo" />
         <div v-else style="font-weight: bold; text-transform: uppercase; font-family: montserrat, roboto;">
           <a @click.prevent="$router.push('/')"
             style="cursor: pointer; color: var(--el-text-color-primary); text-decoration: none;"
             aria-label="Ir para a página inicial">
-            {{ store.state.server?.labelConf?.headLogo?.text || '' }}
+            {{ headLogo?.text || '' }}
           </a>
         </div>
       </div>
@@ -309,6 +309,7 @@ import {
   computed,
   watch,
   nextTick,
+  inject,
 } from 'vue'
 import { useStore } from 'vuex'
 
@@ -324,6 +325,8 @@ import { ElProgress } from 'element-plus/es/components/progress'
 import { ElButton } from 'element-plus/es/components/button'
 import { ElIcon } from 'element-plus/es/components/icon'
 import { ElTooltip } from 'element-plus/es/components/tooltip'
+
+import { useModalA11yLock } from '@/composables/useModalA11yLock'
 
 import router from './routes'
 
@@ -397,20 +400,59 @@ const AIAssistantWrapper = lazy('AIAssistantWrapper', () => import('./components
  *  SETUP
  * =========================== */
 const store = useStore()
+const runtimeApi = inject('runtimeApi', null)
 
 /** CSS Vars (SSR-safe) */
 const primaryColor = ref('#409EFF')
 
+/** Runtime config (window.CONFIG) + fallback no store */
+const runtimeConfig = ref(typeof window !== 'undefined' ? (window.CONFIG || {}) : {})
+
+const refreshRuntimeConfig = () => {
+  runtimeConfig.value = (typeof window !== 'undefined' && window.CONFIG)
+    ? { ...window.CONFIG }
+    : {}
+}
+
+const syncPrimaryColor = () => {
+  try {
+    const css = getComputedStyle(document.documentElement)
+    primaryColor.value = css.getPropertyValue('--el-color-primary')?.trim() || '#409EFF'
+  } catch {
+    /* fallback */
+  }
+}
+
+let themeRaf = null
+const onThemeUpdated = () => {
+  if (themeRaf) cancelAnimationFrame(themeRaf)
+  themeRaf = requestAnimationFrame(() => {
+    refreshRuntimeConfig()
+    syncPrimaryColor()
+    themeRaf = null
+  })
+}
+
+/** labelConf: prioriza runtimeConfig sobre store */
+const labelConf = computed(() => {
+  const fromRuntime = runtimeConfig.value
+  const fromStore = store.state.server?.labelConf
+  return (fromRuntime && typeof fromRuntime === 'object' && Object.keys(fromRuntime).length > 0) 
+    ? fromRuntime 
+    : (fromStore || {})
+})
+
+const headLogo = computed(() => labelConf.value?.headLogo || {})
+
 /** WhatsApp: sanitiza número e adiciona DDI 55 se necessário */
 const whatsappNumber = computed(() => {
-  const raw = String(store.state.server?.labelConf?.whatsapp || '')
-  let digits = raw.replace(/\D/g, '') // somente números
+  const raw = String(labelConf.value?.whatsapp || '')
+  let digits = raw.replace(/\D/g, '')
 
-  // Se não tiver DDI e for BR (até 11 dígitos), prefixar 55
-  if (digits && digits.length <= 11) {
+  // BR: se veio sem DDI e parece número nacional (10/11 dígitos), prefixa 55
+  if (digits && (digits.length === 10 || digits.length === 11)) {
     digits = '55' + digits
   }
-
   return digits
 })
 
@@ -700,13 +742,131 @@ function generateRandomToken(length = 20) {
   return Array.from({ length }, () => charset[Math.floor(Math.random() * charset.length)]).join('')
 }
 
+// ============================================================================
+// MAP INVALIDATE - Rate-limited dispatcher
+// ============================================================================
+
+/**
+ * Sistema de rate-limit inteligente para map:invalidate
+ * 
+ * PROBLEMA: viewport scroll pode disparar 60fps → storm de invalidateSize()
+ * SOLUÇÃO: throttle por source sem perder responsividade em UX crítica
+ * 
+ * CONFIGURAÇÃO:
+ * - viewport scroll: max 150ms (6-7fps, imperceptível mas economiza 90% dos events)
+ * - menu/sidebar/mount/orientation: imediato (UX crítica)
+ * - modal-close: imediato (já tem nextTick no composable)
+ * 
+ * INVARIANTES:
+ * - Cada source tem throttle isolado (Map por source = sem starvation)
+ * - RAF global = múltiplos invalidates no mesmo frame colapsam em 1 (último detail vence)
+ * 
+ * KILL SWITCH (ops/debug):
+ * localStorage.DISABLE_VIEWPORT_THROTTLE='1' → desliga throttle sem redeploy (lido dinamicamente)
+ */
+
+// Sources que devem ter throttle (ms)
+const THROTTLE_CONFIG = {
+  viewport: 150, // scroll suave mobile = storm, throttle pesado OK
+}
+
+// Sources imediatas (whitelist defensiva): menu-overlay, sidebar-toggle, mount, orientation-change, modal-close
+// IMMEDIATE_SOURCES garante que estes sources NUNCA recebam throttle.
+// Hoje só throttlamos viewport, mas se algum source for adicionado ao THROTTLE_CONFIG no futuro,
+// esta whitelist protege UX crítica (menu/sidebar instant, orientation sem delay).
+const IMMEDIATE_SOURCES = new Set([
+  'menu-overlay',
+  'sidebar-toggle', 
+  'mount',
+  'orientation-change',
+  'modal-close',
+])
+
+// State para throttling por source (isolado por source = sem starvation)
+const throttleTimers = new Map()
+const lastEmitTime = new Map()
+
+// Logging DEV-only (ativar com localStorage.DEBUG_PERF=1)
+const DEBUG_PERF = typeof localStorage !== 'undefined' && localStorage.DEBUG_PERF === '1'
+const perfCounters = DEBUG_PERF ? new Map() : null
+
+// Kill switch (ops): desliga throttle sem redeploy (lido dinamicamente)
+const isThrottleDisabled = () =>
+  typeof localStorage !== 'undefined' &&
+  localStorage.DISABLE_VIEWPORT_THROTTLE === '1'
+
 let invalidateRaf = null
+let warnedThrottleOff = false // Guard: warn throttle desabilitado só 1x
 const emitMapInvalidate = (detail = {}) => {
+  const source = detail.source || 'unknown'
+
+  // Logging DEV
+  if (DEBUG_PERF) {
+    perfCounters.set(source, (perfCounters.get(source) || 0) + 1)
+  }
+
+  // Kill switch: bypass throttle completamente (lido dinamicamente, sem reload)
+  if (isThrottleDisabled()) {
+    if (!warnedThrottleOff) {
+      console.warn('[PERF] ⚠️  Throttle desabilitado via localStorage.DISABLE_VIEWPORT_THROTTLE')
+      warnedThrottleOff = true
+    }
+    if (invalidateRaf) cancelAnimationFrame(invalidateRaf)
+    invalidateRaf = requestAnimationFrame(() => {
+      window.dispatchEvent(new CustomEvent('map:invalidate', { detail }))
+      invalidateRaf = null
+    })
+    return
+  }
+
+  // Throttle por source (se configurado)
+  const throttleMs = THROTTLE_CONFIG[source]
+  if (throttleMs && !IMMEDIATE_SOURCES.has(source)) {
+    const now = Date.now()
+    const lastEmit = lastEmitTime.get(source) || 0
+    const elapsed = now - lastEmit
+
+    if (elapsed < throttleMs) {
+      // Já existe timer? cancela e reagenda
+      if (throttleTimers.has(source)) {
+        clearTimeout(throttleTimers.get(source))
+      }
+
+      // Agenda disparo no final do throttle
+      const timer = setTimeout(() => {
+        throttleTimers.delete(source)
+        lastEmitTime.set(source, Date.now())
+        
+        if (invalidateRaf) cancelAnimationFrame(invalidateRaf)
+        invalidateRaf = requestAnimationFrame(() => {
+          window.dispatchEvent(new CustomEvent('map:invalidate', { detail }))
+          invalidateRaf = null
+        })
+      }, throttleMs - elapsed)
+
+      throttleTimers.set(source, timer)
+      return
+    }
+
+    lastEmitTime.set(source, now)
+  }
+
+  // Disparo imediato (sources imediatas ou fora do throttle)
   if (invalidateRaf) cancelAnimationFrame(invalidateRaf)
   invalidateRaf = requestAnimationFrame(() => {
     window.dispatchEvent(new CustomEvent('map:invalidate', { detail }))
     invalidateRaf = null
   })
+}
+
+// Logging periódico DEV (a cada 10s)
+if (DEBUG_PERF) {
+  setInterval(() => {
+    if (perfCounters.size > 0) {
+      console.log('[PERF] map:invalidate (últimos 10s):', Object.fromEntries(perfCounters))
+      perfCounters.clear()
+    }
+  }, 10000)
 }
 
 /** viewport vars robusto (visualViewport) */
@@ -816,8 +976,8 @@ const handleModalCancel = () => {
 const handleBlockCommand = async () => {
   commandLoading.value = true
   try {
-    if (!window.$traccar?.sendCommand) {
-      throw new Error('API não disponível. Recarregue a página.')
+    if (!runtimeApi) {
+      throw new Error('Runtime API não disponível. Recarregue a página.')
     }
     
     if (!isOnline.value) {
@@ -828,7 +988,7 @@ const handleBlockCommand = async () => {
     if (!deviceId) throw new Error('Dispositivo não identificado.')
     
     const command = currentCommand.value
-    await window.$traccar.sendCommand({ ...command, deviceId })
+    await runtimeApi.sendCommand({ ...command, deviceId })
     
     const { ElNotification } = await import('element-plus')
     ElNotification({ title: 'Sucesso', message: 'Comando de bloqueio enviado', type: 'success' })
@@ -847,8 +1007,8 @@ const handleBlockCommand = async () => {
 const handleUnlockCommand = async () => {
   commandLoading.value = true
   try {
-    if (!window.$traccar?.sendCommand) {
-      throw new Error('API não disponível. Recarregue a página.')
+    if (!runtimeApi) {
+      throw new Error('Runtime API não disponível. Recarregue a página.')
     }
     
     if (!isOnline.value) {
@@ -859,7 +1019,7 @@ const handleUnlockCommand = async () => {
     if (!deviceId) throw new Error('Dispositivo não identificado.')
     
     const command = currentCommand.value
-    await window.$traccar.sendCommand({ ...command, deviceId })
+    await runtimeApi.sendCommand({ ...command, deviceId })
     
     const { ElNotification } = await import('element-plus')
     ElNotification({ title: 'Sucesso', message: 'Comando de desbloqueio enviado', type: 'success' })
@@ -1103,208 +1263,29 @@ const isCustomModalOpen = computed(() => showConfirmModal.value)
 // Todos os modais custom - usado para inert/trap
 const modalOpen = computed(() => isCustomModalOpen.value)
 
-const previouslyFocusedEl = ref(null)
-const prevBodyStyles = ref(null)
-
-const lockBodyScroll = () => {
-  const y = window.scrollY || document.documentElement.scrollTop
-  document.body.dataset.scrollY = String(y)
-  
-  // Guardar estilos pré-existentes para restaurar depois
-  // Inclui overflow/touchAction/overscrollBehavior para compatibilidade com menu-open
-  prevBodyStyles.value = {
-    position: document.body.style.position,
-    top: document.body.style.top,
-    left: document.body.style.left,
-    right: document.body.style.right,
-    width: document.body.style.width,
-    paddingRight: document.body.style.paddingRight,
-    overflow: document.body.style.overflow,
-    touchAction: document.body.style.touchAction,
-    overscrollBehavior: document.body.style.overscrollBehavior,
-  }
-  
-  // Calcular largura da scrollbar para evitar layout shift no desktop
-  const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth
-  if (scrollbarWidth > 0) {
-    document.body.style.paddingRight = `${scrollbarWidth}px`
-  }
-  
-  // Travar scroll completamente (iOS/Safari)
-  document.body.style.position = 'fixed'
-  document.body.style.top = `-${y}px`
-  document.body.style.left = '0'
-  document.body.style.right = '0'
-  document.body.style.width = '100%'
-  document.body.style.overflow = 'hidden'
-  document.body.style.touchAction = 'none'
-  document.body.style.overscrollBehavior = 'none'
-}
-
-const unlockBodyScroll = () => {
-  const y = parseInt(document.body.dataset.scrollY || '0', 10)
-  
-  // Restaurar estilos pré-existentes
-  const prev = prevBodyStyles.value
-  if (prev) {
-    Object.assign(document.body.style, prev)
-  }
-  prevBodyStyles.value = null
-  
-  delete document.body.dataset.scrollY
-  window.scrollTo(0, y)
-  
-  // Invalidar mapa no próximo frame (layout mudou com unlock)
-  nextTick(() => emitMapInvalidate({ source: 'modal-close' }))
-}
-
-// Cache para trapTabKeydown (evita queries repetidas a cada TAB)
-let cachedDialog = null
-let cachedFocusables = []
-
-const invalidateFocusCache = () => {
-  cachedDialog = null
-  cachedFocusables = []
-}
-
-const trapTabKeydown = (e) => {
-  if (!modalOpen.value || e.key !== 'Tab') return
-
-  // Reusar cache se dialog ainda está visível
-  if (!cachedDialog || !document.contains(cachedDialog)) {
-    // Prioriza modal custom (.modal-overlay) sobre el-dialog do Element Plus
-    cachedDialog =
-      document.querySelector('.modal-overlay[role="dialog"][aria-modal="true"]') ||
-      document.querySelector('.el-dialog[role="dialog"]') ||
-      document.querySelector('.el-dialog')
-    
-    if (!cachedDialog) return
-    
-    cachedFocusables = Array.from(cachedDialog.querySelectorAll(
-      'button, [href], input, select, textarea, [role="slider"], [tabindex]:not([tabindex="-1"])'
-    ))
-  }
-
-  if (!cachedFocusables.length) return
-
-  const first = cachedFocusables[0]
-  const last = cachedFocusables[cachedFocusables.length - 1]
-
-  if (!cachedDialog.contains(document.activeElement)) {
-    e.preventDefault()
-    first.focus()
-    return
-  }
-
-  if (e.shiftKey && document.activeElement === first) {
-    e.preventDefault()
-    last.focus()
-  } else if (!e.shiftKey && document.activeElement === last) {
-    e.preventDefault()
-    first.focus()
-  }
-}
-
-/**
- * ESC global para fechar modais custom
- * Funciona mesmo quando foco não está no modal (ex: usuário clicou no mapa antes)
- * Não interfere com el-dialog (Element Plus cuida disso)
- */
-const handleGlobalEscape = (e) => {
-  if (e.key !== 'Escape') return
-  
-  // Fecha modal unificado se aberto
-  if (showConfirmModal.value) {
-    e.preventDefault()
-    e.stopPropagation()
-    showConfirmModal.value = false
-    handleModalCancel()
-    return
-  }
-}
-
-const handleVisibilityChange = () => {
-  // Só aplica lock/unlock para modais custom (sliders)
-  // El-dialog do Element Plus cuida do próprio scroll
-  if (document.visibilityState === 'hidden') {
-    if (isCustomModalOpen.value) unlockBodyScroll()
-  } else if (document.visibilityState === 'visible') {
-    if (isCustomModalOpen.value) lockBodyScroll()
-  }
-}
-
-// Watch para modais custom: aplica lockBodyScroll + classe modal-open
-watch(isCustomModalOpen, (open) => {
-  if (open) {
-    // MELHORIA 4: Fechar menu mobile quando modal abre (evita estado híbrido)
-    // ORDEM: fecha menu ANTES de lockBodyScroll para não herdar travamento do CSS
-    if (portrait.value && menuShown.value) {
-      menuShown.value = false
-      document.body.classList.remove('menu-open')
+// Composable que encapsula toda lógica de modal a11y + body lock + inert
+const { initInertFallback, notifyModalDomChanged, invalidateFocusCache } = useModalA11yLock({
+  modalOpen,
+  isMenuOverlayOpen,
+  menuShown,
+  portrait,
+  emitInvalidate: (detail) => emitMapInvalidate(detail),
+  onEscapeClose: () => {
+    if (showConfirmModal.value) {
+      showConfirmModal.value = false
+      handleModalCancel()
     }
-    
-    previouslyFocusedEl.value = document.activeElement
-    lockBodyScroll()
-    document.body.classList.add('modal-open')
-    
-    // CORREÇÃO 4: Invalidar cache ao abrir (não só ao fechar)
-    invalidateFocusCache()
-  } else {
-    unlockBodyScroll()
-    document.body.classList.remove('modal-open')
-    const el = previouslyFocusedEl.value
-    previouslyFocusedEl.value = null
-    if (el && typeof el.focus === 'function') {
-      try {
-        el.focus()
-      } catch {
-        /* ignore */
-      }
-    }
-  }
-})
-
-// Cache de elementos inert para performance
-let inertFallbackEls = []
-
-// Watch para todos os modais: trap de TAB + ESC global + fallback inert
-watch(modalOpen, (open) => {
-  // Fallback para Safari antigo: toggle .is-inert manualmente (usa cache)
-  inertFallbackEls.forEach(el => {
-    el.classList.toggle('is-inert', !!open)
-  })
-
-  if (open) {
-    document.addEventListener('keydown', trapTabKeydown, true)
-    document.addEventListener('keydown', handleGlobalEscape, true)
-  } else {
-    document.removeEventListener('keydown', trapTabKeydown, true)
-    document.removeEventListener('keydown', handleGlobalEscape, true)
-    // Limpar cache do trapTabKeydown
-    invalidateFocusCache()
-  }
+  },
 })
 
 // Watch commandLoading: invalidar cache quando DOM do modal mudar (botões disabled/spinner)
-watch(commandLoading, () => {
-  if (modalOpen.value) {
-    invalidateFocusCache()
-  }
-})
+watch(commandLoading, () => notifyModalDomChanged())
 
 // Watch currentModalMode: invalidar cache quando tipo de modal mudar (botões diferentes)
-watch(currentModalMode, () => {
-  if (modalOpen.value) {
-    invalidateFocusCache()
-  }
-})
+watch(currentModalMode, () => notifyModalDomChanged())
 
 // Watch showConfirmModal: invalidar cache quando modal abrir/fechar diretamente
-watch(showConfirmModal, () => {
-  if (showConfirmModal.value) {
-    invalidateFocusCache()
-  }
-})
+watch(showConfirmModal, () => invalidateFocusCache())
 
 // Watch para menu overlay: classe no body + invalidate mapa
 watch(isMenuOverlayOpen, (open) => {
@@ -1342,14 +1323,8 @@ let removeBeforeEach = null
  *  LIFECYCLE
  * =========================== */
 onMounted(() => {
-  // Fallback para browsers sem suporte a inert (Safari < 15.5)
-  if (!('inert' in HTMLElement.prototype)) {
-    // Cachear elementos para uso no watch (performance)
-    inertFallbackEls = Array.from(document.querySelectorAll('.inert-wrap'))
-    inertFallbackEls.forEach(el => {
-      el.setAttribute('data-inert-fallback', '1')
-    })
-  }
+  // Inicializa fallback inert para Safari antigo
+  initInertFallback()
 
   // Registra router guards (guardar funções de remoção)
   removeAfterEach = router.afterEach((to) => {
@@ -1365,7 +1340,11 @@ onMounted(() => {
   })
 
   removeBeforeEach = router.beforeEach((_to, _from, next) => {
-    if (isCustomModalOpen.value) unlockBodyScroll()
+    // Se navegar com modal aberto, feche o modal (o composable destrava o body)
+    if (showConfirmModal.value) {
+      showConfirmModal.value = false
+      handleModalCancel()
+    }
     next()
   })
   // CSS primary (SSR-safe)
@@ -1378,7 +1357,7 @@ onMounted(() => {
 
   applyViewportVars()
   registerViewportListeners()
-  document.addEventListener('visibilitychange', handleVisibilityChange, true)
+  // handleVisibilityChange agora está no composable useModalA11yLock
   
   // FIX 1: Atrasar invalidate até DOM/KoreMap/Leaflet estarem prontos
   // nextTick garante DOM montado + RAF garante Leaflet inicializado
@@ -1392,6 +1371,12 @@ onMounted(() => {
   portrait.value = computePortrait()
   window.addEventListener('resize', updatePortrait, { passive: true })
   window.addEventListener('orientationchange', updatePortrait, { passive: true })
+  
+  // Idempotente: remove antes de adicionar (evita acumular em HMR)
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('theme:updated', onThemeUpdated)
+    window.addEventListener('theme:updated', onThemeUpdated, { passive: true })
+  }
 
   if (!portrait.value) sidebarClosed.value = false
 
@@ -1417,26 +1402,21 @@ onBeforeUnmount(() => {
   removeBeforeEach?.()
 
   // O componente ConfirmSliderModal cuida do próprio cleanup
+  // O composable useModalA11yLock cuida de keydown/visibilitychange/bodyScroll/modal-open
   cleanupViewportListeners()
-  document.removeEventListener('visibilitychange', handleVisibilityChange, true)
 
   // Remove listeners de orientação (evita memory leak em HMR)
   window.removeEventListener('resize', updatePortrait)
   window.removeEventListener('orientationchange', updatePortrait)
+  window.removeEventListener('theme:updated', onThemeUpdated)
 
   window.removeEventListener('openBlockModal', onOpenBlockModal)
   window.removeEventListener('openUnlockModal', onOpenUnlockModal)
   window.removeEventListener('openAnchorModal', onOpenAnchorModal)
   window.removeEventListener('openDeleteModal', onOpenDeleteModal)
 
-  document.removeEventListener('keydown', trapTabKeydown, true)
-  document.removeEventListener('keydown', handleGlobalEscape, true)
-
   window.removeEventListener('online', updateConnectionStatus)
   window.removeEventListener('offline', updateConnectionStatus)
-
-  unlockBodyScroll()
-  document.body.classList.remove('modal-open')
 })
 
 /* ===========================

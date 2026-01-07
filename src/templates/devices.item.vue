@@ -230,6 +230,7 @@ const showTip = (evt, text) => window.$showTip && window.$showTip(evt, text)
 const hideTip = () => window.$hideTip && window.$hideTip()
 
 /* Injections + fallbacks */
+const runtimeApi = inject('runtimeApi', null)
 const injectedMarkerClick = inject('markerClick', null)
 const markerContext = inject('markerContext', null)
 const editDeviceRef = inject('edit-device', null)
@@ -492,12 +493,15 @@ function isOutdated(date) {
 async function actBlock(deviceId) {
   if (isOffline.value) return
   try {
+    if (!runtimeApi) {
+      throw new Error('Runtime API não disponível. Recarregue a página.')
+    }
     const dv = store.getters['devices/getDevice']?.(deviceId)
     if (!dv) {
       ElMessage.error(KT('device.notLoaded') || 'Dispositivo não encontrado')
       return
     }
-    const resp = await window.$traccar.getAvailableCommands(parseInt(deviceId))
+    const resp = await runtimeApi.getAvailableCommands(parseInt(deviceId))
     const list = resp.data || []
     await ElMessageBox.confirm(
       KT('device.questio_bloked') + dv.name + ' (IMEI ' + (dv.uniqueId || '—') + ')?',
@@ -505,7 +509,7 @@ async function actBlock(deviceId) {
       { confirmButtonText: KT('OK'), cancelButtonText: KT('Cancel'), type: 'warning' }
     )
     const changeNative = list.find(a => a.attributes?.['tarkan.changeNative'] === 'engineStop')
-    await window.$traccar.sendCommand(changeNative ? { ...changeNative, deviceId } : { deviceId, type: 'engineStop' })
+    await runtimeApi.sendCommand(changeNative ? { ...changeNative, deviceId } : { deviceId, type: 'engineStop' })
     ElNotification({ title: KT('device.success'), message: KT('device.command_sent'), type: 'success' })
   } catch (e) {
     if (e === 'cancel' || e === 'close') return ElMessage.info(KT('action_cancel'))
@@ -517,12 +521,15 @@ async function actBlock(deviceId) {
 async function actUnlock(deviceId) {
   if (isOffline.value) return
   try {
+    if (!runtimeApi) {
+      throw new Error('Runtime API não disponível. Recarregue a página.')
+    }
     const dv = store.getters['devices/getDevice']?.(deviceId)
     if (!dv) {
       ElMessage.error(KT('device.notLoaded') || 'Dispositivo não encontrado')
       return
     }
-    const resp = await window.$traccar.getAvailableCommands(parseInt(deviceId))
+    const resp = await runtimeApi.getAvailableCommands(parseInt(deviceId))
     const list = resp.data || []
     await ElMessageBox.confirm(
       KT('device.question_blocked') + dv.name + ' (IMEI ' + (dv.uniqueId || '—') + ')?',
@@ -530,7 +537,7 @@ async function actUnlock(deviceId) {
       { confirmButtonText: KT('OK'), cancelButtonText: KT('Cancel'), type: 'warning' }
     )
     const changeNative = list.find(a => a.attributes?.['tarkan.changeNative'] === 'engineResume')
-    await window.$traccar.sendCommand(changeNative ? { ...changeNative, deviceId } : { deviceId, type: 'engineResume' })
+    await runtimeApi.sendCommand(changeNative ? { ...changeNative, deviceId } : { deviceId, type: 'engineResume' })
     ElNotification({ title: KT('device.success'), message: KT('device.command_sent'), type: 'success' })
   } catch (e) {
     if (e === 'cancel' || e === 'close') return ElMessage.info(KT('action_cancel'))

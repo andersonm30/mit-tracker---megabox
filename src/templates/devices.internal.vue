@@ -574,6 +574,7 @@ const videoPlayer = useDeviceVideoPlayer({
   store,
   KT,
   notify: notifyInfo,
+  runtimeApi,
   createAbortController
 });
 
@@ -582,6 +583,7 @@ const dualCamera = useDualCamera({
   store,
   KT,
   notify: notifyInfo,
+  runtimeApi,
   loadVideoJS: videoPlayer.loadVideoJS,
   checkVideoAvailability: videoPlayer.checkVideoAvailability
 });
@@ -618,6 +620,7 @@ const router = useRouter();
 const imageUrl = ref();
 const isProcessingSalida = ref(false);
 
+const runtimeApi = inject('runtimeApi', null);
 const flyToDevice = inject('flyToDevice');
 const contextOpenRef = inject('contextMenu');
 

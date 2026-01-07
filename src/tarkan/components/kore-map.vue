@@ -2556,6 +2556,7 @@ const mapMove = (e) => {
 
 devLog('[kore-map.vue] 🔵 Registrando provides...');
 
+const runtimeApi = inject('runtimeApi', null);
 const contextMenuRef = inject("contextMenu");
 const logObjectsRef = inject("log-objects");
 const linkObjectsRef = inject("link-objects");
@@ -2571,6 +2572,7 @@ const markers = useMarkers({
   router,
   mapApi: mapInteraction,
   followApi: followDevice,
+  runtimeApi,
   env: {
     isEnterprise: !!store.state.server.serverInfo?.attributes?.['tarkan.enterprise'],
     debugFlag: process.env.NODE_ENV !== 'production'

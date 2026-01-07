@@ -12,7 +12,11 @@ import { ref } from 'vue';
  * @returns {Object} API pública do composable
  */
 // eslint-disable-next-line no-unused-vars
-export function useDualCamera({ store: _store, KT, notify, loadVideoJS, checkVideoAvailability }) {
+export function useDualCamera({ store: _store, KT, notify, runtimeApi, loadVideoJS, checkVideoAvailability }) {
+  // Validar runtimeApi
+  if (!runtimeApi) {
+    throw new Error('Runtime API não disponível. Recarregue a página.');
+  }
   // ========== CONSTANTS ==========
   const POLL_INTERVAL_MS = 3000;
   const MAX_POLL_ATTEMPTS = 20;
@@ -59,7 +63,7 @@ export function useDualCamera({ store: _store, KT, notify, loadVideoJS, checkVid
       };
     }
 
-    await window.$traccar.sendCommand(command);
+    await runtimeApi.sendCommand(command);
     return channelCode;
   };
 
@@ -396,7 +400,7 @@ export function useDualCamera({ store: _store, KT, notify, loadVideoJS, checkVid
         throw new Error(KT('device.noUniqueId'));
       }
 
-      await window.$traccar.sendCommand;
+      // Comando já foi enviado via sendCameraCommand, esta linha estava duplicada/bugada
 
       notify({
         title: KT('device.info'),

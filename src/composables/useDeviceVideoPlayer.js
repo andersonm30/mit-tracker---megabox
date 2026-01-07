@@ -82,7 +82,11 @@ const loadVideoJS = () => {
 // COMPOSABLE
 // ============================================
 // eslint-disable-next-line no-unused-vars
-export function useDeviceVideoPlayer({ store: _store, KT, notify, createAbortController = null }) {
+export function useDeviceVideoPlayer({ store: _store, KT, notify, runtimeApi, createAbortController = null }) {
+  // Validar runtimeApi
+  if (!runtimeApi) {
+    throw new Error('Runtime API não disponível. Recarregue a página.');
+  }
   // State
   const state = ref(States.IDLE);
   const isOpen = ref(false);
@@ -518,11 +522,7 @@ export function useDeviceVideoPlayer({ store: _store, KT, notify, createAbortCon
       }
       
       // Enviar comando
-      if (!window.$traccar) {
-        throw new Error('Traccar service not available');
-      }
-      
-      await window.$traccar.sendCommand(command);
+      await runtimeApi.sendCommand(command);
 
       span.end({ success: true });
       

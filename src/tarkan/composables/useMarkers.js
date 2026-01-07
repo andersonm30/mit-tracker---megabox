@@ -115,10 +115,16 @@ export function useMarkers(options) {
     router,
     mapApi,
     followApi,
+    runtimeApi,
     env = {},
     ui = {},
     utils = {}
   } = options;
+  
+  // Validar runtimeApi (DI obrigatório)
+  if (!runtimeApi) {
+    throw new Error('Runtime API não disponível. Recarregue a página.');
+  }
   
   const { KT } = utils;
   
@@ -654,7 +660,7 @@ export function useMarkers(options) {
         });
       } else {
         try {
-          const response = await window.$traccar.getTypeCommands(deviceId);
+          const response = await runtimeApi.getTypeCommands(deviceId);
           const availableTypesCommand = response.data || [];
 
           availableTypesCommand.forEach((c) => {
@@ -680,7 +686,7 @@ export function useMarkers(options) {
                     type: 'warning',
                   }
                 ).then(() => {
-                  window.$traccar.sendCommand({ deviceId: deviceId, type: commandType });
+                  runtimeApi.sendCommand({ deviceId: deviceId, type: commandType });
                   registerCommand(deviceId, commandType);
                   ElNotification({
                     title: KT('success'),
@@ -694,7 +700,7 @@ export function useMarkers(options) {
             });
           });
 
-          const savedResponse = await window.$traccar.getAvailableCommands(deviceId);
+          const savedResponse = await runtimeApi.getAvailableCommands(deviceId);
           availableSaved = savedResponse.data || [];
 
           if (commands.length > 0 && availableSaved.length > 0) {
@@ -724,7 +730,7 @@ export function useMarkers(options) {
                     type: 'warning',
                   }
                 ).then(() => {
-                  window.$traccar.sendCommand({ ...c, ...{ deviceId: deviceId } });
+                  runtimeApi.sendCommand({ ...c, ...{ deviceId: deviceId } });
                   registerCommand(deviceId, commandType);
                   ElNotification({
                     title: KT('success'),
@@ -1005,9 +1011,9 @@ export function useMarkers(options) {
                   try {
                     const changeNative = availableSaved.find((a) => a.attributes['tarkan.changeNative'] && a.attributes['tarkan.changeNative'] === 'engineResume');
                     if (changeNative) {
-                      await window.$traccar.sendCommand({ ...changeNative, ...{ deviceId: deviceId } });
+                      await runtimeApi.sendCommand({ ...changeNative, ...{ deviceId: deviceId } });
                     } else {
-                      await window.$traccar.sendCommand({ deviceId: deviceId, type: "engineResume" });
+                      await runtimeApi.sendCommand({ deviceId: deviceId, type: "engineResume" });
                     }
                     registerCommand(deviceId, 'engineResume');
                     ElNotification({
@@ -1066,9 +1072,9 @@ export function useMarkers(options) {
                   try {
                     const changeNative = availableSaved.find((a) => a.attributes['tarkan.changeNative'] && a.attributes['tarkan.changeNative'] === 'engineStop');
                     if (changeNative) {
-                      await window.$traccar.sendCommand({ ...changeNative, ...{ deviceId: deviceId } });
+                      await runtimeApi.sendCommand({ ...changeNative, ...{ deviceId: deviceId } });
                     } else {
-                      await window.$traccar.sendCommand({ deviceId: deviceId, type: "engineStop" });
+                      await runtimeApi.sendCommand({ deviceId: deviceId, type: "engineStop" });
                     }
                     registerCommand(deviceId, 'engineStop');
                     ElNotification({
