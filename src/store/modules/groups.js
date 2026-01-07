@@ -62,8 +62,6 @@ export default {
                 context.commit("addGroup", data);
                 return data;
             }
-
-            })
         }
     }
 }

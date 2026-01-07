@@ -154,9 +154,8 @@ export default {
                 }
             })
         },
-        load(context){
-            return new Promise((resolve)=> {
-
+        async load(context){
+            try {
                 context.commit("addAudio",{key: 'audio1',src: '/custom/sounds/1-Apple.mp3'});
                 context.commit("addAudio",{key: 'audio2',src: '/custom/sounds/2-huawei.mp3'});
                 context.commit("addAudio",{key: 'audio3',src: '/custom/sounds/3-huawei_tune.mp3'});

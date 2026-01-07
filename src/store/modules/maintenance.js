@@ -56,8 +56,6 @@ export default {
                 context.commit("add", data);
                 return data;
             }
-
-            })
         }
     }
 }

@@ -51,8 +51,6 @@ export default {
                 context.commit("addAttribute", data);
                 return data;
             }
-
-            })
         }
     }
 }

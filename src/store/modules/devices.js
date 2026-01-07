@@ -1173,45 +1173,40 @@ export default {
             }
         },
         async positions(context){
-            const { getRuntimeApi } = await import('@/services/runtimeApiRef');
-            const api = getRuntimeApi();
-            const {data} = await api.getPositions();
-            context.commit("setPositions", data);
+            try {
+                const { getRuntimeApi } = await import('@/services/runtimeApiRef');
+                const api = getRuntimeApi();
+                const {data} = await api.getPositions();
+                context.commit("setPositions", data);
 
-                    if(data.length>0) {
-                        let tmp = [];
-                        for(var p in data){
-                            tmp.push([data[p].latitude,data[p].longitude]);
-                        }
-
-                            // 🎯 HANDSHAKE: Aguardar mapReady antes de fitBounds
-                            const performFitBounds = () => {
-                                if(typeof L !== 'undefined' && window.$map?.fitBounds) {
-                                    const zoom = (context.rootState.server.serverInfo.attributes && context.rootState.server.serverInfo.attributes['web.selectZoom']) ? context.rootState.server.serverInfo.attributes['web.selectZoom'] : 17;
-                                    // eslint-disable-next-line no-undef
-                                    const bds = L.latLngBounds(tmp);
-                                    window.$map.fitBounds(bds, {maxZoom: zoom});
-                                }
-                            };
-                            
-                            if (window.__mapReady) {
-                                setTimeout(performFitBounds, 500);
-                            } else {
-                                window.addEventListener('tarkan:mapReady', () => {
-                                    setTimeout(performFitBounds, 500);
-                                }, { once: true });
-                            }
-
-
+                if(data.length>0) {
+                    let tmp = [];
+                    for(var p in data){
+                        tmp.push([data[p].latitude,data[p].longitude]);
                     }
 
-                    resolve();
-                }).catch((err) => {
-                    console.warn('⚠️ [positions] Erro ao carregar posições (pode ser abort normal):', err.message);
-                    // Resolve mesmo com erro para não bloquear o fluxo
-                    resolve();
-                });
-            });
+                    // 🎯 HANDSHAKE: Aguardar mapReady antes de fitBounds
+                    const performFitBounds = () => {
+                        if(typeof L !== 'undefined' && window.$map?.fitBounds) {
+                            const zoom = (context.rootState.server.serverInfo.attributes && context.rootState.server.serverInfo.attributes['web.selectZoom']) ? context.rootState.server.serverInfo.attributes['web.selectZoom'] : 17;
+                            // eslint-disable-next-line no-undef
+                            const bds = L.latLngBounds(tmp);
+                            window.$map.fitBounds(bds, {maxZoom: zoom});
+                        }
+                    };
+                    
+                    if (window.__mapReady) {
+                        setTimeout(performFitBounds, 500);
+                    } else {
+                        window.addEventListener('tarkan:mapReady', () => {
+                            setTimeout(performFitBounds, 500);
+                        }, { once: true });
+                    }
+                }
+            } catch(err) {
+                console.warn('⚠️ [positions] Erro ao carregar posições (pode ser abort normal):', err.message);
+                // Não bloquear o fluxo com throw, apenas log
+            }
         }
     }
 }

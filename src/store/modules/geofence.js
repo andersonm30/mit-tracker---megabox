@@ -126,13 +126,8 @@ export default {
                 const {data} = await api.createGeofence(params);
                 context.commit("addGeofence", data);
                 context.commit("resetEditing");
-                        resolve(data);
-                    }).catch((err) => {
-                        console.log(err.response);
-                        reject(err);
-                    })
-                }
-            });
+                return data;
+            }
         },
         enableEditing(context,params){
             context.commit("enableEditing",params);
