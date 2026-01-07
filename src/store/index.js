@@ -379,19 +379,7 @@ const store = createStore({
             window.localStorage.removeItem('rememberme');
 
             api.closeWS();
-                  window.location.reload();
-
-                  resolve(data);
-              }).catch(()=>{
-
-                  context.commit("setAuth",false);
-
-                  api.closeWS();
-                  window.location.reload();
-
-                  reject();
-              });
-          })
+            window.location.reload();
         },
         pinServer(context,id){
             context.dispatch("server/addFavAttr",id);

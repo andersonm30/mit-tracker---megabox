@@ -12,6 +12,18 @@ export const RuntimeApiPlugin = {
   install(app, options = {}) {
     const api = createRuntimeApi(options)
 
+    // TRAVA: Deprecation warning DEV-only
+    if (process.env.NODE_ENV !== 'production') {
+      if (typeof window !== 'undefined') {
+        if (window.$traccar) {
+          console.warn('[RuntimeApiPlugin] ⚠️ window.$traccar detectado. Use runtimeApi (inject/getRuntimeApi).')
+        }
+        if (window.$tarkan) {
+          console.warn('[RuntimeApiPlugin] ⚠️ window.$tarkan detectado. Use runtimeApi (inject/getRuntimeApi).')
+        }
+      }
+    }
+
     app.provide('runtimeApi', api)
 
     // Para Vuex Store e componentes legados

@@ -33,10 +33,12 @@
 <script setup>
 
 
-import {ref,onMounted} from 'vue';
+import {ref,onMounted,inject} from 'vue';
 import {useRoute} from 'vue-router';
 
 const route = useRoute();
+const runtimeApi = inject('runtimeApi', null);
+if (!runtimeApi) throw new Error('Runtime API não disponível. Recarregue a página.');
 
 import 'element-plus/es/components/input/style/css'
 import 'element-plus/es/components/button/style/css'
@@ -73,7 +75,7 @@ onMounted(()=>{
 })
 
 const doSend = ()=>{
-  window.$tarkan.autoLink(formData.value).then(()=>{
+  runtimeApi.autoLink(formData.value).then(()=>{
     ElMessageBox.alert('O dispositivo foi adicionado com sucesso', KT('device.saveError'), {
       confirmButtonText: 'OK'
     }).then(()=>{

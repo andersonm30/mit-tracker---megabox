@@ -21,6 +21,19 @@ module.exports = {
   },
   rules: {
     'no-undef': 'off',
-    'no-redeclare': 'off'
+    'no-redeclare': 'off',
+    'no-restricted-properties': [
+      'error',
+      {
+        object: 'window',
+        property: '$traccar',
+        message: 'Use runtimeApi (inject/getRuntimeApi) ao invés de window.$traccar. Refs legadas foram removidas.'
+      },
+      {
+        object: 'window',
+        property: '$tarkan',
+        message: 'Use runtimeApi (inject/getRuntimeApi) ao invés de window.$tarkan. Refs legadas foram removidas.'
+      }
+    ]
   }
 }

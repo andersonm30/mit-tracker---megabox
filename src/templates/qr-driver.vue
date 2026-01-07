@@ -34,7 +34,7 @@
 
 import {QrcodeStream} from "vue3-qrcode-reader";
 
-import {ref,computed,onMounted} from "vue";
+import {ref,computed,onMounted,inject} from "vue";
 import {useStore} from "vuex";
 
 import {ElButton} from "element-plus";
@@ -42,6 +42,8 @@ import {useRoute} from "vue-router";
 
 const store = useStore();
 const route = useRoute();
+const runtimeApi = inject('runtimeApi', null);
+if (!runtimeApi) throw new Error('Runtime API não disponível. Recarregue a página.');
 
 const deviceInfo = computed(()=>{
     return store.getters["devices/getDevice"](store.state.auth.attributes['tarkan.isQrDeviceId']);
@@ -67,7 +69,7 @@ const onDecode = (r)=>{
 
       const scan = r.split("scan/")[1].split("?")[0];
 
-      window.$tarkan.checkDriver(scan).then(({data}) => {
+      runtimeApi.checkDriver(scan).then(({data}) => {
 
         store.commit("setAuth", data);
 
@@ -84,7 +86,7 @@ const doCheckOut = ()=>{
 
   state.value = -5;
 
-  window.$tarkan.checkOutDriver().then(({data}) => {
+  runtimeApi.checkOutDriver().then(({data}) => {
     store.commit("setAuth", data);
     state.value = 0;
   }).catch(() => {
