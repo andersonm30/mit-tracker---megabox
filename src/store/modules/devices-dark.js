@@ -4,6 +4,7 @@ import store from "../index";
 // 🔒 PATCH 2: Guard anti-WS duplicado
 // ============================================
 let wsConnectingDark = false;
+let wsHandlersRegisteredDark = false; // 🔒 Evita duplicar listeners
 
 export default {
     namespaced: true,
@@ -1022,64 +1023,70 @@ export default {
                     return;
                 }
 
-                api.on('open', () => {
-                    wsConnectingDark = false;
-                    //console.log("WS OPEN")
-                })
-                api.on('close', () => {
-                    wsConnectingDark = false;
-                    window.setTimeout(() => {
-                        api.startWS();
-                    }, 5000);
-                })
-                api.on('message', (m) => {
-                    if (m.positions) {
-                        m.positions.forEach((p) => {
-                            context.commit("updatePosition", p);
-                        });
-                        //context.commit("updatePositions",m.positions);
-                    }
+                // 🔒 Registra handlers apenas 1 vez (Emitter acumula infinitamente)
+                if (!wsHandlersRegisteredDark) {
+                    api.on('open', () => {
+                        wsConnectingDark = false;
+                        //console.log("WS OPEN")
+                    })
+                    api.on('close', () => {
+                        wsConnectingDark = false;
+                        wsHandlersRegisteredDark = false; // Reset para permitir reconexão
+                        window.setTimeout(() => {
+                            api.startWS();
+                        }, 5000);
+                    })
+                    api.on('message', (m) => {
+                        if (m.positions) {
+                            m.positions.forEach((p) => {
+                                context.commit("updatePosition", p);
+                            });
+                            //context.commit("updatePositions",m.positions);
+                        }
 
-                    if (m.devices) {
-                        // eslint-disable-next-line no-unused-vars
-                        m.devices.forEach((d) => {
-                            // Verificar si el dispositivo perdió conductor antes de actualizar
-                            const currentDevice = context.state.deviceList[d.id];
-                            const hadDriver = currentDevice && currentDevice.attributes && currentDevice.attributes.qrDriverId;
-                            const hasDriver = d.attributes && d.attributes.qrDriverId;
-                            
-                            context.commit("updateDevice", d)
+                        if (m.devices) {
+                            // eslint-disable-next-line no-unused-vars
+                            m.devices.forEach((d) => {
+                                // Verificar si el dispositivo perdió conductor antes de actualizar
+                                const currentDevice = context.state.deviceList[d.id];
+                                const hadDriver = currentDevice && currentDevice.attributes && currentDevice.attributes.qrDriverId;
+                                const hasDriver = d.attributes && d.attributes.qrDriverId;
+                                
+                                context.commit("updateDevice", d)
 
-                            // Se o dispositivo tinha um condutor e não tem mais, verificar sessão imediatamente
-                            if (hadDriver && !hasDriver) {
-                                console.log("🚨 Dispositivo perdeu condutor - verificando sessão imediatamente");
+                                // Se o dispositivo tinha um condutor e não tem mais, verificar sessão imediatamente
+                                if (hadDriver && !hasDriver) {
+                                    console.log("🚨 Dispositivo perdeu condutor - verificando sessão imediatamente");
+                                    setTimeout(() => {
+                                        context.dispatch("checkSession", null, { root: true });
+                                    }, 100);
+                                }
+
                                 setTimeout(() => {
-                                    context.dispatch("checkSession", null, { root: true });
-                                }, 100);
-                            }
+                                    context.dispatch("refreshOneDevice", d.id);
+                                }, 500);
+                            })
+                        }
 
-                            setTimeout(() => {
-                                context.dispatch("refreshOneDevice", d.id);
-                            }, 500);
-                        })
-                    }
+                        // ADICIONAR SUPORTE PARA USUÁRIOS NO WEBSOCKET
+                        if (m.users) {
+                            m.users.forEach((u) => {
+                                context.commit("users/updateUser", u, { root: true });
+                                // Se é o usuário atual, atualizar auth
+                                if (context.rootState.auth && context.rootState.auth.id === u.id) {
+                                    console.log("🔄 Atualizando usuário autenticado via WebSocket");
+                                    context.commit("setAuth", u, { root: true });
+                                }
+                            });
+                        }
 
-                    // ADICIONAR SUPORTE PARA USUÁRIOS NO WEBSOCKET
-                    if (m.users) {
-                        m.users.forEach((u) => {
-                            context.commit("users/updateUser", u, { root: true });
-                            // Se é o usuário atual, atualizar auth
-                            if (context.rootState.auth && context.rootState.auth.id === u.id) {
-                                console.log("🔄 Atualizando usuário autenticado via WebSocket");
-                                context.commit("setAuth", u, { root: true });
-                            }
-                        });
-                    }
+                        if (m.events) {
+                            context.dispatch("events/proccessNotifications", m.events, { root: true });
+                        }
+                    })
 
-                    if (m.events) {
-                        context.dispatch("events/proccessNotifications", m.events, { root: true });
-                    }
-                })
+                    wsHandlersRegisteredDark = true;
+                }
 
                 api.startWS();
             } catch(err) {

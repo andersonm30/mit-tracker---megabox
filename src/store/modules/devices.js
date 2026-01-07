@@ -19,6 +19,7 @@ let refreshRunId = 0;
 // 🔒 PATCH 2: Guard anti-WS duplicado
 // ============================================
 let wsConnecting = false;
+let wsHandlersRegistered = false; // 🔒 Evita duplicar listeners
 
 // ============================================
 // BENCHMARK / MÉTRICAS (ativo apenas com PERF_DEBUG)
@@ -1095,39 +1096,45 @@ export default {
                     return;
                 }
 
-                api.on('open',()=>{
-                    wsConnecting = false;
-                    //console.log("WS OPEN")
-                })
-                api.on('close',()=>{
-                    wsConnecting = false;
-                    window.setTimeout(()=>{
-                        api.startWS();
-                    },5000);
-                })
-                api.on('message',(m)=>{
-                    if(m.positions){
-                        m.positions.forEach((p)=>{
-                            context.commit("updatePosition",p);
-                        });
-                        //context.commit("updatePositions",m.positions);
-                    }
+                // 🔒 Registra handlers apenas 1 vez (Emitter acumula infinitamente)
+                if (!wsHandlersRegistered) {
+                    api.on('open',()=>{
+                        wsConnecting = false;
+                        //console.log("WS OPEN")
+                    })
+                    api.on('close',()=>{
+                        wsConnecting = false;
+                        wsHandlersRegistered = false; // Reset para permitir reconexão
+                        window.setTimeout(()=>{
+                            api.startWS();
+                        },5000);
+                    })
+                    api.on('message',(m)=>{
+                        if(m.positions){
+                            m.positions.forEach((p)=>{
+                                context.commit("updatePosition",p);
+                            });
+                            //context.commit("updatePositions",m.positions);
+                        }
 
-                    if(m.devices){
-                        // eslint-disable-next-line no-unused-vars
-                        m.devices.forEach((d)=>{
-                            context.commit("updateDevice",d)
+                        if(m.devices){
+                            // eslint-disable-next-line no-unused-vars
+                            m.devices.forEach((d)=>{
+                                context.commit("updateDevice",d)
 
-                            setTimeout(()=> {
-                                context.dispatch("refreshOneDevice", d.id);
-                            },500);
-                        })
-                    }
+                                setTimeout(()=> {
+                                    context.dispatch("refreshOneDevice", d.id);
+                                },500);
+                            })
+                        }
 
-                    if(m.events){
-                        context.dispatch("events/proccessNotifications",m.events,{root: true});
-                    }
-                })
+                        if(m.events){
+                            context.dispatch("events/proccessNotifications",m.events,{root: true});
+                        }
+                    })
+
+                    wsHandlersRegistered = true;
+                }
 
                 api.startWS();
             } catch(err) {
