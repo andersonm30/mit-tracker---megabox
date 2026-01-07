@@ -22,51 +22,35 @@ export default {
         }
     },
     actions: {
-        load(context){
-            return new Promise((resolve)=> {
-                const traccar = window.$traccar;
-                traccar.getComputedAttributes().then(({data}) => {
-                    context.commit("setAttributes", data);
-
-                    resolve();
-                })
-
-            });
+        async load(context){
+            const { getRuntimeApi } = await import('@/services/runtimeApiRef');
+            const api = getRuntimeApi();
+            const {data} = await api.getComputedAttributes();
+            context.commit("setAttributes", data);
         },
-        delete(context,params){
-            return new Promise((resolve,reject)=>{
-
-
-                if(params>0){
-                    window.$traccar.deleteComputedAttribute(params).then(({data}) => {
-                        context.commit("removeAttribute", params);
-                        resolve(data);
-                    }).catch(reject);
-                }else{
-                    reject();
-                }
-            })
+        async delete(context,params){
+            if(params>0){
+                const { getRuntimeApi } = await import('@/services/runtimeApiRef');
+                const api = getRuntimeApi();
+                const {data} = await api.deleteComputedAttribute(params);
+                context.commit("removeAttribute", params);
+                return data;
+            }
+            throw new Error('ID inválido');
         },
-        save(context,params){
-            return new Promise((resolve,reject)=>{
-
-                if(params.id>0){
-
-                    window.$traccar.updateComputedAttribute(params.id,params).then(({data}) => {
-
-                        context.commit("updateAttribute", data);
-
-                        resolve(data);
-                    }).catch(reject);
-                }else {
-
-                    window.$traccar.createComputedAttribute(params).then(({data}) => {
-
-                        context.commit("addAttribute", data);
-
-                        resolve(data);
-                    }).catch(reject);
-                }
+        async save(context,params){
+            const { getRuntimeApi } = await import('@/services/runtimeApiRef');
+            const api = getRuntimeApi();
+            
+            if(params.id>0){
+                const {data} = await api.updateComputedAttribute(params.id,params);
+                context.commit("updateAttribute", data);
+                return data;
+            } else {
+                const {data} = await api.createComputedAttribute(params);
+                context.commit("addAttribute", data);
+                return data;
+            }
 
             })
         }

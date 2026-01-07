@@ -37,51 +37,32 @@ export default {
         }
     },
     actions: {
-        load(context){
-            return new Promise((resolve)=> {
-                const traccar = window.$traccar;
-                traccar.getDrivers().then(({data}) => {
-                    context.commit("setDrivers", data);
-
-                    resolve();
-                })
-
-            });
+        async load(context){
+            const { getRuntimeApi } = await import('@/services/runtimeApiRef');
+            const api = getRuntimeApi();
+            const {data} = await api.getDrivers();
+            context.commit("setDrivers", data);
         },
-        save(context,params){
-            return new Promise((resolve,reject)=> {
-                const traccar = window.$traccar;
-                console.log(params);
-                if (params.id) {
-                    traccar.updateDriver(params.id, params).then(({data}) => {
-                        context.commit("updateDriver",data);
-
-                        resolve(data);
-                    }).catch((err) => {
-                        console.log(err);
-                        reject();
-                    })
-                } else {
-                    traccar.createDriver(params).then(({data}) => {
-                        context.commit("addDrivers",data);
-                        resolve(data);
-                    }).catch((err) => {
-                        console.log(err.response);
-                        reject();
-                    })
-
-                }
-            });
+        async save(context,params){
+            const { getRuntimeApi } = await import('@/services/runtimeApiRef');
+            const api = getRuntimeApi();
+            console.log(params);
+            
+            if (params.id) {
+                const {data} = await api.updateDriver(params.id, params);
+                context.commit("updateDriver",data);
+                return data;
+            } else {
+                const {data} = await api.createDriver(params);
+                context.commit("addDrivers",data);
+                return data;
+            }
         },
-        deleteDriver(context,params){
-            return new Promise((resolve,reject)=> {
-                window.$traccar.deleteDriver(params).then(() => {
-                    context.commit("deleteDriver", params);
-                    resolve();
-                }).catch((err) => {
-                    reject(err.response.data);
-                })
-            });
+        async deleteDriver(context,params){
+            const { getRuntimeApi } = await import('@/services/runtimeApiRef');
+            const api = getRuntimeApi();
+            await api.deleteDriver(params);
+            context.commit("deleteDriver", params);
         }
     }
 }

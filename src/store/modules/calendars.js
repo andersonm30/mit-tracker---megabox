@@ -32,51 +32,32 @@ export default {
         }
     },
     actions: {
-        load(context){
-            return new Promise((resolve)=> {
-                const traccar = window.$traccar;
-                traccar.getCalendars().then(({data}) => {
-                    context.commit("setCalendars", data);
-
-                    resolve();
-                })
-
-            });
+        async load(context){
+            const { getRuntimeApi } = await import('@/services/runtimeApiRef');
+            const api = getRuntimeApi();
+            const {data} = await api.getCalendars();
+            context.commit("setCalendars", data);
         },
-        save(context,params){
-            return new Promise((resolve,reject)=> {
-                const traccar = window.$traccar;
-                console.log(params);
-                if (params.id) {
-                    traccar.updateCalendar(params.id, params).then(({data}) => {
-                        context.commit("updateCalendar",data);
-
-                        resolve(data);
-                    }).catch((err) => {
-                        console.log(err);
-                        reject();
-                    })
-                } else {
-                    traccar.createCalendar(params).then(({data}) => {
-                        context.commit("addCalendar",data);
-                        resolve(data);
-                    }).catch((err) => {
-                        console.log(err.response);
-                        reject();
-                    })
-
-                }
-            });
+        async save(context,params){
+            const { getRuntimeApi } = await import('@/services/runtimeApiRef');
+            const api = getRuntimeApi();
+            console.log(params);
+            
+            if (params.id) {
+                const {data} = await api.updateCalendar(params.id, params);
+                context.commit("updateCalendar",data);
+                return data;
+            } else {
+                const {data} = await api.createCalendar(params);
+                context.commit("addCalendar",data);
+                return data;
+            }
         },
-        deleteCalendar(context,params){
-            return new Promise((resolve,reject)=> {
-                window.$traccar.deleteCalendar(params).then(() => {
-                    context.commit("deletecalendar", params);
-                    resolve();
-                }).catch((err) => {
-                    reject(err.response.data);
-                })
-            });
+        async deleteCalendar(context,params){
+            const { getRuntimeApi } = await import('@/services/runtimeApiRef');
+            const api = getRuntimeApi();
+            await api.deleteCalendar(params);
+            context.commit("deletecalendar", params);
         }
     }
 }

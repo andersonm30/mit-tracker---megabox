@@ -1070,18 +1070,19 @@ export default {
             commit('resetStates');
           },
         // eslint-disable-next-line no-unused-vars
-        connectWs(context){
-            const traccar = window.$traccar;
+        async connectWs(context){
+            const { getRuntimeApi } = await import('@/services/runtimeApiRef');
+            const api = getRuntimeApi();
 
-            traccar.on('open',()=>{
+            api.on('open',()=>{
                 //console.log("WS OPEN")
             })
-            traccar.on('close',()=>{
+            api.on('close',()=>{
                 window.setTimeout(()=>{
-                    traccar.startWS();
+                    api.startWS();
                 },5000);
             })
-            traccar.on('message',(m)=>{
+            api.on('message',(m)=>{
                 if(m.positions){
                     m.positions.forEach((p)=>{
                         context.commit("updatePosition",p);
@@ -1105,7 +1106,7 @@ export default {
                 }
             })
 
-            traccar.startWS();
+            api.startWS();
         },
         waitForDevice(){
             return new Promise((resolve)=> {
@@ -1120,116 +1121,62 @@ export default {
                 checkDevice();
             });
         },
-        load(context,waitDevice=true){
-            return new Promise((resolve, reject)=> {
+        async load(context,waitDevice=true){
+            const { getRuntimeApi } = await import('@/services/runtimeApiRef');
+            const api = getRuntimeApi();
 
-                if(waitDevice) {
+            if(waitDevice) {
+                await context.dispatch("waitForDevice");
+                await window.loadModels();
+            }
 
-                    context.dispatch("waitForDevice").then(() => {
-
-                        window.loadModels().then(() => {
-
-                            const traccar = window.$traccar;
-                            traccar.getDevices().then(({data}) => {
-                                data.forEach((d) => {
-
-                                    if (!(d.uniqueId.split("-").length == 3 && d.uniqueId.split("-")[0] === "deleted")) {
-                                        context.commit("addDevice", d);
-                                    }
-
-                                })
-
-                                resolve();
-                            }).catch((err) => {
-                                console.error('❌ [devices/load] Erro ao carregar devices:', err);
-                                reject(err);
-                            });
-                        }).catch((err) => {
-                            console.error('❌ [devices/load] Erro ao carregar modelos:', err);
-                            reject(err);
-                        });
-                    }).catch((err) => {
-                        console.error('❌ [devices/load] Erro no waitForDevice:', err);
-                        reject(err);
-                    });
-                }else{
-                    const traccar = window.$traccar;
-                    traccar.getDevices().then(({data}) => {
-                        data.forEach((d) => {
-
-                            if (!(d.uniqueId.split("-").length == 3 && d.uniqueId.split("-")[0] === "deleted")) {
-                                context.commit("addDevice", d);
-                            }
-
-                        })
-
-                        resolve();
-                    }).catch((err) => {
-                        console.error('❌ [devices/load] Erro ao carregar devices (no wait):', err);
-                        reject(err);
-                    });
-
-                }
-            });
+            try {
+                const {data} = await api.getDevices();
+                data.forEach((d) => {
+                    if (!(d.uniqueId.split("-").length == 3 && d.uniqueId.split("-")[0] === "deleted")) {
+                        context.commit("addDevice", d);
+                    }
+                });
+            } catch(err) {
+                console.error('❌ [devices/load] Erro ao carregar devices:', err);
+                throw err;
+            }
         },
-        delete(context,params){
-            return new Promise((resolve,reject)=> {
-                const traccar = window.$traccar;
-                traccar.deleteDevice(params).then(({data}) => {
-                    context.commit("removeDevice",params);
-                    resolve(data);
-                }).catch((err) => {
-                    console.log(err);
-                    reject();
-                })
-
-            });
-
-
+        async delete(context,params){
+            const { getRuntimeApi } = await import('@/services/runtimeApiRef');
+            const api = getRuntimeApi();
+            const {data} = await api.deleteDevice(params);
+            context.commit("removeDevice",params);
+            return data;
         },
-        save(context,params){
-            return new Promise((resolve,reject)=> {
-                const traccar = window.$traccar;
+        async save(context,params){
+            const { getRuntimeApi } = await import('@/services/runtimeApiRef');
+            const api = getRuntimeApi();
 
-
-                if (params.id) {
-                    traccar.updateDevice(params.id, params).then(({data}) => {
-                        context.commit("updateDevice",data);
-                        resolve(data);
-                    }).catch((err) => {
-                        reject(err);
-                    })
-                } else {
-                    traccar.createDevice(params).then(({data}) => {
-                        context.commit("addDevice",data);
-                        resolve(data);
-                    }).catch((err) => {
-                        reject(err);
-                    })
-
-                }
-            });
+            if (params.id) {
+                const {data} = await api.updateDevice(params.id, params);
+                context.commit("updateDevice",data);
+                return data;
+            } else {
+                const {data} = await api.createDevice(params);
+                context.commit("addDevice",data);
+                return data;
+            }
         },
-        accumulators(context,params){
-            return new Promise((resolve,reject)=> {
-                const traccar = window.$traccar;
+        async accumulators(context,params){
+            const { getRuntimeApi } = await import('@/services/runtimeApiRef');
+            const api = getRuntimeApi();
 
-
-                if (params.deviceId) {
-                    traccar.updateAccumulators(params.deviceId, params).then(({data}) => {
-                        //context.commit("updateDevice",data);
-                        resolve(data);
-                    }).catch((err) => {
-                        reject(err);
-                    })
-                }
-            });
+            if (params.deviceId) {
+                const {data} = await api.updateAccumulators(params.deviceId, params);
+                return data;
+            }
         },
-        positions(context){
-            return new Promise((resolve)=> {
-                const traccar = window.$traccar;
-                traccar.getPositions().then(({data}) => {
-                    context.commit("setPositions", data);
+        async positions(context){
+            const { getRuntimeApi } = await import('@/services/runtimeApiRef');
+            const api = getRuntimeApi();
+            const {data} = await api.getPositions();
+            context.commit("setPositions", data);
 
                     if(data.length>0) {
                         let tmp = [];

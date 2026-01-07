@@ -342,21 +342,25 @@ const store = createStore({
             }
         },
         checkSession(context){
-            return new Promise((resolve,reject)=>{
+            return new Promise(async (resolve,reject)=>{
 
                     const data = window.localStorage.getItem('rememberme')
                     if(data) {
                         const pw = atob(data).split("|");
+                        const { getRuntimeApi } = await import('@/services/runtimeApiRef');
+                        const api = getRuntimeApi();
 
-                        window.$traccar.login(pw[0],pw[1]).then((data) => {
+                        api.login(pw[0],pw[1]).then((data) => {
                             resolve(data);
                             context.commit("setAuth", data);
                         }).catch(() => {
                             reject();
                         });
                     }else {
+                        const { getRuntimeApi } = await import('@/services/runtimeApiRef');
+                        const api = getRuntimeApi();
 
-                        window.$traccar.getSession().then(({data}) => {
+                        api.getSession().then(({data}) => {
                             resolve(data);
                             context.commit("setAuth", data);
                         }).catch(() => {
@@ -365,14 +369,16 @@ const store = createStore({
                     }
             })
         },
-        logout(context){
-          return new Promise((resolve,reject)=>{
-              window.$traccar.deleteSession().then(({data})=>{
-                  context.commit("setAuth",false);
+        async logout(context){
+            const { getRuntimeApi } = await import('@/services/runtimeApiRef');
+            const api = getRuntimeApi();
+            
+            await api.deleteSession();
+            context.commit("setAuth",false);
 
-                  window.localStorage.removeItem('rememberme');
+            window.localStorage.removeItem('rememberme');
 
-                  window.$traccar.closeWS();
+            api.closeWS();
                   window.location.reload();
 
                   resolve(data);

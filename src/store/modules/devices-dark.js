@@ -997,18 +997,19 @@ export default {
             context.commit("toggleStreet")
         },
         // eslint-disable-next-line no-unused-vars
-        connectWs(context) {
-            const traccar = window.$traccar;
+        async connectWs(context) {
+            const { getRuntimeApi } = await import('@/services/runtimeApiRef');
+            const api = getRuntimeApi();
 
-            traccar.on('open', () => {
+            api.on('open', () => {
                 //console.log("WS OPEN")
             })
-            traccar.on('close', () => {
+            api.on('close', () => {
                 window.setTimeout(() => {
-                    traccar.startWS();
+                    api.startWS();
                 }, 5000);
             })
-            traccar.on('message', (m) => {
+            api.on('message', (m) => {
                 if (m.positions) {
                     m.positions.forEach((p) => {
                         context.commit("updatePosition", p);
@@ -1057,7 +1058,7 @@ export default {
                 }
             })
 
-            traccar.startWS();
+            api.startWS();
         },
         waitForDevice() {
             return new Promise((resolve) => {
@@ -1072,130 +1073,72 @@ export default {
                 checkDevice();
             });
         },
-        load(context, waitDevice = true) {
-            return new Promise((resolve) => {
+        async load(context, waitDevice = true) {
+            const { getRuntimeApi } = await import('@/services/runtimeApiRef');
+            const api = getRuntimeApi();
 
-                if (waitDevice) {
+            if (waitDevice) {
+                await context.dispatch("waitForDevice");
+                await window.loadModels();
+            }
 
-                    context.dispatch("waitForDevice").then(() => {
-
-                        window.loadModels().then(() => {
-
-                            const traccar = window.$traccar;
-                            traccar.getDevices().then(({ data }) => {
-                                data.forEach((d) => {
-
-                                    if (!(d.uniqueId.split("-").length == 3 && d.uniqueId.split("-")[0] === "deleted")) {
-                                        context.commit("addDevice", d);
-                                    }
-
-                                })
-
-                                resolve();
-                            })
-                        });
-                    });
-                } else {
-                    const traccar = window.$traccar;
-                    traccar.getDevices().then(({ data }) => {
-                        data.forEach((d) => {
-
-                            if (!(d.uniqueId.split("-").length == 3 && d.uniqueId.split("-")[0] === "deleted")) {
-                                context.commit("addDevice", d);
-                            }
-
-                        })
-
-                        resolve();
-                    })
-
+            const {data} = await api.getDevices();
+            data.forEach((d) => {
+                if (!(d.uniqueId.split("-").length == 3 && d.uniqueId.split("-")[0] === "deleted")) {
+                    context.commit("addDevice", d);
                 }
             });
         },
-        delete(context, params) {
-            return new Promise((resolve, reject) => {
-                const traccar = window.$traccar;
-                traccar.deleteDevice(params).then(({ data }) => {
-                    context.commit("removeDevice", params);
-                    resolve(data);
-                }).catch((err) => {
-                    console.log(err);
-                    reject();
-                })
-
-            });
-
-
+        async delete(context, params) {
+            const { getRuntimeApi } = await import('@/services/runtimeApiRef');
+            const api = getRuntimeApi();
+            const {data} = await api.deleteDevice(params);
+            context.commit("removeDevice", params);
+            return data;
         },
-        save(context, params) {
-            return new Promise((resolve, reject) => {
-                const traccar = window.$traccar;
+        async save(context, params) {
+            const { getRuntimeApi } = await import('@/services/runtimeApiRef');
+            const api = getRuntimeApi();
 
-                if (params.id) {
-                    // Atualizar dispositivo existente
-                    traccar.updateDevice(params.id, params).then(({ data }) => {
-                        context.commit("updateDevice", data);
-                        resolve(data);
-                        // Atualizar o estado visual dos dispositivos
-                        context.dispatch("refreshDevices");
-                    }).catch((err) => {
-                        console.error("Erro ao atualizar dispositivo:", err);
-                        reject(err);
-                    })
-                } else {
-                    // Criar novo dispositivo
-                    traccar.createDevice(params).then(({ data }) => {
-                        // Adicionar o novo dispositivo
-                        context.commit("addDevice", data);
-                        
-                        // Forçar atualização da lista de dispositivos no componente
-                        setTimeout(() => {
-                            // Usar setTimeout para garantir que o estado seja atualizado primeiro
-                            context.dispatch("refreshDevices");
-                        }, 100);
-                        
-                        resolve(data);
-                    }).catch((err) => {
-                        console.error("Erro ao criar dispositivo:", err);
-                        reject(err);
-                    })
-                }
-            });
+            if (params.id) {
+                const {data} = await api.updateDevice(params.id, params);
+                context.commit("updateDevice", data);
+                context.dispatch("refreshDevices");
+                return data;
+            } else {
+                const {data} = await api.createDevice(params);
+                context.commit("addDevice", data);
+                setTimeout(() => {
+                    context.dispatch("refreshDevices");
+                }, 100);
+                return data;
+            }
         },
-        accumulators(context, params) {
-            return new Promise((resolve, reject) => {
-                const traccar = window.$traccar;
+        async accumulators(context, params) {
+            const { getRuntimeApi } = await import('@/services/runtimeApiRef');
+            const api = getRuntimeApi();
 
-
-                if (params.deviceId) {
-                    traccar.updateAccumulators(params.deviceId, params).then(({ data }) => {
-                        // Actualizar la posición local con los nuevos valores de accumulators
-                        const currentPosition = context.state.positionsList[params.deviceId];
-                        if (currentPosition && currentPosition.attributes) {
-                            // Actualizar totalDistance si se proporcionó
-                            if (params.totalDistance !== undefined) {
-                                currentPosition.attributes.totalDistance = params.totalDistance;
-                            }
-                            // Actualizar hours si se proporcionó
-                            if (params.hours !== undefined) {
-                                currentPosition.attributes.hours = params.hours;
-                            }
-                            // Commit la posición actualizada
-                            context.commit("updatePosition", currentPosition);
-                        }
-                        resolve(data);
-                    }).catch((err) => {
-                        reject(err);
-                    })
+            if (params.deviceId) {
+                const {data} = await api.updateAccumulators(params.deviceId, params);
+                const currentPosition = context.state.positionsList[params.deviceId];
+                if (currentPosition && currentPosition.attributes) {
+                    if (params.totalDistance !== undefined) {
+                        currentPosition.attributes.totalDistance = params.totalDistance;
+                    }
+                    if (params.hours !== undefined) {
+                        currentPosition.attributes.hours = params.hours;
+                    }
+                    context.commit("updatePosition", currentPosition);
                 }
-            });
+                return data;
+            }
         },
         /* eslint-disable no-unused-vars */
-        positions(context) {
-            return new Promise((resolve) => {
-                const traccar = window.$traccar;
-                traccar.getPositions().then(({ data }) => {
-                    context.commit("setPositions", data);
+        async positions(context) {
+            const { getRuntimeApi } = await import('@/services/runtimeApiRef');
+            const api = getRuntimeApi();
+            const {data} = await api.getPositions();
+            context.commit("setPositions", data);
 
                     if (data.length > 0) {
                         let tmp = [];
