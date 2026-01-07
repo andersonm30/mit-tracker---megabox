@@ -134,16 +134,13 @@ const routes = {
       commit('SET_ERROR', null);
 
       try {
-        const $traccar = window.$traccar;
-        
-        if (!$traccar) {
-          throw new Error('TraccarConnector não disponível');
-        }
+        const { getRuntimeApi } = await import('@/services/runtimeApiRef');
+        const api = getRuntimeApi();
 
         // Salvar metadados
         commit('SET_ROUTE_META', { deviceId, startDate, endDate });
 
-        const response = await $traccar.loadRoute(deviceId, startDate, endDate, isExport);
+        const response = await api.loadRoute(deviceId, startDate, endDate, isExport);
 
         // Verificar resposta válida
         if (!response || !response.data) {

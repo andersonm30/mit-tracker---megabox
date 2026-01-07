@@ -99,45 +99,33 @@ export default {
         }
     },
     actions: {
-        load(context){
-            return new Promise((resolve)=> {
-                const traccar = window.$traccar;
-                traccar.getGeofences().then(({data}) => {
-                    context.commit("setGeofences", data);
-
-                    resolve();
-                })
-            });
+        async load(context){
+            const { getRuntimeApi } = await import('@/services/runtimeApiRef');
+            const api = getRuntimeApi();
+            const {data} = await api.getGeofences();
+            context.commit("setGeofences", data);
         },
-        delete(context,params){
-            return new Promise((resolve,reject)=> {
-                const traccar = window.$traccar;
-                traccar.deleteGeofence(params).then(({data}) => {
-                    context.commit("removeGeofence", params);
-                    context.commit("resetEditing");
-                    resolve(data);
-                }).catch((err) => {
-                    console.log(err.response);
-                    reject(err);
-                })
-            });
+        async delete(context,params){
+            const { getRuntimeApi } = await import('@/services/runtimeApiRef');
+            const api = getRuntimeApi();
+            const {data} = await api.deleteGeofence(params);
+            context.commit("removeGeofence", params);
+            context.commit("resetEditing");
+            return data;
         },
-        save(context,params){
-            return new Promise((resolve,reject)=> {
-                const traccar = window.$traccar;
-                if (params.id > 0) {
-                    traccar.updateGeofence(params.id, params).then(({data}) => {
-                        context.commit("updateGeofence", data);
-                        context.commit("resetEditing");
-                        resolve(data);
-                    }).catch((err) => {
-                        console.log(err.response);
-                        reject(err);
-                    })
-                } else {
-                    traccar.createGeofence(params).then(({data}) => {
-                        context.commit("addGeofence", data);
-                        context.commit("resetEditing");
+        async save(context,params){
+            const { getRuntimeApi } = await import('@/services/runtimeApiRef');
+            const api = getRuntimeApi();
+            
+            if (params.id > 0) {
+                const {data} = await api.updateGeofence(params.id, params);
+                context.commit("updateGeofence", data);
+                context.commit("resetEditing");
+                return data;
+            } else {
+                const {data} = await api.createGeofence(params);
+                context.commit("addGeofence", data);
+                context.commit("resetEditing");
                         resolve(data);
                     }).catch((err) => {
                         console.log(err.response);

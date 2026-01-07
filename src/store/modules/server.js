@@ -98,51 +98,37 @@ export default {
                 });
             });
         },
-        load(context){
-            return new Promise((resolve,reject)=> {
+        async load(context){
+            if(context.state.serverLoaded){
+                return;
+            }
 
+            const { getRuntimeApi } = await import('@/services/runtimeApiRef');
+            const api = getRuntimeApi();
+            const r = await api.getServer();
 
-                if(context.state.serverLoaded){
-                    resolve();
-                }else {
+            if (r.headers['licensemode']) {
+                context.commit("setPlus", true);
+            }
 
-                    const traccar = window.$traccar;
-                    traccar.getServer().then((r) => {
+            if (r.headers['devicelimit'] && r.headers['devicelimit'] !== "") {
+                context.commit("setLimit", parseInt(r.headers['devicelimit']));
+            }
 
-
-
-                        if (r.headers['licensemode']) {
-                            context.commit("setPlus", true);
-                        }
-
-                        if (r.headers['devicelimit'] && r.headers['devicelimit'] !== "") {
-                            context.commit("setLimit", parseInt(r.headers['devicelimit']));
-                        }
-
-
-                        context.commit("setServer", r.data);
-                        resolve(r.data);
-                    }).catch(() => {
-                        reject();
-                    });
-                }
-
-            });
+            context.commit("setServer", r.data);
+            return r.data;
         },
-        save(context,params) {
-            return new Promise((resolve, reject) => {
-                window.$traccar.saveServer(params).then((r) => {
+        async save(context,params) {
+            const { getRuntimeApi } = await import('@/services/runtimeApiRef');
+            const api = getRuntimeApi();
+            const r = await api.saveServer(params);
 
-                    if(r.headers['devicelimit'] && r.headers['devicelimit']!==""){
-                        context.commit("setLimit",parseInt(r.headers['devicelimit']));
-                    }
+            if(r.headers['devicelimit'] && r.headers['devicelimit']!==""){
+                context.commit("setLimit",parseInt(r.headers['devicelimit']));
+            }
 
-                    context.commit("setServer", r.data);
-                    resolve(r.data);
-                }).catch(() => {
-                    reject()
-                });
-            })
+            context.commit("setServer", r.data);
+            return r.data;
         },
         addFavAttr(context,params){
             let attr = context.state.serverInfo.attributes['tarkan.deviceAttributes'];

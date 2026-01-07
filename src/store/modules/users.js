@@ -43,51 +43,35 @@ export default {
         }
     },
     actions: {
-        load(context){
-            return new Promise((resolve)=> {
-                const traccar = window.$traccar;
-                traccar.getUsers().then(({data}) => {
-                    context.commit("setUsers", data);
-
-                    resolve();
-                })
-
-            });
+        async load(context){
+            const { getRuntimeApi } = await import('@/services/runtimeApiRef');
+            const api = getRuntimeApi();
+            const {data} = await api.getUsers();
+            context.commit("setUsers", data);
         },
-        save(context,params){
-            return new Promise((resolve,reject)=> {
-                const traccar = window.$traccar;
-                console.log(params);
-                if (params.id) {
-                    traccar.updateUser(params.id, params).then(({data}) => {
-                        context.commit("updateUser",data);
-                        if(context.rootState.auth.id === data.id){
-                            context.commit("setAuth",data,{root: true});
-                        }
-                        resolve(data);
-                    }).catch((err) => {
-                        reject(err);
-                    })
-                } else {
-                    traccar.createUser(params).then(({data}) => {
-                        context.commit("addUser",data);
-                        resolve(data);
-                    }).catch((err) => {
-                        reject(err);
-                    })
-
+        async save(context,params){
+            const { getRuntimeApi } = await import('@/services/runtimeApiRef');
+            const api = getRuntimeApi();
+            
+            console.log(params);
+            if (params.id) {
+                const {data} = await api.updateUser(params.id, params);
+                context.commit("updateUser",data);
+                if(context.rootState.auth.id === data.id){
+                    context.commit("setAuth",data,{root: true});
                 }
-            });
+                return data;
+            } else {
+                const {data} = await api.createUser(params);
+                context.commit("addUser",data);
+                return data;
+            }
         },
-        deleteUser(context,params){
-            return new Promise((resolve,reject)=> {
-                window.$traccar.deleteUser(params).then(() => {
-                    context.commit("deleteUser", params);
-                    resolve();
-                }).catch((err) => {
-                    reject(err.response.data);
-                })
-            });
+        async deleteUser(context,params){
+            const { getRuntimeApi } = await import('@/services/runtimeApiRef');
+            const api = getRuntimeApi();
+            await api.deleteUser(params);
+            context.commit("deleteUser", params);
         }
     }
 }

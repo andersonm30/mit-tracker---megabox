@@ -33,50 +33,35 @@ export default {
         }
     },
     actions: {
-        load(context){
-            return new Promise((resolve)=> {
-                const traccar = window.$traccar;
-                traccar.getGroups().then(({data}) => {
-                    context.commit("setGroups", data);
-
-                    resolve();
-                })
-
-            });
+        async load(context){
+            const { getRuntimeApi } = await import('@/services/runtimeApiRef');
+            const api = getRuntimeApi();
+            const {data} = await api.getGroups();
+            context.commit("setGroups", data);
         },
-        delete(context,params){
-            return new Promise((resolve,reject)=>{
-
-                if(params>0){
-                    window.$traccar.deleteGroup(params).then(({data}) => {
-                        context.commit("removeGroup", params);
-                        resolve(data);
-                    }).catch(reject);
-                }else{
-                    reject();
-                }
-            })
+        async delete(context,params){
+            if(params>0){
+                const { getRuntimeApi } = await import('@/services/runtimeApiRef');
+                const api = getRuntimeApi();
+                const {data} = await api.deleteGroup(params);
+                context.commit("removeGroup", params);
+                return data;
+            }
+            throw new Error('ID inválido');
         },
-        save(context,params){
-            return new Promise((resolve,reject)=>{
-
-                if(params.id>0){
-
-                    window.$traccar.updateGroup(params.id,params).then(({data}) => {
-
-                        context.commit("updateGroup", data);
-
-                        resolve(data);
-                    }).catch(reject);
-                }else {
-
-                    window.$traccar.createGroup(params).then(({data}) => {
-
-                        context.commit("addGroup", data);
-
-                        resolve(data);
-                    }).catch(reject);
-                }
+        async save(context,params){
+            const { getRuntimeApi } = await import('@/services/runtimeApiRef');
+            const api = getRuntimeApi();
+            
+            if(params.id>0){
+                const {data} = await api.updateGroup(params.id,params);
+                context.commit("updateGroup", data);
+                return data;
+            } else {
+                const {data} = await api.createGroup(params);
+                context.commit("addGroup", data);
+                return data;
+            }
 
             })
         }

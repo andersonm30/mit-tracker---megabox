@@ -1,10 +1,12 @@
 // src/plugins/runtimeApi.js
 import { createRuntimeApi } from '@/services/runtimeApi'
+import { setRuntimeApi } from '@/services/runtimeApiRef'
 
 /**
  * RuntimeApiPlugin
  * - provide('runtimeApi', api)  -> inject('runtimeApi')
  * - app.config.globalProperties.$runtimeApi -> uso legado/transição
+ * - setRuntimeApi(api) -> getRuntimeApi() no Vuex Store
  */
 export const RuntimeApiPlugin = {
   install(app, options = {}) {
@@ -12,7 +14,8 @@ export const RuntimeApiPlugin = {
 
     app.provide('runtimeApi', api)
 
-    // Ajuda migração gradual (opcional, mas muito útil)
+    // Para Vuex Store e componentes legados
+    setRuntimeApi(api)
     app.config.globalProperties.$runtimeApi = api
   },
 }

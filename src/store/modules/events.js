@@ -182,46 +182,35 @@ export default {
                 context.commit("addAudio",{key: 'audio23',src: '/custom/sounds/23-s8_note.mp3'});
                 context.commit("addAudio",{key: 'audio24',src: '/custom/sounds/24-car_alarm.mp3'});
 
-                const traccar = window.$traccar;
-                traccar.getNotifications().then(({data}) => {
-                    context.commit("setEvents", data);
-
-                    resolve();
-                })
-
-            });
+                const { getRuntimeApi } = await import('@/services/runtimeApiRef');
+                const api = getRuntimeApi();
+                const {data} = await api.getNotifications();
+                context.commit("setEvents", data);
+            } catch(err) {
+                console.error('Erro ao carregar notificações:', err);
+                throw err;
+            }
         },
-        delete(context,params){
-            return new Promise((resolve,reject)=> {
-                const traccar = window.$traccar;
-                traccar.deleteNotification(params).then(({data}) => {
-                    context.commit("removeEvent",params);
-                    resolve(data);
-                }).catch((err) => {
-                    console.log(err.response);
-                    reject(err);
-                })
-            });
+        async delete(context,params){
+            const { getRuntimeApi } = await import('@/services/runtimeApiRef');
+            const api = getRuntimeApi();
+            const {data} = await api.deleteNotification(params);
+            context.commit("removeEvent",params);
+            return data;
         },
-        save(context,params){
-            return new Promise((resolve,reject)=>{
-                if(params.id>0){
-                    window.$traccar.updateNotification(params.id,params).then(({data}) => {
-
-                        context.commit("updateEvent", data);
-
-                        resolve(data);
-                    }).catch(reject);
-                }else {
-                    window.$traccar.createNotification(params).then(({data}) => {
-
-                        context.commit("addEvent", data);
-
-                        resolve(data);
-                    }).catch(reject);
-                }
-
-            })
+        async save(context,params){
+            const { getRuntimeApi } = await import('@/services/runtimeApiRef');
+            const api = getRuntimeApi();
+            
+            if(params.id>0){
+                const {data} = await api.updateNotification(params.id,params);
+                context.commit("updateEvent", data);
+                return data;
+            } else {
+                const {data} = await api.createNotification(params);
+                context.commit("addEvent", data);
+                return data;
+            }
         }
     }
 }

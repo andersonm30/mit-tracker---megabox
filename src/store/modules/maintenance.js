@@ -27,50 +27,35 @@ export default {
         }
     },
     actions: {
-        load(context){
-            return new Promise((resolve)=> {
-                const traccar = window.$traccar;
-                traccar.getMaintenance().then(({data}) => {
-                    context.commit("set", data);
-
-                    resolve();
-                })
-
-            });
+        async load(context){
+            const { getRuntimeApi } = await import('@/services/runtimeApiRef');
+            const api = getRuntimeApi();
+            const {data} = await api.getMaintenance();
+            context.commit("set", data);
         },
-        delete(context,params){
-            return new Promise((resolve,reject)=>{
-
-                if(params>0){
-                    window.$traccar.deleteMaintenance(params).then(({data}) => {
-                        context.commit("remove", params);
-                        resolve(data);
-                    }).catch(reject);
-                }else{
-                    reject();
-                }
-            })
+        async delete(context,params){
+            if(params>0){
+                const { getRuntimeApi } = await import('@/services/runtimeApiRef');
+                const api = getRuntimeApi();
+                const {data} = await api.deleteMaintenance(params);
+                context.commit("remove", params);
+                return data;
+            }
+            throw new Error('ID inválido');
         },
-        save(context,params){
-            return new Promise((resolve,reject)=>{
-
-                if(params.id>0){
-
-                    window.$traccar.updateMaintenance(params.id,params).then(({data}) => {
-
-                        context.commit("update", data);
-
-                        resolve(data);
-                    }).catch(reject);
-                }else {
-
-                    window.$traccar.createMaintenance(params).then(({data}) => {
-
-                        context.commit("add", data);
-
-                        resolve(data);
-                    }).catch(reject);
-                }
+        async save(context,params){
+            const { getRuntimeApi } = await import('@/services/runtimeApiRef');
+            const api = getRuntimeApi();
+            
+            if(params.id>0){
+                const {data} = await api.updateMaintenance(params.id,params);
+                context.commit("update", data);
+                return data;
+            } else {
+                const {data} = await api.createMaintenance(params);
+                context.commit("add", data);
+                return data;
+            }
 
             })
         }
