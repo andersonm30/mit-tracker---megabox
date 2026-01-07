@@ -10,7 +10,7 @@
       <div  style="border-top: #e0e0e0 1px solid;padding: 20px;display: flex;justify-content: space-between;">
 
         <el-button type="danger" plain @click="doCancel()">Cancelar</el-button>
-        <el-button type="primary" @click="doSave()">Salvar</el-button>
+        <el-button type="primary" :loading="saving" :disabled="saving" @click="doSave()">Salvar</el-button>
       </div>
     </template>
 
@@ -74,7 +74,7 @@
 
             <div>
               <el-form-item  label="Cor do Filtro" >
-                <el-color-picker @active-change="updateGlobal()" :show-alpha="true" @change="updateGlobal()" v-model="formData['--tk-login-filter']" ></el-color-picker>
+                <el-color-picker @active-change="updateGlobal()" :show-alpha="true" v-model="formData['--tk-login-filter']" ></el-color-picker>
               </el-form-item>
 
               <el-form-item label="Imagem de Fundo">
@@ -167,32 +167,32 @@
         <el-form label-width="150px" label-position="left">
           <div style="display: flex;justify-content: space-between">
             <el-form-item  label="Cor de Fundo" >
-              <el-color-picker @active-change="updateGlobal()" @change="updateGlobal()" v-model="formData['--el-bg-color']" ></el-color-picker>
+              <el-color-picker @active-change="updateGlobal()" v-model="formData['--el-bg-color']" ></el-color-picker>
             </el-form-item>
 
             <el-form-item  label="Cor do Texto" >
-              <el-color-picker @active-change="updateGlobal()" @change="updateGlobal()" v-model="formData['--el-text-color-primary']" ></el-color-picker>
+              <el-color-picker @active-change="updateGlobal()" v-model="formData['--el-text-color-primary']" ></el-color-picker>
             </el-form-item>
           </div>
 
           <div style="display: flex;justify-content: space-between">
             <el-form-item  label="Branco Geral" >
-              <el-color-picker @active-change="updateGlobal()" @change="updateGlobal()" v-model="formData['--el-color-white']" ></el-color-picker>
+              <el-color-picker @active-change="updateGlobal()" v-model="formData['--el-color-white']" ></el-color-picker>
             </el-form-item>
 
             <el-form-item  label="Preto Geral" >
-              <el-color-picker @active-change="updateGlobal()" @change="updateGlobal()" v-model="formData['--el-color-black']" ></el-color-picker>
+              <el-color-picker @active-change="updateGlobal()" v-model="formData['--el-color-black']" ></el-color-picker>
             </el-form-item>
           </div>
 
 
           <div style="display: flex;justify-content: space-between">
             <el-form-item  label="Cor Principal" >
-              <el-color-picker @active-change="updateGlobal()" @change="updateGlobal()" v-model="formData['--el-color-primary']" ></el-color-picker>
+              <el-color-picker @active-change="updateGlobal()" v-model="formData['--el-color-primary']" ></el-color-picker>
             </el-form-item>
 
             <el-form-item  label="Cor Principal Tom 1" >
-              <el-color-picker @active-change="updateGlobal()" @change="updateGlobal()" v-model="formData['--el-color-primary-light-1']" ></el-color-picker>
+              <el-color-picker @active-change="updateGlobal()" v-model="formData['--el-color-primary-light-1']" ></el-color-picker>
             </el-form-item>
           </div>
 
@@ -200,11 +200,11 @@
 
           <div style="display: flex;justify-content: space-between">
             <el-form-item  label="Cor Principal Tom 2" >
-              <el-color-picker @active-change="updateGlobal()" @change="updateGlobal()" v-model="formData['--el-color-primary-light-2']" ></el-color-picker>
+              <el-color-picker @active-change="updateGlobal()" v-model="formData['--el-color-primary-light-2']" ></el-color-picker>
             </el-form-item>
 
             <el-form-item  label="Cor Principal Tom 3" >
-              <el-color-picker @active-change="updateGlobal()" @change="updateGlobal()" v-model="formData['--el-color-primary-light-3']" ></el-color-picker>
+              <el-color-picker @active-change="updateGlobal()" v-model="formData['--el-color-primary-light-3']" ></el-color-picker>
             </el-form-item>
           </div>
 
@@ -212,33 +212,33 @@
 
           <div style="display: flex;justify-content: space-between">
             <el-form-item  label="Cor Principal Tom 4" >
-              <el-color-picker @active-change="updateGlobal()" @change="updateGlobal()" v-model="formData['--el-color-primary-light-4']" ></el-color-picker>
+              <el-color-picker @active-change="updateGlobal()" v-model="formData['--el-color-primary-light-4']" ></el-color-picker>
             </el-form-item>
 
             <el-form-item  label="Cor Principal Tom 5" >
-              <el-color-picker @active-change="updateGlobal()" @change="updateGlobal()" v-model="formData['--el-color-primary-light-5']" ></el-color-picker>
+              <el-color-picker @active-change="updateGlobal()" v-model="formData['--el-color-primary-light-5']" ></el-color-picker>
             </el-form-item>
           </div>
 
 
           <div style="display: flex;justify-content: space-between">
             <el-form-item  label="Cor Principal Tom 6" >
-              <el-color-picker @active-change="updateGlobal()" @change="updateGlobal()" v-model="formData['--el-color-primary-light-6']" ></el-color-picker>
+              <el-color-picker @active-change="updateGlobal()" v-model="formData['--el-color-primary-light-6']" ></el-color-picker>
             </el-form-item>
 
             <el-form-item  label="Cor Principal Tom 7" >
-              <el-color-picker @active-change="updateGlobal()" @change="updateGlobal()" v-model="formData['--el-color-primary-light-7']" ></el-color-picker>
+              <el-color-picker @active-change="updateGlobal()" v-model="formData['--el-color-primary-light-7']" ></el-color-picker>
             </el-form-item>
           </div>
 
 
           <div style="display: flex;justify-content: space-between">
             <el-form-item  label="Cor Principal Tom 8" >
-              <el-color-picker @active-change="updateGlobal()" @change="updateGlobal()" v-model="formData['--el-color-primary-light-8']" ></el-color-picker>
+              <el-color-picker @active-change="updateGlobal()" v-model="formData['--el-color-primary-light-8']" ></el-color-picker>
             </el-form-item>
 
             <el-form-item  label="Cor Principal Tom 9" >
-              <el-color-picker @active-change="updateGlobal()" @change="updateGlobal()" v-model="formData['--el-color-primary-light-9']" ></el-color-picker>
+              <el-color-picker @active-change="updateGlobal()" v-model="formData['--el-color-primary-light-9']" ></el-color-picker>
             </el-form-item>
           </div>
 
@@ -255,21 +255,21 @@
         <el-form label-width="170px" label-position="left">
           <div style="display: flex;justify-content: space-between">
             <el-form-item  label="Cor de Texto Principal" >
-              <el-color-picker @active-change="updateGlobal()" @change="updateGlobal()" v-model="formData['--el-text-color-primary']" ></el-color-picker>
+              <el-color-picker @active-change="updateGlobal()" v-model="formData['--el-text-color-primary']" ></el-color-picker>
             </el-form-item>
 
             <el-form-item  label="Cor do Texto Regular" >
-              <el-color-picker @active-change="updateGlobal()" @change="updateGlobal()" v-model="formData['--el-text-color-regular']" ></el-color-picker>
+              <el-color-picker @active-change="updateGlobal()" v-model="formData['--el-text-color-regular']" ></el-color-picker>
             </el-form-item>
           </div>
 
           <div style="display: flex;justify-content: space-between">
             <el-form-item  label="Cor de Texto Secundária" >
-              <el-color-picker @active-change="updateGlobal()" @change="updateGlobal()" v-model="formData['--el-text-color-secondary']" ></el-color-picker>
+              <el-color-picker @active-change="updateGlobal()" v-model="formData['--el-text-color-secondary']" ></el-color-picker>
             </el-form-item>
 
             <el-form-item  label="Cor de Texto Clara" >
-              <el-color-picker @active-change="updateGlobal()" @change="updateGlobal()" v-model="formData['--el-text-color-placeholder']" ></el-color-picker>
+              <el-color-picker @active-change="updateGlobal()" v-model="formData['--el-text-color-placeholder']" ></el-color-picker>
             </el-form-item>
           </div>
 
@@ -281,47 +281,47 @@
         <el-form label-width="170px" label-position="left">
           <div style="display: flex;justify-content: space-between">
             <el-form-item  label="Sucesso" >
-              <el-color-picker @active-change="updateGlobal()" @change="updateGlobal()" v-model="formData['--el-color-success']" ></el-color-picker>
+              <el-color-picker @active-change="updateGlobal()" v-model="formData['--el-color-success']" ></el-color-picker>
             </el-form-item>
 
             <el-form-item  label="Sucesso Tom 1" >
-              <el-color-picker @active-change="updateGlobal()" @change="updateGlobal()" v-model="formData['--el-color-success-light']" ></el-color-picker>
+              <el-color-picker @active-change="updateGlobal()" v-model="formData['--el-color-success-light']" ></el-color-picker>
             </el-form-item>
 
 
             <el-form-item  label="Sucesso Tom 2" >
-              <el-color-picker @active-change="updateGlobal()" @change="updateGlobal()" v-model="formData['--el-color-success-lighter']" ></el-color-picker>
+              <el-color-picker @active-change="updateGlobal()" v-model="formData['--el-color-success-lighter']" ></el-color-picker>
             </el-form-item>
           </div>
 
           <div style="display: flex;justify-content: space-between">
             <el-form-item  label="Alerta" >
-              <el-color-picker @active-change="updateGlobal()" @change="updateGlobal()" v-model="formData['--el-color-warning']" ></el-color-picker>
+              <el-color-picker @active-change="updateGlobal()" v-model="formData['--el-color-warning']" ></el-color-picker>
             </el-form-item>
 
             <el-form-item  label="Alerta Tom 1" >
-              <el-color-picker @active-change="updateGlobal()" @change="updateGlobal()" v-model="formData['--el-color-warning-light']" ></el-color-picker>
+              <el-color-picker @active-change="updateGlobal()" v-model="formData['--el-color-warning-light']" ></el-color-picker>
             </el-form-item>
 
 
             <el-form-item  label="Alerta Tom 2" >
-              <el-color-picker @active-change="updateGlobal()" @change="updateGlobal()" v-model="formData['--el-color-warning-lighter']" ></el-color-picker>
+              <el-color-picker @active-change="updateGlobal()" v-model="formData['--el-color-warning-lighter']" ></el-color-picker>
             </el-form-item>
           </div>
 
 
           <div style="display: flex;justify-content: space-between">
             <el-form-item  label="Perigo" >
-              <el-color-picker @active-change="updateGlobal()" @change="updateGlobal()" v-model="formData['--el-color-danger']" ></el-color-picker>
+              <el-color-picker @active-change="updateGlobal()" v-model="formData['--el-color-danger']" ></el-color-picker>
             </el-form-item>
 
             <el-form-item  label="Perigo Tom 1" >
-              <el-color-picker @active-change="updateGlobal()" @change="updateGlobal()" v-model="formData['--el-color-danger-light']" ></el-color-picker>
+              <el-color-picker @active-change="updateGlobal()" v-model="formData['--el-color-danger-light']" ></el-color-picker>
             </el-form-item>
 
 
             <el-form-item  label="Perigo Tom 2" >
-              <el-color-picker @active-change="updateGlobal()" @change="updateGlobal()" v-model="formData['--el-color-danger-lighter']" ></el-color-picker>
+              <el-color-picker @active-change="updateGlobal()" v-model="formData['--el-color-danger-lighter']" ></el-color-picker>
             </el-form-item>
           </div>
 
@@ -329,16 +329,16 @@
 
           <div style="display: flex;justify-content: space-between">
             <el-form-item  label="Info" >
-              <el-color-picker @active-change="updateGlobal()" @change="updateGlobal()" v-model="formData['--el-color-info']" ></el-color-picker>
+              <el-color-picker @active-change="updateGlobal()" v-model="formData['--el-color-info']" ></el-color-picker>
             </el-form-item>
 
             <el-form-item  label="Info Tom 1" >
-              <el-color-picker @active-change="updateGlobal()" @change="updateGlobal()" v-model="formData['--el-color-info-light']" ></el-color-picker>
+              <el-color-picker @active-change="updateGlobal()" v-model="formData['--el-color-info-light']" ></el-color-picker>
             </el-form-item>
 
 
             <el-form-item  label="Info Tom 2" >
-              <el-color-picker @active-change="updateGlobal()" @change="updateGlobal()" v-model="formData['--el-color-info-lighter']" ></el-color-picker>
+              <el-color-picker @active-change="updateGlobal()" v-model="formData['--el-color-info-lighter']" ></el-color-picker>
             </el-form-item>
           </div>
 
@@ -368,7 +368,7 @@ import 'element-plus/es/components/color-picker/style/css'
 import 'element-plus/es/components/upload/style/css'
 import 'element-plus/es/components/slider/style/css'
 
-import {ElDialog,ElTabs,ElTabPane,ElForm,ElSwitch,ElFormItem,ElButton,ElInput,ElSlider,ElUpload,ElColorPicker} from "element-plus";
+import {ElDialog,ElTabs,ElTabPane,ElForm,ElSwitch,ElFormItem,ElButton,ElInput,ElSlider,ElUpload,ElColorPicker,ElMessage} from "element-plus";
 
 
 import {ref,defineExpose} from 'vue';
@@ -383,11 +383,125 @@ const tab = ref('general');
 
 const uncache = ref(new Date().getTime());
 
-// eslint-disable-next-line no-undef
-const labelConf = ref(CONFIG);
+const lastApplied = new Map();
+const saving = ref(false);
 
-// eslint-disable-next-line no-undef
-const formData = ref(defaultThemeData);
+const defaultConfig = {
+  title: '',
+  companyName: '',
+  whatsapp: '',
+  androidApp: {
+    enabled: false,
+    url: ''
+  },
+  appleApp: {
+    enabled: false,
+    url: ''
+  },
+  dataPolicy: {
+    enabled: false,
+    url: ''
+  },
+  loginBackground: {
+    mode: 'static',
+    sliderSpeed: 5000,
+    sliderDirection: 'rightToLeft',
+    useAnimatedEffect: false
+  },
+  headLogo: {
+    image: false,
+    text: ''
+  }
+};
+
+const defaultColors = {
+  "--tk-login-filter":"rgba(255, 255, 255, 0.65)",
+  "--el-color-primary":"#007eff",
+  "--el-color-white":"#ffffff",
+  "--el-color-black":"#000000",
+  "--el-color-primary-light-1":"#53a8ff",
+  "--el-color-primary-light-2":"#66b1ff",
+  "--el-color-primary-light-3":"#79bbff",
+  "--el-color-primary-light-4":"#8cc5ff",
+  "--el-color-primary-light-5":"#a0cfff",
+  "--el-color-primary-light-6":"#b3d8ff",
+  "--el-color-primary-light-7":"#c6e2ff",
+  "--el-color-primary-light-8":"#d9ecff",
+  "--el-color-primary-light-9":"#ecf5ff",
+  "--el-color-success":"#67c23a",
+  "--el-color-success-light":"#e1f3d8",
+  "--el-color-success-lighter":"#f0f9eb",
+  "--el-color-warning":"#e6a23c",
+  "--el-color-warning-light":"#faecd8",
+  "--el-color-warning-lighter":"#fdf6ec",
+  "--el-color-danger":"#f56c6c",
+  "--el-color-danger-light":"#fde2e2",
+  "--el-color-danger-lighter":"#fef0f0",
+  "--el-color-error":"#f56c6c",
+  "--el-color-error-light":"#fde2e2",
+  "--el-color-error-lighter":"#fef0f0",
+  "--el-color-info":"#909399",
+  "--el-color-info-light":"#e9e9eb",
+  "--el-color-info-lighter":"#f4f4f5",
+  "--el-bg-color":"#ffffff",
+  "--el-text-color-disabled-base":"#bbb",
+  "--el-text-color-primary":"#1a1a1a",
+  "--el-text-color-regular":"#606266",
+  "--el-text-color-secondary":"#909399",
+  "--el-text-color-placeholder":"#c0c4cc",
+  "--el-border-color-base":"#dcdfe6",
+  "--el-border-color-light":"#e4e7ed",
+  "--el-border-color-lighter":"#ebeef5",
+  "--el-border-color-extra-light":"#f2f6fc"
+};
+
+const buildLabelConf = () => {
+  // eslint-disable-next-line no-undef
+  const conf = typeof window !== 'undefined' && window.CONFIG ? window.CONFIG : {};
+  const merged = {
+    ...defaultConfig,
+    ...conf
+  };
+
+  merged.headLogo = {
+    ...defaultConfig.headLogo,
+    ...(conf && conf.headLogo ? conf.headLogo : {})
+  };
+
+  merged.androidApp = {
+    ...defaultConfig.androidApp,
+    ...(conf && conf.androidApp ? conf.androidApp : {})
+  };
+
+  merged.appleApp = {
+    ...defaultConfig.appleApp,
+    ...(conf && conf.appleApp ? conf.appleApp : {})
+  };
+
+  merged.dataPolicy = {
+    ...defaultConfig.dataPolicy,
+    ...(conf && conf.dataPolicy ? conf.dataPolicy : {})
+  };
+
+  merged.loginBackground = {
+    ...defaultConfig.loginBackground,
+    ...(conf && conf.loginBackground ? conf.loginBackground : {})
+  };
+
+  return merged;
+};
+
+const labelConf = ref(buildLabelConf());
+
+const buildColors = () => {
+  // eslint-disable-next-line no-undef
+  const external = (typeof window !== 'undefined' && window.defaultThemeData && typeof window.defaultThemeData === 'object')
+    ? window.defaultThemeData
+    : {};
+  return { ...defaultColors, ...external };
+};
+
+const formData = ref(buildColors());
 
 const sizeLogo = ref(80);
 
@@ -398,16 +512,26 @@ const changeLogo = (e)=>{
   store.dispatch("server/save",tmp);
 }
 
-const updateGlobal = ()=>{
+let raf = null;
+const updateGlobal = () => {
+  if (raf) cancelAnimationFrame(raf);
+  raf = requestAnimationFrame(() => {
+    const source = formData.value || {};
+    const root = document.documentElement;
+    if (!root) return;
 
-  let tmp = [];
+    for (const [k, raw] of Object.entries(source)) {
+      if (!k.startsWith('--')) continue;
+      if (!(k in defaultColors)) continue; // whitelist: only allowed CSS vars
+      if (raw === null || raw === undefined) continue;
 
-  // eslint-disable-next-line no-undef
-  for(var v of Object.keys(defaultThemeData)){
-    tmp.push(v+':'+formData.value[v]+';');
-  }
+      const v = String(raw);
+      if (lastApplied.get(k) === v) continue;
 
-  document.querySelector(":root").style=tmp.join("");
+      root.style.setProperty(k, v);
+      lastApplied.set(k, v);
+    }
+  });
 }
 
 const onSuccess = ()=>{
@@ -415,15 +539,17 @@ const onSuccess = ()=>{
 }
 
 const showTheme = ()=>{
-
-
   title.value = 'Editar Tema';
   tab.value = 'general';
-  // eslint-disable-next-line no-undef
-  formData.value = JSON.parse(JSON.stringify(defaultThemeData));
-
+  formData.value = buildColors();
+  labelConf.value = buildLabelConf();
   show.value = true;
-  sizeLogo.value = store.state.server.serverInfo.attributes['tarkan.logoWidth'] || 80;
+  
+  const attrs = store?.state?.server?.serverInfo?.attributes || {};
+  sizeLogo.value = attrs['tarkan.logoWidth'] || 80;
+  
+  lastApplied.clear();
+  updateGlobal();
 }
 
 defineExpose({
@@ -432,6 +558,10 @@ defineExpose({
 
 
 const doCancel = ()=>{
+  if (raf) {
+    cancelAnimationFrame(raf);
+    raf = null;
+  }
   show.value = false;
 }
 
@@ -439,12 +569,41 @@ const doCancel = ()=>{
 
 
 
-const doSave = ()=>{
-  window.$tarkan.saveTheme({config: labelConf.value,colors: formData.value}).then(()=>{
-      show.value = false;
+const doSave = async ()=>{
+  if (saving.value) return;
+  
+  saving.value = true;
+  try {
+    // eslint-disable-next-line no-undef
+    if (!window?.$tarkan?.saveTheme) {
+      throw new Error('Integração $tarkan.saveTheme não disponível');
+    }
 
-      window.location.reload();
-  })
+    // eslint-disable-next-line no-undef
+    await window.$tarkan.saveTheme({config: labelConf.value,colors: formData.value});
+    
+    // eslint-disable-next-line no-undef
+    if (typeof window !== 'undefined') {
+      // keep runtime config in sync after save
+      // eslint-disable-next-line no-undef
+      window.CONFIG = JSON.parse(JSON.stringify(labelConf.value));
+      // eslint-disable-next-line no-undef
+      window.defaultThemeData = JSON.parse(JSON.stringify(formData.value));
+      
+      // Notify App.vue to refresh header/logo/whatsapp
+      // eslint-disable-next-line no-undef
+      window.dispatchEvent(new CustomEvent('theme:updated', {
+        detail: { config: window.CONFIG, colors: window.defaultThemeData }
+      }));
+    }
+    
+    updateGlobal();
+    show.value = false;
+  } catch (error) {
+    ElMessage.error(`Erro ao salvar tema: ${error?.response?.status || error?.message || error}`);
+  } finally {
+    saving.value = false;
+  }
 }
 
 

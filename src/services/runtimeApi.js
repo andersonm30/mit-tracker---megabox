@@ -51,6 +51,11 @@ export function createRuntimeApi({ traccar, tarkan } = {}) {
     return $traccar.getTypeCommands(deviceId)
   }
 
+  const getReportEvents = async (...args) => {
+    assertFn($traccar?.getReportEvents, 'Runtime API (Traccar.getReportEvents) não disponível.')
+    return $traccar.getReportEvents(...args)
+  }
+
   // Helpers HTTP (se existirem no seu $traccar). Se não existirem,
   // deixamos erro claro para você mapear o método correto depois.
   const get = async (url, params) => {
@@ -105,6 +110,7 @@ export function createRuntimeApi({ traccar, tarkan } = {}) {
     sendCommand,
     getAvailableCommands,
     getTypeCommands,
+    getReportEvents,
     get,
     post,
     put,

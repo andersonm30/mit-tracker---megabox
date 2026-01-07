@@ -1164,6 +1164,7 @@ import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import 'element-plus/es/components/icon/style/css'
 const store = useStore();
 const app = getCurrentInstance().appContext.app;
+const runtimeApi = inject('runtimeApi', null);
 
 const carLayer = ref(null);
 const focusLayer = ref(null);
@@ -2688,7 +2689,8 @@ const markerContext = async (evt, e) => {
     }
 
     // Always get commands regardless of device status
-    window.$traccar.getTypeCommands(deviceId).then((response) => {
+    if (!runtimeApi) throw new Error('Runtime API não disponível. Recarregue a página.');
+    runtimeApi.getTypeCommands(deviceId).then((response) => {
         const availableTypesCommand = response.data;
 
         availableTypesCommand.forEach((c) => {
@@ -2724,7 +2726,7 @@ const markerContext = async (evt, e) => {
                     text: KT('actions.' + c.type),
                     className: device.status !== 'online' ? 'offline-command' : '',
                     cb: () => {
-                        window.$traccar.sendCommand({ deviceId: deviceId, type: c.type });
+                        runtimeApi.sendCommand({ deviceId: deviceId, type: c.type });
                         ElNotification({
                             header: KT('success'),
                             message: device.status !== 'online' ? KT('device.command_queued') : KT('device.command_sent'),
@@ -2735,7 +2737,7 @@ const markerContext = async (evt, e) => {
             }
         });
 
-        window.$traccar.getAvailableCommands(deviceId).then((response) => {
+        runtimeApi.getAvailableCommands(deviceId).then((response) => {
             availableSaved = response.data;
 
             if (commands.length > 0 && availableSaved.length > 0) {
@@ -2781,7 +2783,7 @@ const markerContext = async (evt, e) => {
                                     type: device.status !== 'online' ? 'info' : 'warning',
                                 }
                             ).then(() => {
-                                window.$traccar.sendCommand({ ...c, ...{ deviceId: deviceId } });
+                                runtimeApi.sendCommand({ ...c, ...{ deviceId: deviceId } });
 
                                 ElNotification({
                                     header: KT('success'),

@@ -163,7 +163,7 @@
 </template>
 
 <script>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, inject } from 'vue'
 import { useStore } from 'vuex'
 import { ElDialog, ElInput, ElButton } from 'element-plus'
 import KT from '../func/kt'
@@ -188,6 +188,7 @@ export default {
   emits: ['update:modelValue'],
   setup(props, { emit, expose }) {
     const store = useStore()
+    const runtimeApi = inject('runtimeApi', null)
 
     // Reactive data
     const command = ref('')
@@ -208,10 +209,10 @@ export default {
       
       // Configurar polling cada 3 segundos para eventos nuevos únicamente
       const pollInterval = setInterval(() => {
-        if (window.$traccar && props.device?.id) {
+        if (runtimeApi && props.device?.id) {
           console.log('Polling para eventos nuevos desde:', new Date(commandSentTime).toISOString())
           
-          window.$traccar.getReportEvents(
+          runtimeApi.getReportEvents(
             [props.device.id], 
             [], 
             new Date(commandSentTime).toISOString(), // Solo desde que se envió el comando
@@ -469,7 +470,8 @@ export default {
         }
       }
       
-      await window.$traccar.sendCommand(commandData)
+      if (!runtimeApi) throw new Error('Runtime API não disponível. Recarregue a página.');
+      await runtimeApi.sendCommand(commandData)
       
       return {
         success: true,

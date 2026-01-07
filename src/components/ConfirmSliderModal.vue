@@ -107,7 +107,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick, onBeforeUnmount, defineProps, defineEmits, defineExpose } from 'vue'
+import { ref, computed, watch, onBeforeUnmount, defineProps, defineEmits, defineExpose } from 'vue'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -217,10 +217,6 @@ const trapTab = (e) => {
     e.preventDefault()
     first.focus()
   }
-}
-
-const focusFirst = () => {
-  sliderRef.value?.focus?.()
 }
 
 // Computed styles
@@ -466,18 +462,19 @@ watch(() => props.modelValue, (open) => {
     setBackgroundHidden(true)
     reset()
 
-    nextTick(() => {
-      focusFirst()
-    })
+    // ✅ REMOVIDO focusFirst() - o composable useModalA11yLock já cuida do foco inicial
+    // nextTick(() => {
+    //   focusFirst()
+    // })
   } else {
     cleanup()
     setBackgroundHidden(false)
 
-    nextTick(() => {
-      // restaura foco de quem abriu o modal
-      lastActiveEl.value?.focus?.()
-      lastActiveEl.value = null
-    })
+    // ✅ REMOVIDO restore de foco - o composable useModalA11yLock já cuida disso
+    // nextTick(() => {
+    //   lastActiveEl.value?.focus?.()
+    //   lastActiveEl.value = null
+    // })
   }
 })
 
