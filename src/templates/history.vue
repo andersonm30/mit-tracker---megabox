@@ -657,6 +657,9 @@ import { ref, inject, onMounted, watch, onBeforeUnmount, nextTick, computed, get
 import { useStore } from 'vuex';
 import { useRoute } from 'vue-router';
 
+const runtimeApi = inject('runtimeApi', null);
+if (!runtimeApi) throw new Error('Runtime API não disponível. Recarregue a página.');
+
 // Subcomponentes locais
 import TimelinePoint from './components/TimelinePoint.vue';
 
@@ -1384,8 +1387,7 @@ const loadRoute = async (showGraphAfter = false) => {
   debugLog(`loadRoute: device=${deviceId}, start=${startDate}, end=${endDate}, requestId=${thisRequestId}`);
   
   try {
-    const $traccar = window.$traccar;
-    const response = await $traccar.loadRoute(deviceId, startDate, endDate, false);
+    const response = await runtimeApi.loadRoute(deviceId, startDate, endDate, false);
     
     // Verificar se ainda é o request mais recente (evita race condition)
     if (thisRequestId !== loadRouteRequestId) {

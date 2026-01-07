@@ -85,6 +85,8 @@ import {saveAs} from "file-saver";
 const loading = ref(0);
 
 const store = useStore();
+const runtimeApi = inject('runtimeApi', null);
+if (!runtimeApi) throw new Error('Runtime API não disponível. Recarregue a página.');
 
 const filter = ref({
   date: [0,0],
@@ -100,10 +102,9 @@ const onChange = (e)=>{
 }
 
 const loadResume = (exp=false)=>{
-  const $traccar = window.$traccar;
   loading.value = 1;
 
-  $traccar.getReportSummary(filter.value.deviceId,filter.value.groupId,new Date(filter.value.date[0]).toISOString(),new Date(filter.value.date[1]).toISOString(),exp).then((r)=>{
+  runtimeApi.getReportSummary(filter.value.deviceId,filter.value.groupId,new Date(filter.value.date[0]).toISOString(),new Date(filter.value.date[1]).toISOString(),exp).then((r)=>{
 
       if(exp){
 
@@ -134,9 +135,7 @@ const updateRoute = inject('updateRoute');
 const loadRoute = (b)=>{
 
 
-  const $traccar = window.$traccar;
-
-  $traccar.loadRoute(b.deviceId,b.startTime,b.endTime).then(({data})=>{
+  runtimeApi.loadRoute(b.deviceId,b.startTime,b.endTime).then(({data})=>{
 
 
     let tmp = [];

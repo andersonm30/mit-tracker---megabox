@@ -103,6 +103,8 @@ import ReportCommon from "./reportCommon";
 
 
 const loading = ref(0);
+const runtimeApi = inject('runtimeApi', null);
+if (!runtimeApi) throw new Error('Runtime API não disponível. Recarregue a página.');
 
 const store = useStore();
 
@@ -123,8 +125,6 @@ onBeforeUnmount(()=>{
   updateRoute([]);
 })*/
 
-
-const $traccar = window.$traccar;
 
 const onChange = (e)=>{
   filter.value = e;

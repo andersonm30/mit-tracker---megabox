@@ -67,6 +67,8 @@ import ReportCommon from "./reportCommon";
 const loading = ref(0);
 
 const store = useStore();
+const runtimeApi = inject('runtimeApi', null);
+if (!runtimeApi) throw new Error('Runtime API não disponível. Recarregue a página.');
 
 const updateRoute = inject('updateRoute');
 
@@ -96,14 +98,12 @@ const events = computed(()=>{
     return tmp;
 });
 
-const $traccar = window.$traccar;
-
 const onChange = (e)=>{
   filter.value = e;
 }
 
 const loadRoute = (b)=>{
-  $traccar.loadRoute(b.deviceId,b.startTime,b.endTime).then(({data})=>{
+  runtimeApi.loadRoute(b.deviceId,b.startTime,b.endTime).then(({data})=>{
 
 
     let tmp = [];

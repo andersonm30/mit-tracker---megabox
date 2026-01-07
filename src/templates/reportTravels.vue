@@ -131,6 +131,8 @@ import ReportCommon from "./reportCommon";
 
 
 const showRouteMarkers = inject("showRouteMarkers");
+const runtimeApi = inject('runtimeApi', null);
+if (!runtimeApi) throw new Error('Runtime API não disponível. Recarregue a página.');
 
 const loading = ref(0);
 
@@ -147,8 +149,6 @@ const filter = ref({
 
 const data = ref([]);
 
-
-const $traccar = window.$traccar;
 
 const onChange = (e)=>{
   filter.value = e;
