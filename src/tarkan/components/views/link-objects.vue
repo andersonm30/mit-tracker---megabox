@@ -56,7 +56,10 @@
 
 
 <script setup>
-import {ref,defineExpose,provide,computed} from 'vue';
+import {ref,defineExpose,provide,computed,inject} from 'vue';
+
+const runtimeApi = inject('runtimeApi', null);
+if (!runtimeApi) throw new Error('Runtime API não disponível. Recarregue a página.');
 
 
 import 'element-plus/es/components/input/style/css'
@@ -90,12 +93,12 @@ const changeLink = (obj,state)=>{
   if(state){
     selectedObjects.value.push(obj);
 
-    window.$traccar.linkObjects(tmp);
+    runtimeApi.linkObjects(tmp);
 
   }else{
     selectedObjects.value.splice(selectedObjects.value.findIndex((f)=> f.id === obj.id),1);
 
-    window.$traccar.unlinkObjects(tmp);
+    runtimeApi.unlinkObjects(tmp);
   }
 }
 
@@ -137,11 +140,11 @@ const showObjects = (params)=>{
     keyType.value = 'geofenceId';
     search.value = 'geofence.search';
 
-    window.$traccar.getGeofences({all: true}).then(({data})=>{
+    runtimeApi.getGeofences({all: true}).then(({data})=>{
       availableObjects.value = data;
     });
 
-    window.$traccar.getGeofences(selection.value).then(({data})=>{
+    runtimeApi.getGeofences(selection.value).then(({data})=>{
       selectedObjects.value = data;
     });
   }else if(params.type==='devices'){
@@ -149,7 +152,7 @@ const showObjects = (params)=>{
     keyType.value = 'deviceId';
     search.value = 'device.search';
 
-    window.$traccar.getDevices({all: true}).then(({data})=>{
+    runtimeApi.getDevices({all: true}).then(({data})=>{
       let tmp = [];
 
       data.forEach((d)=>{
@@ -162,7 +165,7 @@ const showObjects = (params)=>{
       availableObjects.value = tmp;
     });
 
-    window.$traccar.getDevices(selection.value).then(({data})=>{
+    runtimeApi.getDevices(selection.value).then(({data})=>{
       selectedObjects.value = data;
     });
   }else if(params.type==='commands'){
@@ -170,11 +173,11 @@ const showObjects = (params)=>{
     keyType.value = 'commandId';
     search.value = 'command.search';
 
-    window.$traccar.getSavedCommands({all: true}).then(({data})=>{
+    runtimeApi.getSavedCommands({all: true}).then(({data})=>{
       availableObjects.value = data;
     });
 
-    window.$traccar.getSavedCommands(selection.value).then(({data})=>{
+    runtimeApi.getSavedCommands(selection.value).then(({data})=>{
       selectedObjects.value = data;
     });
   }else if(params.type==='maintence'){
@@ -182,11 +185,11 @@ const showObjects = (params)=>{
     keyType.value = 'maintenanceId';
     search.value = 'maintenance.search';
 
-    window.$traccar.getMaintenance({all: true}).then(({data})=>{
+    runtimeApi.getMaintenance({all: true}).then(({data})=>{
       availableObjects.value = data;
     });
 
-    window.$traccar.getMaintenance(selection.value).then(({data})=>{
+    runtimeApi.getMaintenance(selection.value).then(({data})=>{
       selectedObjects.value = data;
     });
   }else if(params.type==='attributes'){
@@ -194,11 +197,11 @@ const showObjects = (params)=>{
     keyType.value = 'attributeId';
     search.value = 'attribute.search';
 
-    window.$traccar.getComputedAttributes({all: true}).then(({data})=>{
+    runtimeApi.getComputedAttributes({all: true}).then(({data})=>{
       availableObjects.value = data;
     });
 
-    window.$traccar.getComputedAttributes(selection.value).then(({data})=>{
+    runtimeApi.getComputedAttributes(selection.value).then(({data})=>{
       selectedObjects.value = data;
     });
   }else if(params.type==='calendars'){
@@ -206,11 +209,11 @@ const showObjects = (params)=>{
     keyType.value = 'calendarId';
     search.value = 'calendar.search';
 
-    window.$traccar.getCalendars({all: true}).then(({data})=>{
+    runtimeApi.getCalendars({all: true}).then(({data})=>{
       availableObjects.value = data;
     });
 
-    window.$traccar.getCalendars(selection.value).then(({data})=>{
+    runtimeApi.getCalendars(selection.value).then(({data})=>{
       selectedObjects.value = data;
     });
   }else if(params.type==='notifications'){
@@ -218,11 +221,11 @@ const showObjects = (params)=>{
     keyType.value = 'notificationId';
     search.value = 'notification.search';
 
-    window.$traccar.getNotifications({all: true}).then(({data})=>{
+    runtimeApi.getNotifications({all: true}).then(({data})=>{
       availableObjects.value = data;
     });
 
-    window.$traccar.getNotifications(selection.value).then(({data})=>{
+    runtimeApi.getNotifications(selection.value).then(({data})=>{
       selectedObjects.value = data;
     });
   }else if(params.type==='users'){
@@ -230,11 +233,11 @@ const showObjects = (params)=>{
     keyType.value = 'managedUserId';
     search.value = 'user.search';
 
-    window.$traccar.getUsers({all: true}).then(({data})=>{
+    runtimeApi.getUsers({all: true}).then(({data})=>{
       availableObjects.value = data;
     });
 
-    window.$traccar.getUsers(selection.value).then(({data})=>{
+    runtimeApi.getUsers(selection.value).then(({data})=>{
       selectedObjects.value = data;
     });
   }else if(params.type==='groups'){
@@ -242,11 +245,11 @@ const showObjects = (params)=>{
     keyType.value = 'groupId';
     search.value = 'group.search';
 
-    window.$traccar.getGroups({all: true}).then(({data})=>{
+    runtimeApi.getGroups({all: true}).then(({data})=>{
       availableObjects.value = data;
     });
 
-    window.$traccar.getGroups(selection.value).then(({data})=>{
+    runtimeApi.getGroups(selection.value).then(({data})=>{
       selectedObjects.value = data;
     });
   }else if(params.type==='drivers'){
@@ -254,11 +257,11 @@ const showObjects = (params)=>{
     keyType.value = 'driverId';
     search.value = 'driver.search';
 
-    window.$traccar.getDrivers({all: true}).then(({data})=>{
+    runtimeApi.getDrivers({all: true}).then(({data})=>{
       availableObjects.value = data;
     });
 
-    window.$traccar.getDrivers(selection.value).then(({data})=>{
+    runtimeApi.getDrivers(selection.value).then(({data})=>{
       selectedObjects.value = data;
     });
   }

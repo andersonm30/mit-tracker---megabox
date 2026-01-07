@@ -1,8 +1,8 @@
-
 import {ElMessage} from "element-plus/es/components/message";
 import {ElMessageBox} from "element-plus/es/components/message-box";
 import {ElNotification} from "element-plus/es/components/notification";
 import store from '../../store/'
+import { getRuntimeApi } from '@/services/runtimeApiRef';
 
 
 const actAnchor = async (id)=>{
@@ -66,7 +66,8 @@ const actAnchor = async (id)=>{
 
 
             store.dispatch("geofences/save", params).then((fence) => {
-                window.$traccar.linkObjects({deviceId: device.id, geofenceId: fence.id}).then(() => {
+                const api = getRuntimeApi();
+                api.linkObjects({deviceId: device.id, geofenceId: fence.id}).then(() => {
                     ElNotification({
                         title: 'Successo',
                         message: 'Função âncora foi ativada com sucesso.',

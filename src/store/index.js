@@ -386,7 +386,7 @@ const store = createStore({
 
                   context.commit("setAuth",false);
 
-                  window.$traccar.closeWS();
+                  api.closeWS();
                   window.location.reload();
 
                   reject();
