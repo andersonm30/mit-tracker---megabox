@@ -98,6 +98,29 @@ export function createRuntimeApi({ traccar, tarkan } = {}) {
   }
 
   // =========================
+  // WebSocket
+  // =========================
+  const isWsConnected = () => {
+    return $traccar?.isWsConnected?.() || false
+  }
+
+  const on = (event, handler) => {
+    assertFn($traccar?.on, 'Runtime API (Traccar.on) não disponível.')
+    return $traccar.on(event, handler)
+  }
+
+  const startWS = () => {
+    assertFn($traccar?.startWS, 'Runtime API (Traccar.startWS) não disponível.')
+    return $traccar.startWS()
+  }
+
+  const closeWS = () => {
+    if (typeof $traccar?.closeWS === 'function') {
+      return $traccar.closeWS()
+    }
+  }
+
+  // =========================
   // Expor também raw (escape hatch)
   // =========================
   const raw = {
@@ -120,6 +143,12 @@ export function createRuntimeApi({ traccar, tarkan } = {}) {
     // Tarkan
     tarkanToast,
     tarkanConfirm,
+
+    // WebSocket
+    isWsConnected,
+    on,
+    startWS,
+    closeWS,
 
     // Raw
     raw,

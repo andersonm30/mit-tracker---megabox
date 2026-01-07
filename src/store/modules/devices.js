@@ -16,6 +16,11 @@ const deviceThrottleBuffer = new Map();
 let refreshRunId = 0;
 
 // ============================================
+// 🔒 PATCH 2: Guard anti-WS duplicado
+// ============================================
+let wsConnecting = false;
+
+// ============================================
 // BENCHMARK / MÉTRICAS (ativo apenas com PERF_DEBUG)
 // ============================================
 const perfMetrics = {
@@ -1071,42 +1076,65 @@ export default {
           },
         // eslint-disable-next-line no-unused-vars
         async connectWs(context){
-            const { getRuntimeApi } = await import('@/services/runtimeApiRef');
-            const api = getRuntimeApi();
+            // 🔒 GUARD: Evita dupla conexão WS
+            if (wsConnecting) {
+                console.warn('[devices/connectWs] Já conectando, ignorando chamada duplicada');
+                return;
+            }
 
-            api.on('open',()=>{
-                //console.log("WS OPEN")
-            })
-            api.on('close',()=>{
-                window.setTimeout(()=>{
-                    api.startWS();
-                },5000);
-            })
-            api.on('message',(m)=>{
-                if(m.positions){
-                    m.positions.forEach((p)=>{
-                        context.commit("updatePosition",p);
-                    });
-                    //context.commit("updatePositions",m.positions);
+            wsConnecting = true;
+
+            try {
+                const { getRuntimeApi } = await import('@/services/runtimeApiRef');
+                const api = getRuntimeApi();
+
+                // Verifica se já está conectado
+                if (api.isWsConnected?.()) {
+                    console.warn('[devices/connectWs] WS já conectada');
+                    wsConnecting = false;
+                    return;
                 }
 
-                if(m.devices){
-                    // eslint-disable-next-line no-unused-vars
-                    m.devices.forEach((d)=>{
-                        context.commit("updateDevice",d)
+                api.on('open',()=>{
+                    wsConnecting = false;
+                    //console.log("WS OPEN")
+                })
+                api.on('close',()=>{
+                    wsConnecting = false;
+                    window.setTimeout(()=>{
+                        api.startWS();
+                    },5000);
+                })
+                api.on('message',(m)=>{
+                    if(m.positions){
+                        m.positions.forEach((p)=>{
+                            context.commit("updatePosition",p);
+                        });
+                        //context.commit("updatePositions",m.positions);
+                    }
 
-                        setTimeout(()=> {
-                            context.dispatch("refreshOneDevice", d.id);
-                        },500);
-                    })
-                }
+                    if(m.devices){
+                        // eslint-disable-next-line no-unused-vars
+                        m.devices.forEach((d)=>{
+                            context.commit("updateDevice",d)
 
-                if(m.events){
-                    context.dispatch("events/proccessNotifications",m.events,{root: true});
-                }
-            })
+                            setTimeout(()=> {
+                                context.dispatch("refreshOneDevice", d.id);
+                            },500);
+                        })
+                    }
 
-            api.startWS();
+                    if(m.events){
+                        context.dispatch("events/proccessNotifications",m.events,{root: true});
+                    }
+                })
+
+                api.startWS();
+            } catch(err) {
+                wsConnecting = false;
+                console.error('[devices/connectWs] Erro ao conectar WS:', err);
+                throw err;
+            }
         },
         waitForDevice(){
             return new Promise((resolve)=> {

@@ -88,10 +88,13 @@ const app = createApp(App)
 
 app.use(ElementPlus, { locale: ptBR }) // Define o locale para português
 
+// ✅ PATCH 1: RuntimeApiPlugin ANTES do Store (evita race condition)
+app.use(RuntimeApiPlugin)
+
 app.use(i18n).mixin({
   methods: {
     KT: KT
   }
-}).use(store).use(Tarkan, tarkanUrl).use(Traccar, serverUrl).use(RuntimeApiPlugin).use(routes);
+}).use(store).use(Tarkan, tarkanUrl).use(Traccar, serverUrl).use(routes);
 
 app.mount('#app');

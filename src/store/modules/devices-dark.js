@@ -1,5 +1,10 @@
 import store from "../index";
 
+// ============================================
+// 🔒 PATCH 2: Guard anti-WS duplicado
+// ============================================
+let wsConnectingDark = false;
+
 export default {
     namespaced: true,
     state: () => ({
@@ -998,67 +1003,90 @@ export default {
         },
         // eslint-disable-next-line no-unused-vars
         async connectWs(context) {
-            const { getRuntimeApi } = await import('@/services/runtimeApiRef');
-            const api = getRuntimeApi();
+            // 🔒 GUARD: Evita dupla conexão WS
+            if (wsConnectingDark) {
+                console.warn('[devices-dark/connectWs] Já conectando, ignorando chamada duplicada');
+                return;
+            }
 
-            api.on('open', () => {
-                //console.log("WS OPEN")
-            })
-            api.on('close', () => {
-                window.setTimeout(() => {
-                    api.startWS();
-                }, 5000);
-            })
-            api.on('message', (m) => {
-                if (m.positions) {
-                    m.positions.forEach((p) => {
-                        context.commit("updatePosition", p);
-                    });
-                    //context.commit("updatePositions",m.positions);
+            wsConnectingDark = true;
+
+            try {
+                const { getRuntimeApi } = await import('@/services/runtimeApiRef');
+                const api = getRuntimeApi();
+
+                // Verifica se já está conectado
+                if (api.isWsConnected?.()) {
+                    console.warn('[devices-dark/connectWs] WS já conectada');
+                    wsConnectingDark = false;
+                    return;
                 }
 
-                if (m.devices) {
-                    // eslint-disable-next-line no-unused-vars
-                    m.devices.forEach((d) => {
-                        // Verificar si el dispositivo perdió conductor antes de actualizar
-                        const currentDevice = context.state.deviceList[d.id];
-                        const hadDriver = currentDevice && currentDevice.attributes && currentDevice.attributes.qrDriverId;
-                        const hasDriver = d.attributes && d.attributes.qrDriverId;
-                        
-                        context.commit("updateDevice", d)
+                api.on('open', () => {
+                    wsConnectingDark = false;
+                    //console.log("WS OPEN")
+                })
+                api.on('close', () => {
+                    wsConnectingDark = false;
+                    window.setTimeout(() => {
+                        api.startWS();
+                    }, 5000);
+                })
+                api.on('message', (m) => {
+                    if (m.positions) {
+                        m.positions.forEach((p) => {
+                            context.commit("updatePosition", p);
+                        });
+                        //context.commit("updatePositions",m.positions);
+                    }
 
-                        // Se o dispositivo tinha um condutor e não tem mais, verificar sessão imediatamente
-                        if (hadDriver && !hasDriver) {
-                            console.log("🚨 Dispositivo perdeu condutor - verificando sessão imediatamente");
+                    if (m.devices) {
+                        // eslint-disable-next-line no-unused-vars
+                        m.devices.forEach((d) => {
+                            // Verificar si el dispositivo perdió conductor antes de actualizar
+                            const currentDevice = context.state.deviceList[d.id];
+                            const hadDriver = currentDevice && currentDevice.attributes && currentDevice.attributes.qrDriverId;
+                            const hasDriver = d.attributes && d.attributes.qrDriverId;
+                            
+                            context.commit("updateDevice", d)
+
+                            // Se o dispositivo tinha um condutor e não tem mais, verificar sessão imediatamente
+                            if (hadDriver && !hasDriver) {
+                                console.log("🚨 Dispositivo perdeu condutor - verificando sessão imediatamente");
+                                setTimeout(() => {
+                                    context.dispatch("checkSession", null, { root: true });
+                                }, 100);
+                            }
+
                             setTimeout(() => {
-                                context.dispatch("checkSession", null, { root: true });
-                            }, 100);
-                        }
+                                context.dispatch("refreshOneDevice", d.id);
+                            }, 500);
+                        })
+                    }
 
-                        setTimeout(() => {
-                            context.dispatch("refreshOneDevice", d.id);
-                        }, 500);
-                    })
-                }
+                    // ADICIONAR SUPORTE PARA USUÁRIOS NO WEBSOCKET
+                    if (m.users) {
+                        m.users.forEach((u) => {
+                            context.commit("users/updateUser", u, { root: true });
+                            // Se é o usuário atual, atualizar auth
+                            if (context.rootState.auth && context.rootState.auth.id === u.id) {
+                                console.log("🔄 Atualizando usuário autenticado via WebSocket");
+                                context.commit("setAuth", u, { root: true });
+                            }
+                        });
+                    }
 
-                // ADICIONAR SUPORTE PARA USUÁRIOS NO WEBSOCKET
-                if (m.users) {
-                    m.users.forEach((u) => {
-                        context.commit("users/updateUser", u, { root: true });
-                        // Se é o usuário atual, atualizar auth
-                        if (context.rootState.auth && context.rootState.auth.id === u.id) {
-                            console.log("🔄 Atualizando usuário autenticado via WebSocket");
-                            context.commit("setAuth", u, { root: true });
-                        }
-                    });
-                }
+                    if (m.events) {
+                        context.dispatch("events/proccessNotifications", m.events, { root: true });
+                    }
+                })
 
-                if (m.events) {
-                    context.dispatch("events/proccessNotifications", m.events, { root: true });
-                }
-            })
-
-            api.startWS();
+                api.startWS();
+            } catch(err) {
+                wsConnectingDark = false;
+                console.error('[devices-dark/connectWs] Erro ao conectar WS:', err);
+                throw err;
+            }
         },
         waitForDevice() {
             return new Promise((resolve) => {
