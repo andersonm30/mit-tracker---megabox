@@ -1,4 +1,4 @@
-// @ts-check
+// @ts-nocheck
 const { test, expect } = require('@playwright/test');
 
 /**
@@ -31,7 +31,8 @@ const { test, expect } = require('@playwright/test');
  * @returns {{ errors: string[], hasErrors: () => boolean, clear: () => void }}
  */
 function setupConsoleErrorCapture(page) {
-  const errors: string[] = [];
+  /** @type {string[]} */
+  const errors = [];
   
   page.on('console', (msg) => {
     if (msg.type() === 'error') {
@@ -173,7 +174,8 @@ test.describe('Smoke Tests - Device Internal', () => {
     await page.waitForTimeout(2000);
     
     // Capturar requests ativos antes de sair
-    const requestsAfterExit: string[] = [];
+    /** @type {string[]} */
+    const requestsAfterExit = [];
     page.on('request', (request) => {
       requestsAfterExit.push(request.url());
     });

@@ -20,10 +20,10 @@
 
                 <!-- 2. Ojo (Visibilidad) -->
                 <el-dropdown v-if="!store.state.auth.attributes['isShared']" size="small" trigger="click"
-                    placement="left-start" style="margin-bottom: 1px; display: block;">
+                    placement="left-start" popper-class="kore-map-popper kore-map-popper--dark" style="margin-bottom: 1px; display: block;">
                     <el-button size="small"><i class="fas fa-eye"></i></el-button>
                     <template #dropdown>
-                        <el-dropdown-menu class="professional-dropdown">
+                        <el-dropdown-menu>
                             <!-- Contenido del dropdown (se mantiene igual) -->
                             <div style="padding: 8px 10px;">
                                 <el-input v-model="eyeFilter" size="small" placeholder="Buscar..."
@@ -153,11 +153,11 @@
                 </el-dropdown>
 
                 <!-- 3. Capas de mapa -->
-                <el-dropdown size="small" trigger="click" placement="left-start"
+                <el-dropdown size="small" trigger="click" placement="left-start" popper-class="kore-map-popper kore-map-popper--dark"
                     style="margin-bottom: 1px; display: block;">
                     <el-button size="small"><i class="fas fa-layer-group"></i></el-button>
                     <template #dropdown>
-                        <el-dropdown-menu class="professional-dropdown">
+                        <el-dropdown-menu>
                             <div class="section-title">
                                 <i class="fas fa-layer-group" style="margin-right: 6px;"></i>{{ KT('map.layers') ||
                                 'Capas' }}
@@ -3636,143 +3636,9 @@ const openWhatsAppAssistant = () => {
 
 </script>
 
-<style>
-/* Estilos globales para dropdowns profesionales */
-.professional-dropdown {
-    background: rgba(0, 0, 0, 0.85) !important;
-    backdrop-filter: blur(8px) !important;
-    -webkit-backdrop-filter: blur(8px) !important;
-    border: 1px solid rgba(255, 255, 255, 0.15) !important;
-    border-radius: 8px !important;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3) !important;
-    padding: 4px !important;
-    min-width: 180px !important;
-    max-width: 200px !important;
-    overflow: hidden !important;
-}
-
-.professional-dropdown .el-dropdown-menu__item {
-    padding: 6px 20px !important;
-    border-radius: 0px !important;
-    margin: 0px !important;
-    transition: opacity 150ms ease-in-out !important;
-    font-size: 12px !important;
-    background: transparent !important;
-    color: #000000 !important;
-    border-bottom: rgba(192, 192, 192, 0.20) 1px solid !important;
-    user-select: none !important;
-}
-
-.professional-dropdown .el-dropdown-menu__item:hover {
-    background: #f5f5f5 !important;
-    color: #000000 !important;
-    transform: none !important;
-}
-
-/* Aplicar estilo del context-menu a todos los dropdowns */
-.professional-dropdown :deep(.el-dropdown-menu) {
-    background: rgba(228, 226, 226, 0.923) !important;
-    border: #eeeeee 1px solid !important;
-    border-radius: 5px !important;
-    box-shadow: rgba(0, 0, 0, 0.1) 1px 1px 5px !important;
-    padding: 0px !important;
-    min-width: 200px !important;
-}
-
-/* Iconos del dropdown con color principal */
-.professional-dropdown .el-dropdown-menu__item i {
-    margin-right: 8px !important;
-    font-size: 14px !important;
-    width: 16px !important;
-    text-align: center !important;
-    color: var(--el-color-primary) !important;
-}
-
-/* Switches activos con color principal */
-.professional-dropdown :deep(.el-switch.is-checked .el-switch__core) {
-    background-color: var(--el-color-primary) !important;
-    border-color: var(--el-color-primary) !important;
-}
-
-.professional-dropdown :deep(.el-switch__core) {
-    background-color: var(--el-color-info-light-5) !important;
-    border-color: var(--el-color-info-light-3) !important;
-}
-
-.professional-dropdown .section-title {
-    padding: 6px 10px !important;
-    font-weight: 600 !important;
-    font-size: 10px !important;
-    color: white !important;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.2) !important;
-    margin: 2px 4px 6px 4px !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.5px !important;
-    background: rgba(255, 255, 255, 0.1) !important;
-    border-radius: 4px !important;
-    font-family: 'Roboto', sans-serif !important;
-}
-
-.professional-dropdown .el-switch {
-    --el-switch-on-color: var(--el-color-primary) !important;
-    --el-switch-off-color: rgba(255, 255, 255, 0.3) !important;
-}
-
-.professional-dropdown .el-input {
-    border-radius: 4px !important;
-}
-
-.professional-dropdown .el-input__wrapper {
-    background: rgba(255, 255, 255, 0.15) !important;
-    border: 1px solid rgba(255, 255, 255, 0.2) !important;
-    border-radius: 4px !important;
-}
-
-.professional-dropdown .el-input__inner {
-    color: #ffffff !important;
-}
-
-.professional-dropdown .el-input__inner::placeholder {
-    color: rgba(255, 255, 255, 0.6) !important;
-}
-
-/* Asegurar que todos los textos sean blancos */
-.professional-dropdown span {
-    color: white !important;
-}
-
-.professional-dropdown {
-    color: white !important;
-}
-
-.professional-dropdown .el-radio {
-    margin-right: 0 !important;
-}
-
-.professional-dropdown .el-radio__label {
-    font-size: 11px !important;
-    font-weight: 500 !important;
-    color: white !important;
-}
-
-.professional-dropdown .el-radio__input.is-checked .el-radio__inner {
-    background-color: var(--el-color-primary) !important;
-    border-color: var(--el-color-primary) !important;
-}
-
-.professional-dropdown .el-radio__inner {
-    border-color: rgba(255, 255, 255, 0.4) !important;
-}
-
-.professional-dropdown a {
-    color: var(--el-color-primary) !important;
-    text-decoration: none !important;
-}
-
-.professional-dropdown a:hover {
-    color: var(--el-color-primary-light-3) !important;
-}
-</style>
+<!-- ⚠️ CSS de popper movido para src/assets/css/kore-map.poppers.css
+     Usar: popper-class="kore-map-popper kore-map-popper--dark"
+     NÃO adicionar estilos de popper aqui - são teleportados para <body> -->
 
 <style scoped>
 /* Estilos para el contenedor vertical de botones */
@@ -3858,23 +3724,7 @@ const openWhatsAppAssistant = () => {
         margin-bottom: 0px !important;
     }
 
-    /* Ajustar dropdowns en móviles */
-    .professional-dropdown {
-        min-width: 160px !important;
-        max-width: 180px !important;
-        padding: 3px !important;
-    }
-
-    .professional-dropdown .el-dropdown-menu__item {
-        padding: 4px 8px !important;
-        font-size: 10px !important;
-    }
-
-    .professional-dropdown .section-title {
-        padding: 4px 8px !important;
-        font-size: 9px !important;
-        margin: 1px 2px 4px 2px !important;
-    }
+    /* Dropdowns em mobile - estilos movidos para kore-map.poppers.css */
 }
 
 /* Estilos para el control de búsqueda */
@@ -4546,175 +4396,10 @@ const openWhatsAppAssistant = () => {
 }
 </style>
 
-<!-- Aplicar estilo del context-menu a TODOS los dropdowns -->
+<!-- ⚠️ CSS de popper/dropdown MOVIDO para src/assets/css/kore-map.poppers.css
+     Usar: popper-class="kore-map-popper kore-map-popper--dark"
+     NÃO adicionar estilos de popper aqui - são teleportados para <body> -->
 <style>
-/* TODOS los dropdowns con estilo del context-menu (fondo gris transparente) */
-.el-dropdown-menu.professional-dropdown,
-.professional-dropdown .el-dropdown-menu {
-    background: rgba(228, 226, 226, 0.923) !important;
-    border: #eeeeee 1px solid !important;
-    border-radius: 5px !important;
-    box-shadow: rgba(0, 0, 0, 0.1) 1px 1px 5px !important;
-    padding: 0px !important;
-    max-height: 75vh !important;
-    overflow-y: auto !important;
-}
-
-/* Remover TODOS los estilos inline de color blanco del template */
-.professional-dropdown [style*="color: white"],
-.professional-dropdown [style*="color:white"] {
-    color: #000000 !important;
-}
-
-/* Todos los elementos dentro del dropdown - texto negro para fondo gris */
-.professional-dropdown .el-dropdown-menu__item,
-.professional-dropdown .el-dropdown-menu__item *,
-.professional-dropdown div,
-.professional-dropdown span,
-.professional-dropdown .section-title,
-.professional-dropdown .section-title *,
-.professional-dropdown .pref-option,
-.professional-dropdown .pref-option *,
-.professional-dropdown .device-item,
-.professional-dropdown .device-item * {
-    color: #000000 !important;
-}
-
-.professional-dropdown .el-dropdown-menu__item {
-    padding: 6px 20px !important;
-    border-radius: 0px !important;
-    margin: 0px !important;
-    font-size: 12px !important;
-    background: transparent !important;
-    color: #000000 !important;
-    border-bottom: rgba(192, 192, 192, 0.20) 1px solid !important;
-    user-select: none !important;
-}
-
-.professional-dropdown .el-dropdown-menu__item:hover {
-    background: #f5f5f5 !important;
-}
-
-.professional-dropdown .el-dropdown-menu__item:hover,
-.professional-dropdown .el-dropdown-menu__item:hover * {
-    color: #000000 !important;
-}
-
-/* TODOS los iconos de los dropdowns en color principal (azul) */
-.professional-dropdown i,
-.professional-dropdown .fas,
-.professional-dropdown .far,
-.professional-dropdown .fab,
-.professional-dropdown .el-dropdown-menu__item i,
-.professional-dropdown div i,
-.professional-dropdown span i,
-.professional-dropdown .section-title i,
-.professional-dropdown .pref-icon,
-.professional-dropdown .device-icon {
-    color: var(--el-color-primary) !important;
-    margin-right: 8px !important;
-    font-size: 14px !important;
-    width: 16px !important;
-    text-align: center !important;
-}
-
-/* Resetear y unificar TODOS los switches con el mismo formato */
-.professional-dropdown .el-switch {
-    height: 15px !important;
-    line-height: 15px !important;
-    min-width: 30px !important;
-    width: 30px !important;
-    --el-switch-on-color: var(--el-color-primary) !important;
-    --el-switch-off-color: #dcdfe6 !important;
-}
-
-.professional-dropdown .el-switch__core {
-    height: 15px !important;
-    width: 30px !important;
-    border-radius: 7.5px !important;
-    position: relative !important;
-    display: inline-block !important;
-    box-sizing: border-box !important;
-    margin: 0 !important;
-    background-color: #dcdfe6 !important;
-    border: 1px solid #dcdfe6 !important;
-    transition: all 0.2s !important;
-}
-
-.professional-dropdown .el-switch__action {
-    height: 12px !important;
-    width: 12px !important;
-    border-radius: 50% !important;
-    background: #fff !important;
-    position: absolute !important;
-    top: 1.5px !important;
-    left: 1.5px !important;
-    transition: all 0.2s !important;
-    transform: translateX(0) !important;
-}
-
-/* TODOS los switches activos en color principal */
-.professional-dropdown .el-switch.is-checked .el-switch__core {
-    background-color: var(--el-color-primary) !important;
-    border-color: var(--el-color-primary) !important;
-}
-
-.professional-dropdown .el-switch.is-checked .el-switch__action {
-    left: calc(100% - 13.5px) !important;
-    transform: translateX(0) !important;
-}
-
-/* TODOS los switches inactivos en gris */
-.professional-dropdown .el-switch:not(.is-checked) .el-switch__core {
-    background-color: #dcdfe6 !important;
-    border-color: #dcdfe6 !important;
-}
-
-.professional-dropdown .el-switch:not(.is-checked) .el-switch__action {
-    left: 1.5px !important;
-    transform: translateX(0) !important;
-}
-
-/* Corregir input de búsqueda para que sea visible en fondo gris */
-.professional-dropdown .el-input,
-.professional-dropdown .el-input__wrapper,
-.professional-dropdown .el-input__inner {
-    background-color: white !important;
-    border-color: var(--el-color-primary) !important;
-    color: #000000 !important;
-}
-
-.professional-dropdown .el-input__inner::placeholder {
-    color: var(--el-color-primary) !important;
-    opacity: 0.7 !important;
-}
-
-.professional-dropdown .el-input__inner:focus {
-    border-color: var(--el-color-primary) !important;
-    background-color: white !important;
-    color: #000000 !important;
-}
-
-/* Forzar que el texto de la barra de búsqueda sea visible */
-.professional-dropdown .el-input__inner {
-    color: #000000 !important;
-}
-
-/* Radio buttons con colores correctos */
-.professional-dropdown .el-radio,
-.professional-dropdown .el-radio__label {
-    color: #000000 !important;
-}
-
-.professional-dropdown .el-radio__input.is-checked .el-radio__inner {
-    background-color: var(--el-color-primary) !important;
-    border-color: var(--el-color-primary) !important;
-}
-
-.professional-dropdown .el-radio__input.is-checked+.el-radio__label {
-    color: #000000 !important;
-}
-
 /* Iconos de los BOTONES del mapa siempre blancos */
 .vertical-controls-container .el-button i,
 .vertical-controls-container .el-button .fas,

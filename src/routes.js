@@ -42,6 +42,8 @@ const routes = [
     },
     { path: '/groups', component: ()=>import('./templates/groups'), meta: {title: 'menu.groups',shown: true}},
     { path: '/commands', component: ()=>import('./templates/commands'), meta: {title: 'menu.commands',shown: true} },
+    { path: '/drivers', component: ()=>import('./templates/drivers-dashboard'), meta: {title: 'Motoristas',shown: true} },
+    { path: '/drivers/:driverId/report', component: ()=>import('./templates/driver-report'), meta: {title: 'Relatório do Motorista',shown: false,backBtn: '/drivers'} },
     {path: '/login', component: ()=>import('@/templates/login.vue'),name: 'Login', meta: {public: true}},
     {path: '/motorista', component: ()=>import('@/templates/login.vue'),name: 'DriverLogin', meta: {public: true,isDriver: true}},
     {path: '/qr-driver', component: ()=>import('@/templates/qr-driver.vue'),name: 'Driver', meta: {isDriver: true}},

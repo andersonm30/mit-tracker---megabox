@@ -275,9 +275,9 @@
                   </div>
                   
                   <!-- Conductor si está disponible -->
-                  <div v-if="p.attributes && p.attributes.driverUniqueId" class="driver-info">
+                  <div v-if="p.attributes && (p.attributes.driverUniqueId || (p.attributes.rfid && p.attributes.rfidStatus === 'VALID'))" class="driver-info">
                     <i class="fas fa-user-circle"></i>
-                    <span>{{ getDriverName(p.attributes.driverUniqueId) }}</span>
+                    <span>{{ getDriverName(p.attributes.driverUniqueId, p.attributes) }}</span>
                   </div>
                   
                   <div class="attributes">
@@ -612,14 +612,26 @@ export default defineComponent({
       window.$hideTip(evt);
     };
     
-    const getDriverName = (driverUniqueId) => {
-      if (!driverUniqueId) return '';
+    const getDriverName = (driverUniqueIdParam, pointAttrs = null) => {
+      // REGRA PADRONIZADA: usar driverUniqueId ou rfid (se VALID)
+      let effectiveDriverId = driverUniqueIdParam;
       
-      const driver = store.getters['drivers/getDriverByUniqueId'](driverUniqueId);
+      // Se attrs foram passados, aplicar a regra completa
+      if (pointAttrs && !effectiveDriverId) {
+        const rfid = pointAttrs.rfid || null;
+        const rfidStatus = pointAttrs.rfidStatus || null;
+        if (rfid && rfidStatus === 'VALID') {
+          effectiveDriverId = rfid;
+        }
+      }
+      
+      if (!effectiveDriverId) return '';
+      
+      const driver = store.getters['drivers/getDriverByUniqueId'](effectiveDriverId);
       if (driver) {
         return driver.name || driver.uniqueId;
       }
-      return driverUniqueId;
+      return effectiveDriverId;
     };
 
     // Función para truncar texto largo con elipsis

@@ -36,18 +36,35 @@
       
     </el-form-item>
 
-    <div style="display: flex;">
-        <div style="flex: 1;margin-right: 10px;">
+    <div style="display: flex;flex-direction: column;gap: 10px;">
+        <div style="flex: 1;">
             <el-form-item>
             <div class="form-group">  
             <label for="theInputDateTime">Data Hora Inicial</label>
-            <el-input v-model="formData.date[0]" type="datetime-local" @change="onChange"></el-input>
+            <el-date-picker
+              v-model="startDate"
+              type="datetime"
+              format="DD/MM/YYYY HH:mm"
+              :placeholder="$t('startDate')"
+              style="width: 100%;"
+              @change="onDateChange"
+            />
             </div>
+            </el-form-item>
+        </div>
+        <div style="flex: 1;">
+            <el-form-item>
             <div class="form-group">  
             <label for="theInputDateTime">Data Hora Final</label>
-            <el-input v-model="formData.date[1]" type="datetime-local" @change="onChange"></el-input>
-        </div>
-
+            <el-date-picker
+              v-model="endDate"
+              type="datetime"
+              format="DD/MM/YYYY HH:mm"
+              :placeholder="$t('endDate')"
+              style="width: 100%;"
+              @change="onDateChange"
+            />
+            </div>
             </el-form-item>
         </div>
         <!-- <div style="flex: 1;">
@@ -80,9 +97,9 @@ import 'element-plus/es/components/form-item/style/css'
 import 'element-plus/es/components/select/style/css'
 import 'element-plus/es/components/option/style/css'
 
-import {ElDatePicker,ElForm,ElSelect,ElOption,ElFormItem,ElInput} from "element-plus";
+import {ElDatePicker,ElForm,ElSelect,ElOption,ElFormItem} from "element-plus";
 
-import {ref,onMounted,defineEmits} from 'vue';
+import {ref,onMounted,defineEmits,watch} from 'vue';
 import {useStore} from 'vuex';
 
 import t from '@/tarkan/func/kt';
@@ -100,6 +117,14 @@ const date2 = new Date();
 
 date1.setHours(0);
 date1.setMinutes(0);
+date1.setSeconds(0);
+
+date2.setHours(23);
+date2.setMinutes(59);
+date2.setSeconds(59);
+
+const startDate = ref(date1);
+const endDate = ref(date2);
 
 const formData = ref({
   date: [date1,date2],
@@ -112,6 +137,30 @@ onMounted(()=>{
     emit("change",formData.value);
 
 })
+
+// Observar mudanças em startDate e atualizar formData
+watch(startDate, (newVal) => {
+  console.log('📅 [ReportCommon] startDate mudou:', newVal);
+  formData.value.date[0] = newVal;
+  emit("change",formData.value);
+});
+
+// Observar mudanças em endDate e atualizar formData
+watch(endDate, (newVal) => {
+  console.log('📅 [ReportCommon] endDate mudou:', newVal);
+  formData.value.date[1] = newVal;
+  emit("change",formData.value);
+});
+
+const onDateChange = ()=>{
+  console.log('📅 [ReportCommon] onDateChange chamado');
+  console.log('📅 [ReportCommon] startDate:', startDate.value);
+  console.log('📅 [ReportCommon] endDate:', endDate.value);
+  formData.value.date[0] = startDate.value;
+  formData.value.date[1] = endDate.value;
+  console.log('📅 [ReportCommon] formData.date atualizado:', formData.value.date);
+  emit("change",formData.value);
+}
 
 const onChange = ()=>{
   emit("change",formData.value);

@@ -371,10 +371,11 @@ import 'element-plus/es/components/slider/style/css'
 import {ElDialog,ElTabs,ElTabPane,ElForm,ElSwitch,ElFormItem,ElButton,ElInput,ElSlider,ElUpload,ElColorPicker,ElMessage} from "element-plus";
 
 
-import {ref,defineExpose} from 'vue';
+import {ref,defineExpose,inject} from 'vue';
 import {useStore} from 'vuex';
 
 const store = useStore();
+const runtimeApi = inject('runtimeApi', null);
 
 const title = ref('');
 
@@ -574,13 +575,11 @@ const doSave = async ()=>{
   
   saving.value = true;
   try {
-    // eslint-disable-next-line no-undef
-    if (!window?.$tarkan?.saveTheme) {
-      throw new Error('Integração $tarkan.saveTheme não disponível');
+    if (!runtimeApi?.saveTheme) {
+      throw new Error('Integração runtimeApi.saveTheme não disponível');
     }
 
-    // eslint-disable-next-line no-undef
-    await window.$tarkan.saveTheme({config: labelConf.value,colors: formData.value});
+    await runtimeApi.saveTheme({config: labelConf.value,colors: formData.value});
     
     // eslint-disable-next-line no-undef
     if (typeof window !== 'undefined') {

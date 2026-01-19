@@ -206,7 +206,6 @@ describe('useFollowDevice', () => {
       
       // Primeira chamada
       vi.advanceTimersByTime(1000);
-      const statsAfterFirst = follow.getCacheStats();
       
       // Avança 31 segundos (TTL expira)
       vi.advanceTimersByTime(31000);
@@ -243,7 +242,7 @@ describe('useFollowDevice', () => {
     it('deve funcionar quando getDevice retorna null', () => {
       mockOptions.getDevice = vi.fn().mockReturnValue(null);
       
-      const follow = createFollowDevice();
+      createFollowDevice();
       
       // Não deve explodir
       expect(() => {
@@ -255,7 +254,7 @@ describe('useFollowDevice', () => {
     it('deve funcionar quando getPosition retorna undefined', () => {
       mockOptions.getPosition = vi.fn().mockReturnValue(undefined);
       
-      const follow = createFollowDevice();
+      createFollowDevice();
       
       expect(() => {
         simulateStartFollow(123);
@@ -269,7 +268,7 @@ describe('useFollowDevice', () => {
         throw new Error('Tooltip error');
       });
       
-      const follow = createFollowDevice();
+      createFollowDevice();
       
       // Como o composable não faz try/catch interno em updateFollowTooltip,
       // o erro pode propagar. Verificamos que o composable foi criado sem erro.

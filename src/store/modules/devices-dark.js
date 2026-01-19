@@ -1170,106 +1170,80 @@ export default {
         },
         /* eslint-disable no-unused-vars */
         async positions(context) {
-            const { getRuntimeApi } = await import('@/services/runtimeApiRef');
-            const api = getRuntimeApi();
-            const {data} = await api.getPositions();
-            context.commit("setPositions", data);
+            try {
+                const { getRuntimeApi } = await import('@/services/runtimeApiRef');
+                const api = getRuntimeApi();
+                const {data} = await api.getPositions();
+                context.commit("setPositions", data);
 
-                    if (data.length > 0) {
-                        let tmp = [];
-                        for (var p in data) {
-                            tmp.push([data[p].latitude, data[p].longitude]);
-                        }
-
-                        setTimeout(() => {
-                            const waitForMap = () => {
-                                return new Promise((resolve) => {
-                                    const checkMap = () => {
-                                        if (window.$map) {
-                                            resolve();
-                                        } else {
-                                            setTimeout(checkMap, 500);
-                                        }
-                                    };
-                                    checkMap();
-                                });
-                            };
-
-                            const centerMap = async () => {
-                                // Esperar a que Leaflet esté disponible
-                                const waitForL = () => {
-                                    return new Promise((resolve) => {
-                                        const checkLeaflet = () => {
-                                            if (window.L) {
-                                                resolve();
-                                            } else {
-                                                setTimeout(checkLeaflet, 500);
-                                            }
-                                        };
-                                        checkLeaflet();
-                                    });
-                                };
-
-                                await waitForL();
-                                await waitForMap();
-
-                                try {
-                                    // Verificar configuración del usuario
-                                    const userLat = parseFloat(context.rootState.auth?.latitude);
-                                    const userLng = parseFloat(context.rootState.auth?.longitude);
-                                    const userZoom = parseInt(context.rootState.auth?.zoom) || false;
-
-                                    // Verificar configuración del servidor
-                                    const serverLat = parseFloat(context.rootState.server?.serverInfo?.latitude);
-                                    const serverLng = parseFloat(context.rootState.server?.serverInfo?.longitude);
-                                    const serverZoom = parseInt(context.rootState.server?.serverInfo?.zoom) || 17;
-
-                                    // Definir zoom predeterminado
-                                    const defaultZoom = 17;
-
-                                    // Validar coordenadas (dentro de rangos válidos para un mapa)
-                                    const isValidLat = (lat) => !isNaN(lat) && lat !== 0 && lat >= -90 && lat <= 90;
-                                    const isValidLng = (lng) => !isNaN(lng) && lng !== 0 && lng >= -180 && lng <= 180;
-
-                                    // Verificamos si el usuario tiene coordenadas válidas
-                                    if (isValidLat(userLat) && isValidLng(userLng)) {
-                                        // Centramos el mapa en las coordenadas del usuario con zoom del usuario o predeterminado
-                                        const zoom = userZoom || serverZoom || defaultZoom;
-                                        console.log("Centrando en coordenadas del usuario", userLat, userLng, zoom);
-                                        window.$map.setView([userLat, userLng], zoom);
-                                    }
-                                    // Verificamos si hay coordenadas en los atributos del servidor
-                                    else if (isValidLat(serverLat) && isValidLng(serverLng)) {
-                                        // Centramos el mapa en las coordenadas del servidor
-                                        console.log("Centrando en coordenadas del servidor", serverLat, serverLng, serverZoom);
-                                        window.$map.setView([serverLat, serverLng], serverZoom);
-                                    }
-                                    // Si no hay coordenadas válidas, centramos en los dispositivos
-                                    else if (tmp && tmp.length > 0) {
-                                        // Centramos el mapa según la cantidad de dispositivos
-                                        console.log("Centrando en los dispositivos");
-                                        const bds = window.L.latLngBounds(tmp);
-                                        window.$map.fitBounds(bds, { maxZoom: serverZoom || defaultZoom });
-                                    } else {
-                                        // Si no hay nada para centrar, usamos coordenadas por defecto
-                                        console.log("Usando coordenadas por defecto");
-                                        window.$map.setView([0, 0], defaultZoom);
-                                    }
-                                } catch (error) {
-                                    console.error("Error al centrar el mapa:", error);
-                                }
-                            };
-
-                            // Ejecutar la función de centrado
-                            centerMap();
-                        }, 500);
+                if (data.length > 0) {
+                    let tmp = [];
+                    for (var p in data) {
+                        tmp.push([data[p].latitude, data[p].longitude]);
                     }
 
-                    resolve();
-                });
-            });
+                    // Função para centralizar o mapa
+                    const performCenterMap = () => {
+                        if (typeof window.L === 'undefined' || !window.$map) {
+                            return;
+                        }
+
+                        try {
+                            // Verificar configuración del usuario
+                            const userLat = parseFloat(context.rootState.auth?.latitude);
+                            const userLng = parseFloat(context.rootState.auth?.longitude);
+                            const userZoom = parseInt(context.rootState.auth?.zoom) || false;
+
+                            // Verificar configuración del servidor
+                            const serverLat = parseFloat(context.rootState.server?.serverInfo?.latitude);
+                            const serverLng = parseFloat(context.rootState.server?.serverInfo?.longitude);
+                            const serverZoom = parseInt(context.rootState.server?.serverInfo?.zoom) || 17;
+
+                            // Definir zoom predeterminado
+                            const defaultZoom = 17;
+
+                            // Validar coordenadas (dentro de rangos válidos para un mapa)
+                            const isValidLat = (lat) => !isNaN(lat) && lat !== 0 && lat >= -90 && lat <= 90;
+                            const isValidLng = (lng) => !isNaN(lng) && lng !== 0 && lng >= -180 && lng <= 180;
+
+                            // Verificamos si el usuario tiene coordenadas válidas
+                            if (isValidLat(userLat) && isValidLng(userLng)) {
+                                const zoom = userZoom || serverZoom || defaultZoom;
+                                console.log("Centrando en coordenadas del usuario", userLat, userLng, zoom);
+                                window.$map.setView([userLat, userLng], zoom);
+                            }
+                            // Verificamos si hay coordenadas en los atributos del servidor
+                            else if (isValidLat(serverLat) && isValidLng(serverLng)) {
+                                console.log("Centrando en coordenadas del servidor", serverLat, serverLng, serverZoom);
+                                window.$map.setView([serverLat, serverLng], serverZoom);
+                            }
+                            // Si no hay coordenadas válidas, centramos en los dispositivos
+                            else if (tmp && tmp.length > 0) {
+                                console.log("Centrando en los dispositivos");
+                                const bds = window.L.latLngBounds(tmp);
+                                window.$map.fitBounds(bds, { maxZoom: serverZoom || defaultZoom });
+                            } else {
+                                console.log("Usando coordenadas por defecto");
+                                window.$map.setView([0, 0], defaultZoom);
+                            }
+                        } catch (error) {
+                            console.error("Error al centrar el mapa:", error);
+                        }
+                    };
+
+                    // 🎯 HANDSHAKE: Aguardar mapReady antes de centralizar
+                    if (window.__mapReady) {
+                        setTimeout(performCenterMap, 500);
+                    } else {
+                        window.addEventListener('tarkan:mapReady', () => {
+                            setTimeout(performCenterMap, 500);
+                        }, { once: true });
+                    }
+                }
+            } catch (err) {
+                console.warn('⚠️ [positions] Erro ao carregar posições (pode ser abort normal):', err.message);
+                // Não bloquear o fluxo com throw, apenas log
+            }
         }
-
-
     }
 }

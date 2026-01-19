@@ -333,6 +333,10 @@ import {
 // Driver card component
 import DeviceDriverCard from "../components/device/DeviceDriverCard.vue";
 
+// i18n helper
+import KT from '../tarkan/func/kt.js';
+import defaultDeviceData from '../defaultDeviceData.js';
+
 // Composables
 import { useDeviceVideoPlayer } from "../composables/useDeviceVideoPlayer.js";
 import { useDualCamera } from "../composables/useDualCamera.js";
@@ -417,21 +421,20 @@ const messageWarning = (message) => {
 // SAFE TRACCAR WRAPPER
 // ========================
 /**
- * Wrapper seguro para chamadas ao $traccar
+ * Wrapper seguro para chamadas ao runtimeApi
  * Garante que UI não quebra se serviço não estiver disponível
  * @param {string} label - Identificador para logs
- * @param {Function} fn - Função que recebe $traccar e retorna Promise
+ * @param {Function} fn - Função que recebe runtimeApi e retorna Promise
  * @returns {Promise<any|null>} Resultado da chamada ou null em caso de erro
  */
 const safeTraccarCall = async (label, fn) => {
-  const t = window?.$traccar;
-  if (!t) {
+  if (!runtimeApi) {
     notifyError(KT('errors.traccarUnavailable') || 'Serviço Traccar não disponível');
     console.warn('[traccar]', label, 'service unavailable');
     return null;
   }
   try {
-    return await fn(t);
+    return await fn(runtimeApi);
   } catch (e) {
     console.warn('[traccar]', label, e);
     notifyError(KT('errors.traccarCommunication') || 'Erro ao comunicar com servidor');
@@ -568,7 +571,21 @@ const abortAllControllers = () => {
 
 const store = useStore();
 const route = useRoute();
+const router = useRouter();
 
+// ========================
+// RUNTIME API - DEVE VIR ANTES DE QUALQUER USO
+// ========================
+const runtimeApi = inject('runtimeApi', null);
+const flyToDevice = inject('flyToDevice');
+const contextOpenRef = inject('contextMenu');
+const editShareRef = inject("edit-share");
+const editDeviceRef = inject('edit-device');
+const qrDeviceRef = inject('qr-device');
+
+// ========================
+// INITIALIZE COMPOSABLES (APÓS runtimeApi)
+// ========================
 // Initialize video player composable
 const videoPlayer = useDeviceVideoPlayer({
   store,
@@ -601,7 +618,9 @@ const {
   cleanupDualCameraResources,
 } = dualCamera;
 
-// Define device computed properties (otimizado para evitar recálculos desnecessários)
+// ========================
+// DEVICE COMPUTED PROPERTIES
+// ========================
 const deviceId = computed(() => {
   const id = parseInt(route.params.deviceId);
   return isNaN(id) ? null : id;
@@ -610,23 +629,12 @@ const deviceId = computed(() => {
 const device = computed(() => {
   return deviceId.value ? store.getters['devices/getDevice'](deviceId.value) : null;
 });
-const router = useRouter();
 
-// Slider modal states
-
-///
-//const uploading = ref(false);
-
+// ========================
+// STATE REFS
+// ========================
 const imageUrl = ref();
 const isProcessingSalida = ref(false);
-
-const runtimeApi = inject('runtimeApi', null);
-const flyToDevice = inject('flyToDevice');
-const contextOpenRef = inject('contextMenu');
-
-const editShareRef = inject("edit-share");
-const editDeviceRef = inject('edit-device');
-const qrDeviceRef = inject('qr-device');
 const attrComplete = ref(false);
 const now = ref(false);
 
@@ -692,10 +700,22 @@ const showBlockButton = computed(() => {
          (serverAttrs.value.enableLockUnlock && permissions.value.canBlock);
 });
 
-// Driver do motorista atual - cached
+// Driver do motorista atual - REGRA PADRONIZADA
 const currentDriver = computed(() => {
-  const driverId = position.value?.attributes?.driverUniqueId;
-  return driverId ? store.getters['drivers/getDriverByUniqueId'](driverId) : null;
+  const attrs = position.value?.attributes ?? {};
+  const driverUniqueId = attrs.driverUniqueId || null;
+  const rfid = attrs.rfid || null;
+  const rfidStatus = attrs.rfidStatus || null;
+  
+  let effectiveDriverId = driverUniqueId;
+  if (!effectiveDriverId && rfid && rfidStatus === 'VALID') {
+    effectiveDriverId = rfid;
+  }
+  if (!effectiveDriverId && device.value?.attributes?.driverUniqueId) {
+    effectiveDriverId = device.value.attributes.driverUniqueId;
+  }
+  
+  return effectiveDriverId ? store.getters['drivers/getDriverByUniqueId'](effectiveDriverId) : null;
 });
 
 // Distância formatada
@@ -1028,6 +1048,13 @@ const cleanupAll = (reason) => {
   positionImageRefreshTimer = null;
   statusChangeTimers = [];
   
+  // 🔧 FIX: Limpar estado de driver ao trocar device
+  if (reason === 'device-change') {
+    selectedDriver.value = null;
+    showDriverModal.value = false;
+    console.debug('[cleanupAll] Driver state resetado');
+  }
+  
   // 7) Remover TODOS os event listeners do DOM via registry
   try {
     removeAllDomListeners();
@@ -1323,9 +1350,6 @@ const findAttribute = (position, a) => {
   return result;
 }
 
-import KT from '../tarkan/func/kt.js'
-import defaultDeviceData from '../defaultDeviceData.js'
-
 const actFav = (evt,id,add)=>{
 
   if(store.state.auth.administrator && !add) {
@@ -1594,6 +1618,11 @@ watch(
   (newId, oldId) => {
     if (oldId && newId !== oldId) {
       console.debug('[watch deviceId] Mudança detectada:', oldId, '->', newId);
+      
+      // 🔧 FIX: Resetar selectedDriver ao trocar device
+      selectedDriver.value = null;
+      showDriverModal.value = false;
+      
       cleanupAll('device-change');
     }
   },

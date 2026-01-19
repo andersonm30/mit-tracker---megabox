@@ -14,8 +14,8 @@
     <div v-if="loading===1" class="reportBlock" style="padding: 10px;">{{$t('LOADING')}}</div>
     <div v-if="loading===2 && data.length===0" class="reportBlock" style="padding: 10px;">{{$t('NO_DATA_TEXT')}}</div>
 
-      <div class="reportBlock" v-for="(b,bk) in data" :key="bk" @click="loadRoute(b)" :set="device = store.getters['devices/getDevice'](b.deviceId)">
-        <div style="color: var(--el-text-color-primary);font-weight: bold;font-size: 16px;padding: 10px;">{{device.name}}</div>
+      <div class="reportBlock" v-for="(b,bk) in data" :key="bk" @click="loadRoute(b)">
+        <div style="color: var(--el-text-color-primary);font-weight: bold;font-size: 16px;padding: 10px;">{{getDevice(b.deviceId).name}}</div>
         <div v-if="b.startTime" style="border-top: var(--el-border-color-light) 1px dotted;">
           <div style="font-size: 10px;padding-top: 3px;color: var(--el-text-color-secondary)">{{$t('startDate')}}</div>
           <div style="font-size: 12px;color: var(--el-text-color-regular);margin-top: 3px; margin-bottom: 5px;">
@@ -41,11 +41,17 @@
         <div style="border-top: var(--el-border-color-light) 1px dotted;display: flex;justify-content: space-between;">
           <div style="flex: 1;text-align: center;border-right: var(--el-border-color-light) 1px dotted;">
             <div style="text-transform: uppercase;margin-top: 10px;font-size: 11px;color: var(--el-text-color-regular);">{{$t('device.averageSpeed')}}</div>
-            <div style="margin-top: 5px;margin-bottom: 10px;font-size: 20px;color: var(--el-color-primary)">{{$t('units.'+store.getters['server/getAttribute']('speedUnit','speedUnit'),{speed: b.averageSpeed})}}</div>
+            <div style="margin-top: 5px;margin-bottom: 10px;font-size: 20px;color: var(--el-color-primary)">
+              <span v-if="b.averageSpeed">{{$t('units.'+store.getters['server/getAttribute']('speedUnit','speedUnit'),{speed: b.averageSpeed})}}</span>
+              <span v-else style="color: var(--el-text-color-secondary)">N/A</span>
+            </div>
           </div>
           <div style="flex: 1;text-align: center;border-right: var(--el-border-color-light) 1px dotted;">
             <div style="text-transform: uppercase;margin-top: 10px;font-size: 11px;color: var(--el-text-color-regular);">{{$t('device.maxSpeed')}}</div>
-            <div style="margin-top: 5px;margin-bottom: 10px;font-size: 20px;color: var(--el-color-primary)">{{$t('units.'+store.getters['server/getAttribute']('speedUnit','speedUnit'),{speed: b.maxSpeed})}}</div>
+            <div style="margin-top: 5px;margin-bottom: 10px;font-size: 20px;color: var(--el-color-primary)">
+              <span v-if="b.maxSpeed">{{$t('units.'+store.getters['server/getAttribute']('speedUnit','speedUnit'),{speed: b.maxSpeed})}}</span>
+              <span v-else style="color: var(--el-text-color-secondary)">N/A</span>
+            </div>
           </div>
         </div>
 
@@ -53,11 +59,30 @@
         <div style="border-top: var(--el-border-color-light) 1px dotted;display: flex;justify-content: space-between;">
           <div style="flex: 1;text-align: center;border-right: var(--el-border-color-light) 1px dotted;">
             <div style="text-transform: uppercase;margin-top: 10px;font-size: 11px;color: var(--el-text-color-regular);">{{$t('device.engineHours')}}</div>
-            <div style="margin-top: 5px;margin-bottom: 10px;font-size: 20px;color: var(--el-color-primary)">{{Math.round(((b.engineHours/60)/60)/1000)}} hs</div>
+            <div style="margin-top: 5px;margin-bottom: 10px;font-size: 20px;color: var(--el-color-primary)">
+              <span v-if="b.engineHours">{{Math.round(((b.engineHours/60)/60)/1000)}} hs</span>
+              <span v-else style="color: var(--el-text-color-secondary)">N/A</span>
+            </div>
           </div>
           <div style="flex: 1;text-align: center;border-right: var(--el-border-color-light) 1px dotted;">
             <div style="text-transform: uppercase;margin-top: 10px;font-size: 11px;color: var(--el-text-color-regular);">{{$t('device.spentFuel')}}</div>
-            <div style="margin-top: 5px;margin-bottom: 10px;font-size: 20px;color: var(--el-color-primary)">{{b.spentFuel}} L</div>
+            <div style="margin-top: 5px;margin-bottom: 10px;font-size: 20px;color: var(--el-color-primary)">
+              <span v-if="getSpentFuel(b, getDevice(b.deviceId))">{{getSpentFuel(b, getDevice(b.deviceId)).toFixed(2)}} L</span>
+              <span v-else style="color: var(--el-text-color-secondary)">N/A</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Fuel Cost - mostra apenas se o dispositivo tiver fuelPrice configurado -->
+        <div v-if="getDevice(b.deviceId).attributes && getDevice(b.deviceId).attributes.fuelPrice" style="border-top: var(--el-border-color-light) 1px dotted;display: flex;justify-content: space-between;">
+          <div style="flex: 1;text-align: center;">
+            <div style="text-transform: uppercase;margin-top: 10px;font-size: 11px;color: var(--el-text-color-regular);">{{$t('device.FuelCost')}}</div>
+            <div style="margin-top: 5px;margin-bottom: 10px;font-size: 20px;color: var(--el-color-primary)">
+              <span v-if="getSpentFuel(b, getDevice(b.deviceId)) && getDevice(b.deviceId).attributes.fuelPrice">
+                R$ {{ (getSpentFuel(b, getDevice(b.deviceId)) * getDevice(b.deviceId).attributes.fuelPrice).toFixed(2) }}
+              </span>
+              <span v-else style="color: var(--el-text-color-secondary)">N/A</span>
+            </div>
           </div>
         </div>
       </div>
@@ -66,6 +91,8 @@
 </template>
 
 <script setup>
+/* eslint-disable no-restricted-properties */
+// TODO: Migrar para runtimeApi quando suportar arrays deviceIds/groupIds e export
 
 
 
@@ -85,8 +112,6 @@ import {saveAs} from "file-saver";
 const loading = ref(0);
 
 const store = useStore();
-const runtimeApi = inject('runtimeApi', null);
-if (!runtimeApi) throw new Error('Runtime API não disponível. Recarregue a página.');
 
 const filter = ref({
   date: [0,0],
@@ -102,9 +127,10 @@ const onChange = (e)=>{
 }
 
 const loadResume = (exp=false)=>{
+  const $traccar = window.$traccar;
   loading.value = 1;
 
-  runtimeApi.getReportSummary(filter.value.deviceId,filter.value.groupId,new Date(filter.value.date[0]).toISOString(),new Date(filter.value.date[1]).toISOString(),exp).then((r)=>{
+  $traccar.getReportSummary(filter.value.deviceId,filter.value.groupId,new Date(filter.value.date[0]).toISOString(),new Date(filter.value.date[1]).toISOString(),exp).then((r)=>{
 
       if(exp){
 
@@ -120,6 +146,21 @@ const loadResume = (exp=false)=>{
         }
       }else {
         loading.value = 2;
+        console.log('📊 [ReportResume] Dados recebidos da API:', r.data);
+        // Debug detalhado para verificar valores brutos
+        r.data.forEach((item, idx) => {
+          console.log(`📊 [ReportResume] Item ${idx}:`, {
+            deviceId: item.deviceId,
+            distance_raw: item.distance,
+            distance_km: (item.distance / 1000).toFixed(2),
+            averageSpeed_raw: item.averageSpeed,
+            averageSpeed_kmh: (item.averageSpeed * 1.852).toFixed(0),
+            maxSpeed_raw: item.maxSpeed,
+            maxSpeed_kmh: (item.maxSpeed * 1.852).toFixed(0),
+            spentFuel: item.spentFuel,
+            engineHours: item.engineHours
+          });
+        });
         data.value = r.data;
       }
   });
@@ -132,10 +173,41 @@ const hideDevices = (deviceId=0)=>{
 
 const updateRoute = inject('updateRoute');
 
+// Função helper para buscar device
+const getDevice = (deviceId) => {
+  return store.getters['devices/getDevice'](deviceId);
+};
+
+// Função para calcular combustível gasto (estimado ou real)
+const getSpentFuel = (report, device) => {
+  // Se o backend já retornou o spentFuel, usar ele
+  if (report.spentFuel && report.spentFuel > 0) {
+    return report.spentFuel;
+  }
+  
+  // Estimar baseado na distância e consumo médio
+  if (report.distance !== undefined && report.distance !== null) {
+    const distanceKm = report.distance / 1000; // Converter metros para km
+    
+    // Usar consumo configurado ou padrão de 10 L/100km (média de carros no Brasil)
+    let consumption = 10; // Padrão
+    if (device?.attributes?.litersx100km) {
+      consumption = parseFloat(device.attributes.litersx100km);
+    }
+    
+    const estimatedFuel = (distanceKm / 100) * consumption;
+    return estimatedFuel;
+  }
+  
+  return 0; // Retorna 0 se não houver dados
+};
+
 const loadRoute = (b)=>{
 
 
-  runtimeApi.loadRoute(b.deviceId,b.startTime,b.endTime).then(({data})=>{
+  const $traccar = window.$traccar;
+
+  $traccar.loadRoute(b.deviceId,b.startTime,b.endTime).then(({data})=>{
 
 
     let tmp = [];

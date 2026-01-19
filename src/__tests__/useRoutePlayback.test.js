@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { useRoutePlayback, PLAYBACK_SPEEDS, BASE_DELAY_MS } from '@/tarkan/map/useRoutePlayback';
+import { useRoutePlayback, BASE_DELAY_MS } from '@/tarkan/map/useRoutePlayback';
 
 describe('useRoutePlayback', () => {
   let onTick;
@@ -69,7 +69,6 @@ describe('useRoutePlayback', () => {
       const playback = createPlayback(5);
       
       playback.play();
-      const callsAfterFirstPlay = onStateChange.mock.calls.length;
       
       playback.play(); // segunda chamada
       

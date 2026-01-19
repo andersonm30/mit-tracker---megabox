@@ -167,9 +167,20 @@ export function useFollowDevice(options) {
       connectionStatusColor = '#f56c6c';
     }
     
-    // Verificar se tem motorista
-    const driverIdCheck = position.attributes?.driverUniqueId || device.attributes?.driverUniqueId;
-    const hasDriver = !!driverIdCheck;
+    // Verificar se tem motorista - REGRA PADRONIZADA
+    const attrs = position.attributes ?? {};
+    const driverUniqueId = attrs.driverUniqueId || null;
+    const rfid = attrs.rfid || null;
+    const rfidStatus = attrs.rfidStatus || null;
+    
+    let effectiveDriverId = driverUniqueId;
+    if (!effectiveDriverId && rfid && rfidStatus === 'VALID') {
+      effectiveDriverId = rfid;
+    }
+    if (!effectiveDriverId && device.attributes?.driverUniqueId) {
+      effectiveDriverId = device.attributes.driverUniqueId;
+    }
+    const hasDriver = !!effectiveDriverId;
     
     // Construir HTML
     let html = `<div style="padding:10px;min-width:280px;position:relative;">
@@ -356,6 +367,7 @@ export function useFollowDevice(options) {
           // Parou de seguir
           stopTooltipUpdates();
           showFloatingPanel.value = false;
+          floatingPanelDevice.value = null;  // 🔧 FIX: Resetar device ao parar follow
         } else if (newId && !oldId) {
           // Começou a seguir
           tooltipManuallyHidden.value = false;
@@ -363,6 +375,7 @@ export function useFollowDevice(options) {
         } else if (newId && oldId && newId !== oldId) {
           // Mudou de device
           tooltipManuallyHidden.value = false;
+          floatingPanelDevice.value = null;  // 🔧 FIX: Resetar device ao mudar
           updateFloatingPanel();
           updateFollowTooltip();
         }

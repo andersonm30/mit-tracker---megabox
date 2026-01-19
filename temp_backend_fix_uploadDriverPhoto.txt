@@ -1,0 +1,14 @@
+CORREÇÃO NECESSÁRIA NO MÉTODO uploadDriverPhoto():
+
+No arquivo: C:\projeto\Versao-tarkan-Jesse\back-end\app\Http\Controllers\DriverController.php
+
+LOCALIZAR A LINHA:
+            'photo_url' => '/storage/'.$directory.$driverId.'.jpg',
+
+SUBSTITUIR POR:
+            'photo_url' => '/api/drivers/'.$driverId.'/photo',
+
+MOTIVO:
+- O frontend precisa consumir a imagem via endpoint GET autenticado
+- Não usar /storage diretamente (não é público por padrão)
+- O método getDriverPhoto() servirá a imagem binária

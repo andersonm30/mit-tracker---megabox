@@ -16,7 +16,13 @@ const messages = {
         route: {
             start: 'Route Start',
             end: 'Route End',
-            empty: 'Nenhuma rota para o período selecionado.'
+            empty: 'Nenhuma rota para o período selecionado.',
+            noDataTitle: 'No data for this period',
+            tryAnotherPeriod: 'Try another period:',
+            last24h: 'Last 24h',
+            last7days: 'Last 7 days',
+            last30days: 'Last 30 days',
+            statsDisclaimer: 'Statistics calculated based on the complete route.',
         },
         search: 'Search',
         page: 'Page',

@@ -266,11 +266,23 @@ const speedUnit = computed(() =>
   store.getters['server/getAttribute']?.('speedUnit', 'kmh') ?? 'kmh'
 )
 
-/* Driver */
-const driverId = computed(() => position.value?.attributes?.driverUniqueId || null)
+/* Driver - REGRA PADRONIZADA */
+const effectiveDriverId = computed(() => {
+  const attrs = position.value?.attributes ?? {};
+  const driverUniqueId = attrs.driverUniqueId || null;
+  const rfid = attrs.rfid || null;
+  const rfidStatus = attrs.rfidStatus || null;
+  
+  // Prioridade: driverUniqueId > rfid (SÓ SE VALID) > device fallback
+  if (driverUniqueId) return driverUniqueId;
+  if (rfid && rfidStatus === 'VALID') return rfid;
+  if (deviceProp.value?.attributes?.driverUniqueId) return deviceProp.value.attributes.driverUniqueId;
+  return null;
+});
+const driverId = computed(() => effectiveDriverId.value);
 const driverObj = computed(() =>
-  driverId.value ? store.getters['drivers/getDriverByUniqueId']?.(driverId.value) ?? null : null
-)
+  effectiveDriverId.value ? store.getters['drivers/getDriverByUniqueId']?.(effectiveDriverId.value) ?? null : null
+);
 
 /* Conversões de velocidade */
 const speedKmh = computed(() => {

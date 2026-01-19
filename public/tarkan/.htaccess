@@ -1,0 +1,33 @@
+# Habilitar módulo de rewrite
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    
+    # Permitir acesso a arquivos PHP
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^.*\.php$ - [L]
+    
+    # Permitir acesso a imagens
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^assets/device-photos/.*\.(jpg|jpeg|png|gif|webp)$ - [L]
+</IfModule>
+
+# Configurações de segurança
+<Files "device-photo-upload.php">
+    # Permitir POST
+    <LimitExcept POST OPTIONS>
+        Deny from all
+    </LimitExcept>
+</Files>
+
+# Proteger diretório de fotos contra listagem
+<Directory "assets/device-photos">
+    Options -Indexes
+</Directory>
+
+# Headers de segurança
+<IfModule mod_headers.c>
+    # CORS para upload
+    Header set Access-Control-Allow-Origin "*"
+    Header set Access-Control-Allow-Methods "POST, OPTIONS"
+    Header set Access-Control-Allow-Headers "Content-Type"
+</IfModule>

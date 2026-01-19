@@ -555,14 +555,22 @@ const currentDriverName = computed(() => {
   const pos = typeof posGetter === 'function' ? posGetter(dev.id) : null;
   const attrs = pos?.attributes || dev?.attributes || {};
 
-  const driverUniqueId = attrs.driverUniqueId || attrs.driver_unique_id || dev?.driverUniqueId;
+  // Regra padronizada: driverUniqueId > rfid (se VALID) > fallback do device
+  let effectiveDriverId = attrs.driverUniqueId || attrs.driver_unique_id;
+  if (!effectiveDriverId && attrs.rfid && attrs.rfidStatus === 'VALID') {
+    effectiveDriverId = attrs.rfid;
+  }
+  if (!effectiveDriverId && dev?.attributes?.driverUniqueId) {
+    effectiveDriverId = dev.attributes.driverUniqueId;
+  }
+  
   const driverId = attrs.driverId || attrs.driver_id || dev?.driverId;
 
   // Tentar getters do store
   const byUnique = store.getters['drivers/getDriverByUniqueId'];
-  if (driverUniqueId && typeof byUnique === 'function') {
-    const d = byUnique(driverUniqueId);
-    if (d) return d.name || d.uniqueId || driverUniqueId;
+  if (effectiveDriverId && typeof byUnique === 'function') {
+    const d = byUnique(effectiveDriverId);
+    if (d) return d.name || d.uniqueId || effectiveDriverId;
   }
 
   const byId = store.getters['drivers/getDriverById'];
@@ -575,9 +583,9 @@ const currentDriverName = computed(() => {
   const driversRaw = store.state.drivers?.driversList ?? store.state.drivers?.list ?? [];
   const drivers = Array.isArray(driversRaw) ? driversRaw : Object.values(driversRaw || {});
 
-  if (driverUniqueId) {
-    const d = drivers.find(x => x?.uniqueId === driverUniqueId);
-    if (d) return d.name || d.uniqueId || driverUniqueId;
+  if (effectiveDriverId) {
+    const d = drivers.find(x => x?.uniqueId === effectiveDriverId);
+    if (d) return d.name || d.uniqueId || effectiveDriverId;
   }
 
   if (driverId) {
@@ -585,7 +593,7 @@ const currentDriverName = computed(() => {
     if (d) return d.name || d.uniqueId || String(driverId);
   }
 
-  return driverUniqueId || (driverId ? String(driverId) : null);
+  return effectiveDriverId || (driverId ? String(driverId) : null);
 });
 
 // Pontos filtrados (busca, tipo de evento, duplicatas)

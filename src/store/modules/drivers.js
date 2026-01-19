@@ -1,9 +1,8 @@
-
-
 export default {
     namespaced: true,
     state: () => ({
-        driverList: []
+        driverList: [],
+        imageUpdateTimestamp: {} // { driverId: timestamp }
     }),
     getters: {
         getDriver(state){
@@ -12,8 +11,28 @@ export default {
             }
         },
         getDriverByUniqueId(state){
-            return (id)=>{
-                return state.driverList.find((u)=> u.uniqueId === id)
+            return (uniqueId)=>{
+                const found = state.driverList.find((u)=> u.uniqueId === uniqueId);
+                
+                // 🔍 TELEMETRIA: Log para rastrear lookups de driver
+                if (process.env.NODE_ENV === 'development' || window.DEBUG_DRIVER_LOOKUP) {
+                    console.log('[drivers/getDriverByUniqueId]', {
+                        uniqueId,
+                        found: found ? { id: found.id, name: found.name, uniqueId: found.uniqueId } : null,
+                        totalDrivers: state.driverList.length,
+                        timestamp: new Date().toISOString()
+                    });
+                }
+                
+                return found;
+            }
+        },
+        getDriverImageUrl(state){
+            return (driverId) => {
+                if (driverId === null || driverId === undefined) return '';
+                const baseUrl = `/tarkan/assets/images/drivers/${driverId}.png`;
+                const timestamp = state.imageUpdateTimestamp[driverId];
+                return timestamp ? `${baseUrl}?t=${timestamp}` : baseUrl;
             }
         }
     },
@@ -34,6 +53,16 @@ export default {
         },
         addDrivers(state,value){
             state.driverList.push(value);
+        },
+        setImageUpdateTimestamp(state, { driverId, timestamp }) {
+            state.imageUpdateTimestamp = {
+                ...state.imageUpdateTimestamp,
+                [driverId]: timestamp || Date.now()
+            };
+        },
+        clearImageTimestamp(state, driverId) {
+            const { [driverId]: _, ...rest } = state.imageUpdateTimestamp;
+            state.imageUpdateTimestamp = rest;
         }
     },
     actions: {
@@ -50,7 +79,7 @@ export default {
             
             if (params.id) {
                 const {data} = await api.updateDriver(params.id, params);
-                context.commit("updateDriver",data);
+                context.commit("updateDrivers",data);
                 return data;
             } else {
                 const {data} = await api.createDriver(params);
@@ -59,10 +88,15 @@ export default {
             }
         },
         async deleteDriver(context,params){
+            // Normalize params to always be id (number)
+            const id = typeof params === 'object' ? (params.id ?? params.driverId) : params;
+            
             const { getRuntimeApi } = await import('@/services/runtimeApiRef');
             const api = getRuntimeApi();
-            await api.deleteDriver(params);
-            context.commit("deleteDriver", params);
+            await api.deleteDriver(id);
+            context.commit("deleteDriver", id);
+            // Limpar timestamp da imagem ao deletar motorista
+            context.commit("clearImageTimestamp", id);
         }
     }
 }

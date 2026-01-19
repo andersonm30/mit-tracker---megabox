@@ -1678,13 +1678,28 @@ const showStopped = ($event,deviceId)=>{
 
 const showDriverTip = ($event,deviceId)=>{
   const position = store.getters['devices/getPosition'](deviceId);
+  const device = store.getters['devices/getDevice'](deviceId);
+  const attrs = position?.attributes ?? {};
+  
+  // DRIVER RESOLUTION - REGRA PADRONIZADA
+  const driverUniqueId = attrs.driverUniqueId || null;
+  const rfid = attrs.rfid || null;
+  const rfidStatus = attrs.rfidStatus || null;
+  
+  let effectiveDriverId = driverUniqueId;
+  if (!effectiveDriverId && rfid && rfidStatus === 'VALID') {
+    effectiveDriverId = rfid;
+  }
+  if (!effectiveDriverId && device?.attributes?.driverUniqueId) {
+    effectiveDriverId = device.attributes.driverUniqueId;
+  }
 
-  if(position.attributes['driverUniqueId']){
-    const driver = store.getters['drivers/getDriverByUniqueId'](position.attributes['driverUniqueId']);
+  if(effectiveDriverId){
+    const driver = store.getters['drivers/getDriverByUniqueId'](effectiveDriverId);
     if(driver){
       showTip($event,driver.name)
     }else{
-      showTip($event,position.attributes['driverUniqueId'])
+      showTip($event,effectiveDriverId)
     }
   }
 

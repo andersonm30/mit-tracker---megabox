@@ -751,6 +751,17 @@ export default {
                     state.positionHistory.push(p);
                 }
 
+                // GATE 4: Bloquear realtime durante playback
+                // Realtime fica "mute" enquanto playback roda para evitar briga de markers
+                const isPlaybackActive = window.__KORE_DEBUG__?.playbackActive ?? false;
+                if (isPlaybackActive) {
+                    // Ainda atualiza positionsList (UI/tabelas podem usar)
+                    // Mas NÃO mexe em Leaflet markers/layers
+                    perfLog('updatePosition (blocked by playback)', perfStart, `device:${p.deviceId}`);
+                    recordUpdatePositionTime(performance.now() - perfStart);
+                    return;
+                }
+
                 // PROTEÇÃO PARA MODO HISTÓRICO/RELATÓRIO:
                 // Não mover marcadores nem centralizar mapa quando:
                 // - showRoutes está ativo (visualizando rota histórica)
@@ -847,6 +858,19 @@ export default {
         },
         updatePositions(state,positions){
             const perfStart = PERF_DEBUG ? performance.now() : 0;
+
+            // GATE 4: Bloquear realtime durante playback
+            const isPlaybackActive = window.__KORE_DEBUG__?.playbackActive ?? false;
+            if (isPlaybackActive) {
+                // Ainda atualiza positionsList (UI pode precisar)
+                positions.forEach((p) => {
+                    trackWsEvent();
+                    state.positionsList[p.deviceId] = p;
+                });
+                perfLog('updatePositions (blocked by playback)', perfStart, `count:${positions.length}`);
+                recordUpdatePositionTime(performance.now() - perfStart);
+                return;
+            }
 
             // PROTEÇÃO PARA MODO HISTÓRICO/RELATÓRIO:
             // Não atualizar posições no mapa quando em modo de visualização de rota

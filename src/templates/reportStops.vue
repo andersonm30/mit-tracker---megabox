@@ -38,11 +38,11 @@
 
           <div style="flex: 1;text-align: center;border-right: var(--el-border-color-light) 1px dotted;">
             <div style="text-transform: uppercase;margin-top: 10px;font-size: 11px;color: var(--el-text-color-regular);">Início do Hodometro</div>
-            <div style="margin-top: 5px;margin-bottom: 10px;font-size: 20px;color: var(--el-color-primary)">{{parseInt(b.startOdometer)}} km</div>
+            <div style="margin-top: 5px;margin-bottom: 10px;font-size: 20px;color: var(--el-color-primary)">{{$t('units.'+store.getters['server/getAttribute']('distanceUnit','distanceUnit'),{distance: b.startOdometer})}}</div>
           </div>
           <div style="flex: 1;text-align: center;">
             <div style="text-transform: uppercase;margin-top: 10px;font-size: 11px;color: var(--el-text-color-regular);">Fim do Hodometro</div>
-            <div style="margin-top: 5px;margin-bottom: 10px;font-size: 20px;color: var(--el-color-primary)">{{parseInt(b.endOdometer)}} km</div>
+            <div style="margin-top: 5px;margin-bottom: 10px;font-size: 20px;color: var(--el-color-primary)">{{$t('units.'+store.getters['server/getAttribute']('distanceUnit','distanceUnit'),{distance: b.endOdometer})}}</div>
           </div>
         </div>
 
@@ -50,11 +50,17 @@
         <div style="border-top: var(--el-border-color-light) 1px dotted;display: flex;justify-content: space-between;">
           <div style="flex: 1;text-align: center;border-right: var(--el-border-color-light) 1px dotted;">
             <div style="text-transform: uppercase;margin-top: 10px;font-size: 11px;color: var(--el-text-color-regular);">Velocidade Média</div>
-            <div style="margin-top: 5px;margin-bottom: 10px;font-size: 20px;color: var(--el-color-primary)">{{parseInt(b.averageSpeed)}} km/h</div>
+            <div style="margin-top: 5px;margin-bottom: 10px;font-size: 20px;color: var(--el-color-primary)">
+              <span v-if="b.averageSpeed">{{$t('units.'+store.getters['server/getAttribute']('speedUnit','speedUnit'),{speed: b.averageSpeed})}}</span>
+              <span v-else style="color: var(--el-text-color-secondary)">N/A</span>
+            </div>
           </div>
           <div style="flex: 1;text-align: center;border-right: var(--el-border-color-light) 1px dotted;">
             <div style="text-transform: uppercase;margin-top: 10px;font-size: 11px;color: var(--el-text-color-regular);">Velocidade Máxima</div>
-            <div style="margin-top: 5px;margin-bottom: 10px;font-size: 20px;color: var(--el-color-primary)">{{parseInt(b.maxSpeed)}} km/h</div>
+            <div style="margin-top: 5px;margin-bottom: 10px;font-size: 20px;color: var(--el-color-primary)">
+              <span v-if="b.maxSpeed">{{$t('units.'+store.getters['server/getAttribute']('speedUnit','speedUnit'),{speed: b.maxSpeed})}}</span>
+              <span v-else style="color: var(--el-text-color-secondary)">N/A</span>
+            </div>
           </div>
         </div>
 
@@ -66,11 +72,14 @@
           </div>
           <div style="flex: 1;text-align: center;border-right: var(--el-border-color-light) 1px dotted;">
             <div style="text-transform: uppercase;margin-top: 10px;font-size: 11px;color: var(--el-text-color-regular);">Distância</div>
-            <div style="margin-top: 5px;margin-bottom: 10px;font-size: 20px;color: var(--el-color-primary)">{{parseFloat(b.distance).toFixed(2)}} km</div>
+            <div style="margin-top: 5px;margin-bottom: 10px;font-size: 20px;color: var(--el-color-primary)">{{$t('units.'+store.getters['server/getAttribute']('distanceUnit','distanceUnit'),{distance: b.distance})}}</div>
           </div>
           <div style="flex: 1;text-align: center;border-right: var(--el-border-color-light) 1px dotted;">
             <div style="text-transform: uppercase;margin-top: 10px;font-size: 11px;color: var(--el-text-color-regular);">Consumo de Combustível</div>
-            <div style="margin-top: 5px;margin-bottom: 10px;font-size: 20px;color: var(--el-color-primary)">{{b.spentFuel}} L</div>
+            <div style="margin-top: 5px;margin-bottom: 10px;font-size: 20px;color: var(--el-color-primary)">
+              <span v-if="getSpentFuel(b, device)">{{getSpentFuel(b, device).toFixed(2)}} L</span>
+              <span v-else style="color: var(--el-text-color-secondary)">N/A</span>
+            </div>
           </div>
         </div>
 
@@ -82,6 +91,8 @@
 </template>
 
 <script setup>
+/* eslint-disable no-restricted-properties */
+// TODO: Migrar para runtimeApi quando suportar arrays deviceIds/groupIds e export
 
 
 
@@ -101,16 +112,37 @@ import {inject,  ref} from 'vue';
 import {useStore} from 'vuex';
 import ReportCommon from "./reportCommon";
 
-
 const loading = ref(0);
-const runtimeApi = inject('runtimeApi', null);
-if (!runtimeApi) throw new Error('Runtime API não disponível. Recarregue a página.');
 
 const store = useStore();
 
 const updateRoute = inject('updateRoute');
 
 const showRouteMarkers = inject("showRouteMarkers");
+
+// Função para calcular combustível gasto (estimado ou real)
+const getSpentFuel = (report, device) => {
+  // Se o backend já retornou o spentFuel, usar ele
+  if (report.spentFuel && report.spentFuel > 0) {
+    return report.spentFuel;
+  }
+  
+  // Estimar baseado na distância e consumo médio
+  if (report.distance !== undefined && report.distance !== null) {
+    const distanceKm = report.distance / 1000; // Converter metros para km
+    
+    // Usar consumo configurado ou padrão de 10 L/100km (média de carros no Brasil)
+    let consumption = 10; // Padrão
+    if (device?.attributes?.litersx100km) {
+      consumption = parseFloat(device.attributes.litersx100km);
+    }
+    
+    const estimatedFuel = (distanceKm / 100) * consumption;
+    return estimatedFuel;
+  }
+  
+  return 0; // Retorna 0 se não houver dados
+};
 
 const filter = ref({
   date: [0,0],
@@ -135,18 +167,19 @@ const onChange = (e)=>{
 import {saveAs} from "file-saver";
 
 const loadResume = (exp=false)=>{
+  const $traccar = window.$traccar;
   loading.value = 1;
 
   $traccar.getReportStops(filter.value.deviceId,filter.value.groupId,new Date(filter.value.date[0]).toISOString(),new Date(filter.value.date[1]).toISOString(),exp).then((r)=>{
-    if(exp){
+  
+  if(exp){
 
       loading.value = 0;
 
-
       if(r['headers']['content-type']==='application/pdf'){
-        saveAs(new Blob([r.data], {type: 'application/pdf'}), 'resume.pdf');
+        saveAs(new Blob([r.data], {type: 'application/pdf'}), 'paradas.pdf');
       }else {
-        saveAs(new Blob([r.data], {type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}), 'resume.xlsx');
+        saveAs(new Blob([r.data], {type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}), 'paradas.xlsx');
       }
     }else {
       loading.value = 2;

@@ -585,7 +585,10 @@ connector.prototype.getReportTravels = function(deviceIds,groupIds,from,to,exp=f
         }
     }
 
-    return this.axios.get("/reports/trips?"+objects.join("&")+"&type=allEvents&from="+from+"&to="+to+"&daily=false",conf);
+    const url = "/reports/trips?"+objects.join("&")+"&type=allEvents&from="+from+"&to="+to+"&daily=false";
+    console.log('🚗 [traccarConnector] getReportTravels URL:', url);
+    
+    return this.axios.get(url, conf);
 }
 
 connector.prototype.testNotification = function(){

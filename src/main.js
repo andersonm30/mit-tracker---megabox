@@ -25,6 +25,9 @@ import ElementPlus from "element-plus";
 // ✅ CORRIGIDO: o caminho antigo "dist/index.css" quebra em versões novas do Element Plus
 import "element-plus/theme-chalk/index.css";
 
+// ✅ CSS Global para dropdowns/poppers do kore-map (teleportados fora do componente)
+import "@/assets/css/kore-map.poppers.css";
+
 import ptBR from 'element-plus/es/locale/lang/pt-br' // Importa o locale em português
 
 import routes from './routes.js'
@@ -88,13 +91,11 @@ const app = createApp(App)
 
 app.use(ElementPlus, { locale: ptBR }) // Define o locale para português
 
-// ✅ PATCH 1: RuntimeApiPlugin ANTES do Store (evita race condition)
-app.use(RuntimeApiPlugin)
-
+// ✅ ORDEM CORRETA: Traccar/Tarkan criam window.$traccar/$tarkan ANTES do RuntimeApiPlugin
 app.use(i18n).mixin({
   methods: {
     KT: KT
   }
-}).use(store).use(Tarkan, tarkanUrl).use(Traccar, serverUrl).use(routes);
+}).use(store).use(Tarkan, tarkanUrl).use(Traccar, serverUrl).use(RuntimeApiPlugin).use(routes);
 
 app.mount('#app');

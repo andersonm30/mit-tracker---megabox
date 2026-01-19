@@ -37,6 +37,8 @@ export default {
     const useGlobalLeaflet = inject(GLOBAL_LEAFLET_OPT);
 
     const addLayer = inject("addLayer");
+    // PATCH 1C: Injetar registry do kore-map para registrar markers
+    const markerRegistry = inject('deviceMarkerRegistry', null);
     //const options = {};
 
     const markerList = ref([]);
@@ -46,6 +48,8 @@ export default {
     const lastRenderToken = ref(0);
     // 🎯 USAR window.$mk GLOBAL (como projeto argentino)
     window.$mk = window.$mk || null;
+    // 🎯 EXPOR markerById globalmente para que kore-map possa esconder/mostrar markers durante playback
+    window.$markerById = markerById.value;
     let clusterAvailable = false; // 🛡️ Flag permanente: true se cluster inicializou com sucesso
 
     // Normalizar devices (Array, Object, {list: []})
@@ -524,7 +528,10 @@ export default {
           } else {
             // 🎯 Renderização de veículos (CanvasMarker)
 
-
+            // PATCH FINAL A: Skip se marker está escondido (playback)
+            if (layer.options.__hidden) {
+              return false;
+            }
 
             const zFactor = (layer._map._zoom - 4) * 0.05;
 
@@ -1263,6 +1270,8 @@ export default {
       if (entity) {
         // CLUSTER PATCH: Registrar entity existente no cache
         markerById.value.set(d.id, entity);
+        // PATCH 1C: Também registrar no deviceMarkerRegistry
+        markerRegistry?.set(d.id, entity);
         // Remover console.log excessivo
       } else {
 
@@ -1326,6 +1335,28 @@ export default {
           context.emit('contextmenu', e);
         });
 
+        // PATCH FINAL A: Método __setHidden para hide/show robusto durante playback
+        tmp.__setHidden = (hidden) => {
+          // Flag única e confiável no nível de options
+          tmp.options.__hidden = !!hidden;
+
+          // Também setar flags em options.img para compatibilidade
+          if (tmp.options?.img) {
+            tmp.options.img.hidden = !!hidden;
+            tmp.options.img.hide = !!hidden;
+          }
+
+          // Forçar redesenho - tentar todos os métodos possíveis
+          if (typeof tmp.redraw === 'function') tmp.redraw();
+          if (typeof tmp._update === 'function') tmp._update();
+          if (typeof tmp.update === 'function') tmp.update();
+          
+          // Se estiver em cluster, forçar refresh
+          if (window.$mk && typeof window.$mk.refreshClusters === 'function') {
+            try { window.$mk.refreshClusters(); } catch (_) { /* ignore */ }
+          }
+        };
+
         const methods = {};
 
         addLayer({
@@ -1338,6 +1369,8 @@ export default {
         markerList.value.push(tmp);
         // CLUSTER PATCH: Registrar marker no cache
         markerById.value.set(d.id, tmp);
+        // PATCH 1C: Registrar no deviceMarkerRegistry (provide/inject)
+        markerRegistry?.set(d.id, tmp);
 
 
         return tmp;

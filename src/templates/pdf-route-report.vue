@@ -12,20 +12,26 @@ import dayjs from 'dayjs';
 import { ElMessage } from 'element-plus';
 import 'element-plus/es/components/message/style/css';
 
-const getDriverName = (driverUniqueId) => {
-  if (!driverUniqueId) return '-';
+const getDriverName = (driverUniqueId, pointAttrs = {}) => {
+  // Regra padronizada: driverUniqueId > rfid (se VALID) > fallback
+  let effectiveDriverId = driverUniqueId;
+  if (!effectiveDriverId && pointAttrs.rfid && pointAttrs.rfidStatus === 'VALID') {
+    effectiveDriverId = pointAttrs.rfid;
+  }
+  
+  if (!effectiveDriverId) return '-';
   try {
     const store = window.$store;
     if (store && store.getters) {
-      const driver = store.getters['drivers/getDriverByUniqueId'](driverUniqueId);
+      const driver = store.getters['drivers/getDriverByUniqueId'](effectiveDriverId);
       if (driver) {
-        return driver.name || driver.uniqueId || driverUniqueId;
+        return driver.name || driver.uniqueId || effectiveDriverId;
       }
     }
   } catch (e) {
     console.warn('Não foi possível acessar informação do motorista:', e);
   }
-  return driverUniqueId;
+  return effectiveDriverId;
 };
 
 const generateDetailedReport = async (routePoints, deviceInfo) => {
@@ -206,7 +212,7 @@ const generateDetailedReport = async (routePoints, deviceInfo) => {
       const ignition = point.attributes?.ignition === true ? 'ON' : point.attributes?.ignition === false ? 'OFF' : '-';
       const blocked = point.attributes?.blocked === true ? 'Sim' : point.attributes?.blocked === false ? 'Não' : '-';
       const motion = point.attributes?.motion === true ? 'Mov' : point.attributes?.motion === false ? 'Par' : '-';
-      const driverName = getDriverName(point.attributes?.driverUniqueId);
+      const driverName = getDriverName(point.attributes?.driverUniqueId, point.attributes || {});
       const location = point.address ? 
         (point.address.length > 40 ? point.address.substring(0, 40) + '...' : point.address) :
         `${point.latitude.toFixed(4)}, ${point.longitude.toFixed(4)}`;
@@ -297,7 +303,7 @@ const generateTabularReport = async (routePoints, deviceInfo) => {
       const blocked = point.attributes?.blocked === true ? 'Sim' : point.attributes?.blocked === false ? 'Não' : '-';
       const motion = point.attributes?.motion === true ? 'Movimento' : point.attributes?.motion === false ? 'Parado' : '-';
       const power = point.attributes?.power ? `${parseFloat(point.attributes.power).toFixed(1)}V` : '-';
-      const driverName = getDriverName(point.attributes?.driverUniqueId);
+      const driverName = getDriverName(point.attributes?.driverUniqueId, point.attributes || {});
       const location = point.address || `${point.latitude.toFixed(5)}, ${point.longitude.toFixed(5)}`;
 
       return [dateTime, `${speed} km/h`, ignition, blocked, motion, power, driverName, location];

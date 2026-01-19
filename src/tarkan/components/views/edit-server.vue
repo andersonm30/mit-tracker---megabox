@@ -69,6 +69,27 @@
         </el-select>
         </el-form-item>
 
+        <el-form-item label="Google API Key" >
+          <el-input v-model="formData.attributes['google_api']" placeholder="Chave da API do Google Maps"></el-input>
+        </el-form-item>
+
+        <div style="border-top: 1px solid #e0e0e0; margin: 20px 0; padding-top: 15px;">
+          <div style="font-weight: bold; margin-bottom: 15px; font-size: 14px; color: #303133;">Configuração SMS</div>
+          
+          <el-form-item label="SMS API URL" >
+            <el-input v-model="formData.attributes['sms_api_url']" placeholder="URL da API de SMS"></el-input>
+          </el-form-item>
+          <el-form-item label="SMS API Key" >
+            <el-input v-model="formData.attributes['sms_api_key']" placeholder="Chave da API de SMS"></el-input>
+          </el-form-item>
+          <el-form-item label="SMS API Type" >
+            <el-input v-model="formData.attributes['sms_api_type']" placeholder="Tipo da API (GET/POST)"></el-input>
+          </el-form-item>
+          <el-form-item label="SMS API Refer" >
+            <el-input v-model="formData.attributes['sms_api_refer']" placeholder="Referência da API"></el-input>
+          </el-form-item>
+        </div>
+
 
         <el-form-item :label="KT('server.latitude')" >
           <el-input v-model="formData.latitude" ></el-input>
@@ -256,6 +277,111 @@
               </el-switch>
             </el-form-item>
           </div>
+
+          <div style="border-top: 1px solid #e0e0e0; margin: 30px 0 20px 0; padding-top: 20px;">
+            <div style="font-weight: bold; margin-bottom: 15px; font-size: 14px; color: #303133;">Billing / Cobrança</div>
+
+            <el-form-item :label="KT('server.enableBilling') || 'Habilitar Billing'">
+              <el-switch
+                  v-model="formData.attributes['tarkan.enableBilling']"
+                  :inactive-text="KT('disabled')"
+                  :active-text="KT('enabled')"
+                  :active-value="true"
+                  :inactive-value="false"
+              >
+              </el-switch>
+            </el-form-item>
+          </div>
+
+        </el-form>
+      </el-tab-pane>
+
+      <!-- Aba Billing -->
+      <el-tab-pane v-if="store.state.auth.administrator && formData.attributes['tarkan.enableBilling']" :label="$t('user.billing') || 'Cobrança'" name="billing">
+        <el-form label-width="120px" label-position="top">
+
+          <el-form-item :label="$t('user.billingTrustUnlock') || 'Desbloqueio de Confiança'">
+            <el-switch
+                v-model="formData.attributes['tarkan.billingTrustUnlock']"
+                :inactive-text="$t('disabled')"
+                :active-text="$t('enabled')"
+                :active-value="1"
+                :inactive-value="0"
+            >
+            </el-switch>
+          </el-form-item>
+
+          <el-form-item :label="$t('user.billingTrustUnlockDays') || 'Dias de Confiança'">
+            <el-input v-model="formData.attributes['tarkan.billingTrustUnlockDays']" :disabled="formData.attributes['tarkan.billingTrustUnlock'] != 1"></el-input>
+          </el-form-item>
+
+          <el-form-item :label="$t('user.billingSuspension') || 'Suspensão Automática'">
+            <el-switch
+                v-model="formData.attributes['tarkan.billingSuspension']"
+                :inactive-text="$t('disabled')"
+                :active-text="$t('enabled')"
+                :active-value="1"
+                :inactive-value="0"
+            >
+            </el-switch>
+          </el-form-item>
+
+          <el-form-item :label="$t('user.billingSuspensionDays') || 'Dias para Suspensão'">
+            <el-input v-model="formData.attributes['tarkan.billingSuspensionDays']" :disabled="formData.attributes['tarkan.billingSuspension'] != 1"></el-input>
+          </el-form-item>
+
+          <el-form-item :label="$t('user.billingDescription') || 'Descrição da Fatura'">
+            <el-input v-model="formData.attributes['tarkan.billingDescription']" type="textarea"></el-input>
+          </el-form-item>
+
+          <el-form-item :label="$t('user.billingDate') || 'Data de Vencimento'">
+            <el-input v-model="formData.attributes['tarkan.billingDate']" type="date"></el-input>
+          </el-form-item>
+
+          <el-form-item :label="$t('user.billingPrice') || 'Valor Padrão'">
+            <el-input v-model="formData.attributes['tarkan.billingPrice']" type="text"
+                      :formatter="(value) => (value=='' || isNaN(parseFloat(value)))?0:(parseFloat(value)/100).toFixed(2).replace('.',',')"
+                      :parser="(value) => value.replace(/\$\s?|(,*)/g, '')">
+            </el-input>
+          </el-form-item>
+
+          <el-form-item :label="$t('user.billingInterest') || 'Juros (%)'">
+            <el-input v-model="formData.attributes['tarkan.billingInterest']"></el-input>
+          </el-form-item>
+
+          <el-form-item :label="$t('user.billingFineMode') || 'Modo de Multa'">
+            <el-switch
+                v-model="formData.attributes['tarkan.billingFineMode']"
+                :inactive-text="$t('fixed') || 'Fixo'"
+                :active-text="$t('percent') || 'Percentual'"
+                :active-value="'PERCENTAGE'"
+                :inactive-value="'FIXED'"
+            >
+            </el-switch>
+          </el-form-item>
+
+          <el-form-item :label="$t('user.billingFine') || 'Valor da Multa'">
+            <el-input v-model="formData.attributes['tarkan.billingFine']"></el-input>
+          </el-form-item>
+
+          <el-form-item :label="$t('user.billingDisccountMode') || 'Modo de Desconto'">
+            <el-switch
+                v-model="formData.attributes['tarkan.billingDisccountMode']"
+                :inactive-text="$t('fixed') || 'Fixo'"
+                :active-text="$t('percent') || 'Percentual'"
+                :active-value="'PERCENTAGE'"
+                :inactive-value="'FIXED'"
+            >
+            </el-switch>
+          </el-form-item>
+
+          <el-form-item :label="$t('user.billingDisccount') || 'Valor do Desconto'">
+            <el-input v-model="formData.attributes['tarkan.billingDisccount']"></el-input>
+          </el-form-item>
+
+          <el-form-item :label="$t('user.billingDisccountDays') || 'Dias para Desconto'">
+            <el-input v-model="formData.attributes['tarkan.billingDisccountDays']"></el-input>
+          </el-form-item>
 
         </el-form>
       </el-tab-pane>

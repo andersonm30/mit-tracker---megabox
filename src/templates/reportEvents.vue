@@ -43,7 +43,8 @@
 </template>
 
 <script setup>
-
+/* eslint-disable no-restricted-properties */
+// TODO: Migrar para runtimeApi quando suportar arrays deviceIds/groupIds e export
 
 
 
@@ -63,12 +64,9 @@ import {inject, ref, computed, onBeforeUnmount} from 'vue';
 import {useStore} from 'vuex';
 import ReportCommon from "./reportCommon";
 
-
 const loading = ref(0);
 
 const store = useStore();
-const runtimeApi = inject('runtimeApi', null);
-if (!runtimeApi) throw new Error('Runtime API não disponível. Recarregue a página.');
 
 const updateRoute = inject('updateRoute');
 
@@ -103,9 +101,9 @@ const onChange = (e)=>{
 }
 
 const loadRoute = (b)=>{
-  runtimeApi.loadRoute(b.deviceId,b.startTime,b.endTime).then(({data})=>{
+  const $traccar = window.$traccar;
 
-
+  $traccar.loadRoute(b.deviceId,b.startTime,b.endTime).then(({data})=>{
     let tmp = [];
     data.forEach((p)=>{
       tmp.push([p.latitude,p.longitude,p.id,p.course]);
@@ -124,10 +122,12 @@ onBeforeUnmount(()=>{
 })
 
 const loadResume = (exp=false)=>{
+  const $traccar = window.$traccar;
   loading.value = 1;
 
   $traccar.getReportEvents(filter.value.deviceId,filter.value.groupId,new Date(filter.value.date[0]).toISOString(),new Date(filter.value.date[1]).toISOString(),exp).then((r)=>{
-    if(exp){
+  
+  if(exp){
 
       loading.value = 0;
 
@@ -150,9 +150,8 @@ const loadResume = (exp=false)=>{
         }
       });
 
-
-      $traccar.getPositions(tmp).then((pdata)=>{
-
+      // Carregar positions
+      $traccar.getPositions(tmp).then(({data:pdata})=>{
         tmp = [];
 
         pdata.forEach((p)=>{
@@ -160,9 +159,7 @@ const loadResume = (exp=false)=>{
         });
 
         updateRoute(tmp,false);
-      })
-
-
+      });
     }
   });
 }

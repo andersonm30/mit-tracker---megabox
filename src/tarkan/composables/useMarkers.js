@@ -393,11 +393,23 @@ export function useMarkers(options) {
         </div>`;
       }
       
-      // Motorista (sanitizado)
-      const driverUniqueId = position.attributes?.driverUniqueId || device.attributes?.driverUniqueId;
-      if (driverUniqueId) {
-        const driverObj = store.getters['drivers/getDriverByUniqueId']?.(driverUniqueId);
-        const driverName = driverObj ? sanitizeDriverName(driverObj) : sanitizeText(driverUniqueId);
+      // Motorista (sanitizado) - REGRA PADRONIZADA
+      const attrs = position.attributes ?? {};
+      const posDriverUniqueId = attrs.driverUniqueId || null;
+      const rfid = attrs.rfid || null;
+      const rfidStatus = attrs.rfidStatus || null;
+      
+      let effectiveDriverId = posDriverUniqueId;
+      if (!effectiveDriverId && rfid && rfidStatus === 'VALID') {
+        effectiveDriverId = rfid;
+      }
+      if (!effectiveDriverId && device.attributes?.driverUniqueId) {
+        effectiveDriverId = device.attributes.driverUniqueId;
+      }
+      
+      if (effectiveDriverId) {
+        const driverObj = store.getters['drivers/getDriverByUniqueId']?.(effectiveDriverId);
+        const driverName = driverObj ? sanitizeDriverName(driverObj) : sanitizeText(effectiveDriverId);
         html += `<div style="color:#ffffff;font-size:9px;margin-bottom:6px;text-align:center;">
           <i class="fas fa-user" style="margin-right:4px;color:#34d399;"></i>${driverName}
         </div>`;

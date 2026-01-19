@@ -550,13 +550,8 @@
       <div class="timeline-message">{{ $t('route.empty') }}</div>
     </template>
     <template v-else>
-      <!-- FASE 5 + FASE 7: Controles de Reprodução com Eventos -->
-      <RoutePlaybackControls
-        :total-points="filteredRoutePoints.length"
-        :points="filteredRoutePoints"
-        :events="routeEvents"
-        @seek="onSeekToPoint"
-      />
+      <!-- [FIX BUG #2] Controles de reprodução REMOVIDOS - usar apenas o widget do mapa -->
+      <!-- O controle unificado está em kore-map.vue (.modern-playback-widget) -->
       
       <!-- Ponto Inicial (Start) -->
       <TimelinePoint
@@ -655,7 +650,7 @@ import {
 
 import { ref, inject, onMounted, watch, onBeforeUnmount, nextTick, computed, getCurrentInstance } from 'vue';
 import { useStore } from 'vuex';
-import { useRoute } from 'vue-router';
+import { useRoute, onBeforeRouteLeave } from 'vue-router';
 
 const runtimeApi = inject('runtimeApi', null);
 if (!runtimeApi) throw new Error('Runtime API não disponível. Recarregue a página.');
@@ -663,8 +658,8 @@ if (!runtimeApi) throw new Error('Runtime API não disponível. Recarregue a pá
 // Subcomponentes locais
 import TimelinePoint from './components/TimelinePoint.vue';
 
-// Componente de controles de reprodução (FASE 5)
-import RoutePlaybackControls from '@/components/RoutePlaybackControls.vue';
+// [FIX BUG #2] Controles de reprodução movidos para widget único no mapa
+// import RoutePlaybackControls from '@/components/RoutePlaybackControls.vue';
 
 // FASE 7: Detector de eventos na rota
 import { detectRouteEvents, createEventIndexMap } from '@/utils/routeEventDetector';
@@ -702,7 +697,7 @@ import {
 import { useRouteMode } from '@/composables/useRouteMode';
 
 // Composables
-import { getDefaultDateRange } from '@/composables/useRequestControl';
+import { getDefaultDateRange, useRequestControl } from '@/composables/useRequestControl';
 
 // ============================================
 // CONFIGURAÇÃO
@@ -715,8 +710,8 @@ const DEBOUNCE_DELAY = 250; // ms para debounce de filtros
 const virtualItemHeight = ref(65); // Altura dinâmica de cada ponto (medida em runtime)
 const VIRTUAL_BUFFER = 8; // Itens extras acima/abaixo do viewport
 
-// Controle de concorrência (requestId simples)
-let loadRouteRequestId = 0;
+// Controle de concorrência com useRequestControl (substitui sistema manual)
+const { execute: safeRouteRequest } = useRequestControl();
 
 // Helpers de log
 const perfLog = (label, startTime, extra = '') => {
@@ -764,6 +759,9 @@ const routeColorRef = inject('routeColor');
 const setRouteColor = inject('setRouteColor');
 const ROUTE_COLOR_OPTIONS = inject('ROUTE_COLOR_OPTIONS');
 
+// PR#4: Inject clearAllOverlays para limpar mapa
+const clearAllOverlays = inject('clearAllOverlays', null);
+
 // FASE 4: Preview/Seek de ponto na timeline (vem do kore-map)
 const previewRoutePoint = inject('previewRoutePoint', null);
 
@@ -780,7 +778,7 @@ const timelineKey = ref(0); // Key para forçar remount limpo
 // Form data
 const [defaultStart, defaultEnd] = getDefaultDateRange();
 const formData = ref({ 
-  deviceId: '', 
+  deviceId: null, 
   date: [defaultStart, defaultEnd] 
 });
 
@@ -987,45 +985,72 @@ const currentDriverName = computed(() => {
 
   const posGetter = store.getters['devices/getPosition'];
   const pos = typeof posGetter === 'function' ? posGetter(dev.id) : null;
-  const attrs = pos?.attributes || dev?.attributes || {};
+  const attrs = pos?.attributes ?? {};
 
-  const driverUniqueId = attrs.driverUniqueId || attrs.driver_unique_id || dev?.driverUniqueId;
-  const driverId = attrs.driverId || attrs.driver_id || dev?.driverId;
+  // ========================================
+  // DRIVER RESOLUTION - REGRA PADRONIZADA
+  // ========================================
+  // Prioridade: driverUniqueId > rfid (SÓ SE rfidStatus === 'VALID') > device fallback
+  // NUNCA usar rfid direto se status é INVALID/UNKNOWN
+  const driverUniqueId = attrs.driverUniqueId || null;
+  const rfid = attrs.rfid || null;
+  const rfidStatus = attrs.rfidStatus || null;
+  
+  // Montar driver efetivo
+  let effectiveDriverId = driverUniqueId;
+  let effectiveSource = driverUniqueId ? 'driverUniqueId' : null;
+  
+  // Fallback para rfid SOMENTE se status é VALID
+  if (!effectiveDriverId && rfid && rfidStatus === 'VALID') {
+    effectiveDriverId = rfid;
+    effectiveSource = 'rfid_valid';
+  }
+  
+  // Último fallback: device.attributes
+  if (!effectiveDriverId && dev?.attributes?.driverUniqueId) {
+    effectiveDriverId = dev.attributes.driverUniqueId;
+    effectiveSource = 'device_fallback';
+  }
+
+  // 🔍 DEBUG: Log apenas em dev
+  if (process.env.NODE_ENV === 'development' || window.DEBUG_DRIVER_LOOKUP) {
+    console.log('[history/currentDriverName]', {
+      deviceId: dev.id,
+      positionId: pos?.id,
+      driverUniqueId,
+      rfid,
+      rfidStatus,
+      effectiveDriverId,
+      effectiveSource
+    });
+  }
+
+  if (!effectiveDriverId) return null;
 
   // Tentar getters do store
   const byUnique = store.getters['drivers/getDriverByUniqueId'];
-  if (driverUniqueId && typeof byUnique === 'function') {
-    const d = byUnique(driverUniqueId);
-    if (d) return d.name || d.uniqueId || driverUniqueId;
-  }
-
-  const byId = store.getters['drivers/getDriverById'];
-  if (driverId && typeof byId === 'function') {
-    const d = byId(driverId);
-    if (d) return d.name || d.uniqueId || String(driverId);
+  if (effectiveDriverId && typeof byUnique === 'function') {
+    const d = byUnique(effectiveDriverId);
+    if (d) return d.name || d.uniqueId || effectiveDriverId;
   }
 
   // Fallback: buscar em listas do state
   const driversRaw = store.state.drivers?.driversList ?? store.state.drivers?.list ?? [];
   const drivers = Array.isArray(driversRaw) ? driversRaw : Object.values(driversRaw || {});
 
-  if (driverUniqueId) {
-    const d = drivers.find(x => x?.uniqueId === driverUniqueId);
-    if (d) return d.name || d.uniqueId || driverUniqueId;
+  if (effectiveDriverId) {
+    const d = drivers.find(x => x?.uniqueId === effectiveDriverId);
+    if (d) return d.name || d.uniqueId || effectiveDriverId;
   }
 
-  if (driverId) {
-    const d = drivers.find(x => Number(x?.id) === Number(driverId));
-    if (d) return d.name || d.uniqueId || String(driverId);
-  }
-
-  return driverUniqueId || (driverId ? String(driverId) : null);
+  return effectiveDriverId;
 });
 
 // Pontos filtrados (busca, tipo de evento, duplicatas)
 const filteredRoutePoints = computed(() => {
   const perfStart = PERF_DEBUG ? performance.now() : 0;
-  let points = routePoints.value;
+  // HARDENING: Spread para garantir imutabilidade real (evita bug se alguém mutar routePoints)
+  let points = [...routePoints.value];
   
   // Filtrar por endereço
   if (searchQuery.value) {
@@ -1358,13 +1383,39 @@ const setQuickPeriod = (days) => {
 
 // Atualizar rota no mapa com pontos filtrados
 const updateMapRoute = () => {
-  const coords = filteredRoutePoints.value.map(p => [p.latitude, p.longitude, p.id, p.course]);
-  updateRoute(coords);
+  // HARDENING RISCO 7: Filtrar pontos inválidos antes de enviar ao mapa
+  // FIX: Passar objetos COMPLETOS para preservar address, attributes, speed, etc.
+  // O kore-map.vue precisa desses dados para o painel "Detalhes do Ponto"
+  const validPoints = filteredRoutePoints.value
+    .filter(p => typeof p.latitude === 'number' && typeof p.longitude === 'number');
+  
+  if (validPoints.length === 0) {
+    console.warn('[history] Nenhum ponto válido para desenhar rota');
+    return;
+  }
+  
+  // HARDENING RISCO 1: Guard contra updateRoute não disponível
+  if (typeof updateRoute === 'function') {
+    // Passar objetos completos + deviceId para ícone correto do playback
+    updateRoute(validPoints, true, formData.value.deviceId);
+  } else {
+    console.warn('[history] updateRoute não disponível (mapa não montado?)');
+  }
 };
 
-// Carregar rota do backend (com controle de concorrência via requestId)
+// Carregar rota do backend (com controle de concorrência via useRequestControl)
 const loadRoute = async (showGraphAfter = false) => {
+  // [DEBUG] Log para verificar chamadas duplicadas - remover após validação
+  console.count('[history] loadRoute()');
+  
   if (!validateForm()) return;
+  
+  // Garantir que runtimeApi está disponível
+  if (!runtimeApi?.loadRoute) {
+    console.error('[history] runtimeApi.loadRoute não disponível');
+    ElMessage.error(safeT('report.apiUnavailable', 'API não disponível. Recarregue a página.'));
+    return;
+  }
   
   // FASE 10: Iniciar medição de telemetria
   startMeasure('loadRoute');
@@ -1377,28 +1428,37 @@ const loadRoute = async (showGraphAfter = false) => {
   // Incrementar key para forçar remount limpo do container
   timelineKey.value++;
   
-  // Controle de concorrência: guardar ID deste request
-  const thisRequestId = ++loadRouteRequestId;
-  
   const deviceId = formData.value.deviceId;
   const startDate = formData.value.date[0];
   const endDate = formData.value.date[1];
   
-  debugLog(`loadRoute: device=${deviceId}, start=${startDate}, end=${endDate}, requestId=${thisRequestId}`);
+  debugLog(`loadRoute: device=${deviceId}, start=${startDate}, end=${endDate}`);
   
   try {
-    const response = await runtimeApi.loadRoute(deviceId, startDate, endDate, false);
+    // PR#4: Limpar overlays antigos ANTES de carregar nova rota
+    // PATCH 5: scope 'history' para não apagar overlays de outras features
+    if (clearAllOverlays) {
+      clearAllOverlays({ reason: 'load-new-route', scope: 'history' });
+    }
     
-    // Verificar se ainda é o request mais recente (evita race condition)
-    if (thisRequestId !== loadRouteRequestId) {
-      debugLog(`loadRoute ignorado: requestId=${thisRequestId} superado por ${loadRouteRequestId}`);
+    // Executar request com proteção de concorrência
+    const result = await safeRouteRequest(async ({ signal }) => {
+      return await runtimeApi.loadRoute(deviceId, startDate, endDate, false, { signal });
+    });
+    
+    // Se abortado ou componente desmontado
+    if (!result || !result.success) {
+      debugLog(`loadRoute abortado ou falhou`);
       return;
     }
     
-    perfLog('loadRoute API', perfStart, `points:${response.data.length}`);
+    const response = result.data;
+    
+    perfLog('loadRoute API', perfStart, `points:${response.data?.length || response.length}`);
     
     // FASE 10: Verificar limites e aplicar fail-safe
-    const { points: safePoints, truncated, warning } = enforceLimits(response.data, {
+    const rawData = response.data || response;
+    const { points: safePoints, truncated, warning } = enforceLimits(rawData, {
       warningLimit: getFlag('MAX_POINTS_WARNING'),
       hardLimit: getFlag('MAX_POINTS_HARD_LIMIT')
     });
@@ -1417,8 +1477,6 @@ const loadRoute = async (showGraphAfter = false) => {
     await nextTick();
     store.dispatch('devices/setDeviceFilter', deviceId);
     
-    loadingState.value = 'idle';
-    isLoading.value = false;
     virtualScrollTop.value = 0; // Reset scroll virtual
     
     // FASE 10: Finalizar medição
@@ -1430,25 +1488,16 @@ const loadRoute = async (showGraphAfter = false) => {
     measureItemHeight();
     
     // Mostrar gráfico se solicitado
-    if (showGraphAfter && response.data.length > 0) {
+    if (showGraphAfter && safePoints.length > 0) {
       loadGraph();
     }
-  } catch (error) {
-    // Verificar se ainda é o request atual antes de reportar erro
-    if (thisRequestId !== loadRouteRequestId) {
-      debugLog(`loadRoute erro ignorado: requestId=${thisRequestId} superado`);
-      return;
-    }
-    
-    console.error('Erro ao carregar rota:', error);
-    loadingState.value = 'error';
+  } catch (err) {
+    console.error('[history] loadRoute error:', err);
+    ElMessage.error(safeT('report.loadError', 'Erro ao carregar rota.'));
+  } finally {
+    // GARANTIR que loadingState SEMPRE volte para idle
+    loadingState.value = 'idle';
     isLoading.value = false;
-    ElMessage.error(safeT('report.loadError', 'Erro ao carregar dados'));
-    
-    // Voltar ao idle após 3s
-    setTimeout(() => {
-      if (loadingState.value === 'error') loadingState.value = 'idle';
-    }, 3000);
   }
 };
 
@@ -1499,10 +1548,17 @@ const escapeCsvValue = (value) => {
 };
 
 const exportCsv = () => {
-  if (filteredRoutePoints.value.length === 0) {
-    ElMessage.warning(safeT('route.empty', 'Sem pontos para exportar'));
+  if (!guardExport(filteredRoutePoints.value, (msg) => ElMessage.warning(msg))) {
     return;
   }
+  
+  // PATCH 9: Limite de segurança para CSV (50k pontos)
+  const MAX_CSV_POINTS = 50000;
+  if (filteredRoutePoints.value.length > MAX_CSV_POINTS) {
+    ElMessage.warning(`Limite de ${MAX_CSV_POINTS.toLocaleString()} pontos para CSV. Use filtros para reduzir.`);
+    return;
+  }
+  
   if (!validateForm()) return;
   
   const deviceId = formData.value.deviceId;
@@ -1552,10 +1608,17 @@ const exportCsv = () => {
 };
 
 const exportPrintPdf = () => {
-  if (filteredRoutePoints.value.length === 0) {
-    ElMessage.warning(safeT('route.empty', 'Sem pontos para exportar'));
+  if (!guardExport(filteredRoutePoints.value, (msg) => ElMessage.warning(msg))) {
     return;
   }
+  
+  // PATCH 9: Limite de segurança para PDF (5k pontos - HTML pesado)
+  const MAX_PDF_POINTS = 5000;
+  if (filteredRoutePoints.value.length > MAX_PDF_POINTS) {
+    ElMessage.warning(`PDF limitado a ${MAX_PDF_POINTS.toLocaleString()} pontos. Use CSV para dados completos ou aplique filtros.`);
+    return;
+  }
+  
   if (!validateForm()) return;
   
   const deviceId = formData.value.deviceId;
@@ -2071,6 +2134,9 @@ const calculateStopTime = () => {
 
 // Sync formData com store
 watch(formData, () => {
+  // HARDENING RISCO 4: Evitar loop de update durante loading
+  if (isLoading.value) return;
+  
   const { deviceId, date } = formData.value;
   if (!deviceId || !date?.[0] || !date?.[1]) return;
   sendDataToStore();
@@ -2090,25 +2156,49 @@ watch([searchQuery, eventFilter, customSpeed, removeDuplicates], () => {
 watch(showHeatmap, (enabled) => {
   debugLog('Heatmap toggle:', enabled);
   toggleHeatmap?.(enabled);
-  store.state.devices.showCalor = enabled;
+  store.commit('devices/setShowCalor', enabled);
 });
 
 // 5️⃣ Scroll automático APENAS quando estiver em modo play
 watch(currentPlayingPoint, (newValue) => {
+  // DEBUG: Log para verificar se o watcher está funcionando
+  if (process.env.NODE_ENV === 'development') {
+    debugLog(`[PLAY SYNC] currentPlayingPoint mudou para ${newValue}, isPlaying=${isPlayingRoute.value}`);
+  }
+  
   // Só faz scroll se estiver reproduzindo e tiver pontos
   if (!isPlayingRoute.value) return;
   if (newValue > 0 && filteredRoutePoints.value.length > 0) {
+    // Validar se o índice existe no array filtrado
+    if (newValue >= filteredRoutePoints.value.length) {
+      debugLog(`[PLAY SYNC] ⚠️ Índice ${newValue} fora do range (max: ${filteredRoutePoints.value.length - 1})`);
+      return;
+    }
     nextTick(() => scrollToActivePoint(newValue));
   }
 });
 
 // Carregar rota via query param (ex: ?deviceId=123)
-watch(() => route.query.deviceId, () => {
-  if (route.query.deviceId) {
-    formData.value.deviceId = parseInt(route.query.deviceId);
+// PATCH 2: Centralizado aqui - evita duplicação com onMounted
+watch(() => formData.value.deviceId, (newVal) => {
+  // Só carregar se tiver deviceId válido
+  // HARDENING RISCO 5: Guard isLoading para garantir single-flight
+  if (newVal && typeof newVal === 'number' && newVal > 0 && !isLoading.value) {
     loadRoute();
   }
 });
+
+// PATCH 4: Recalcular containerHeight quando a timeline aparece
+watch(
+  () => filteredRoutePoints.value.length,
+  async (len) => {
+    await nextTick();
+    if (len > 2 && timelineScrollRef.value) {
+      containerHeight.value = timelineScrollRef.value.clientHeight || 400;
+      measureItemHeight();
+    }
+  }
+);
 
 // ============================================
 // FASE 13.2: MEDIÇÃO DINÂMICA DE ALTURA
@@ -2119,9 +2209,18 @@ watch(() => route.query.deviceId, () => {
  */
 const measureItemHeight = () => {
   nextTick(() => {
-    const firstItem = document.querySelector('.timeline-point');
-    if (firstItem) {
-      const rect = firstItem.getBoundingClientRect();
+    // HARDENING RISCO 6: Isolar escopo para evitar medir elemento de outra timeline
+    const root = timelineScrollRef.value;
+    if (!root) {
+      debugLog('[FASE 13.2] timelineScrollRef não disponível para medição');
+      return;
+    }
+    
+    // PATCH 6: Priorizar item 'middle' que tem layout mais representativo
+    const targetItem = root.querySelector('.timeline-point.type-middle') 
+                    || root.querySelector('.timeline-point');
+    if (targetItem) {
+      const rect = targetItem.getBoundingClientRect();
       const measuredHeight = rect.height;
       
       // Validação: altura deve ser razoável (entre 40px e 200px)
@@ -2155,19 +2254,22 @@ onMounted(() => {
   
   if (shareResult?.shouldLoad) {
     // Share link detectado - carregar rota automaticamente
+    // HARDENING RISCO 5: Guard isLoading para garantir single-flight
     nextTick(() => {
-      loadRoute().then(() => {
-        // Após carregar, aplicar seek se especificado
-        if (shareResult.seekIndex !== null && shareResult.seekIndex >= 0) {
-          setTimeout(() => {
-            onSeekToPoint(shareResult.seekIndex);
-          }, 500);
-        }
-      });
+      if (!isLoading.value) {
+        loadRoute().then(() => {
+          // Após carregar, aplicar seek se especificado
+          if (shareResult.seekIndex !== null && shareResult.seekIndex >= 0) {
+            setTimeout(() => {
+              onSeekToPoint(shareResult.seekIndex);
+            }, 500);
+          }
+        });
+      }
     });
   } else if (route.query.deviceId) {
+    // PATCH 2: Apenas setar deviceId - o watch abaixo irá chamar loadRoute()
     formData.value.deviceId = parseInt(route.query.deviceId);
-    loadRoute();
   }
 });
 
@@ -2177,10 +2279,24 @@ onBeforeUnmount(() => {
     clearTimeout(debounceTimer);
     debounceTimer = null;
   }
-  // Invalidar requests pendentes incrementando o ID
-  loadRouteRequestId++;
+  
+  // PR#4: Limpar todos overlays do mapa ao desmontar componente
+  // PATCH 5: scope 'history' para não apagar overlays de outras features
+  if (clearAllOverlays) {
+    clearAllOverlays({ reason: 'component-unmount', scope: 'history' });
+  }
+  
+  // useRequestControl já cuida do abort automático
   // Resetar estados do store
   store.dispatch('devices/resetDeviceStates');
+});
+
+// PR#4: Limpar overlays ao navegar para outra rota
+// PATCH 5: scope 'history' para não apagar overlays de outras features
+onBeforeRouteLeave(() => {
+  if (clearAllOverlays) {
+    clearAllOverlays({ reason: 'route-leave', scope: 'history' });
+  }
 });
 </script>
 
