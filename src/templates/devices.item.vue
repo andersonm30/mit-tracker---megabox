@@ -375,7 +375,9 @@ const footerIndicators = computed(() => {
   }
 
   const sp = speedKmh.value
-  const overLimit = Number(deviceProp.value?.attributes?.speedLimit ?? 0) > 0 && sp > Number(deviceProp.value.attributes.speedLimit)
+  // PR-09B: Leitura padronizada de speedLimit (preferir speedLimitKmh)
+  const speedLimitKmh = Number(deviceProp.value?.attributes?.speedLimitKmh ?? deviceProp.value?.attributes?.speedLimit ?? 0);
+  const overLimit = speedLimitKmh > 0 && sp > speedLimitKmh;
   const su = speedUnit.value === 'mph' ? 'mph' : 'km/h'
   arr.push({
     key: 'speed',

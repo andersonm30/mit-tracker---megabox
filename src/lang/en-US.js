@@ -476,6 +476,8 @@ const messages = {
             status: 'Status',
             iccid: 'ICCID',
             phone: 'Phone',
+            speedLimitKmh: 'Speed Limit (km/h)',
+            speedLimitKmhHelp: 'Used for speeding alerts',
             operator: 'Operator',
             model: 'Model',
             plate: 'Plate',

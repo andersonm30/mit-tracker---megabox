@@ -154,6 +154,25 @@
       </el-form-item>
     </div>
 
+    <!-- Linha Velocidade: Velocidade de Notificação (PR-09B) -->
+    <div style="display: flex; justify-content: space-between; gap: 20px;">
+      <el-form-item label="Velocidade de Notificação (km/h)" style="flex: 0.7;">
+        <el-input-number 
+          v-model="formData.attributes.speedLimitKmh" 
+          :min="0" 
+          :max="300" 
+          :step="1" 
+          controls-position="right"
+          placeholder="Ex: 80"
+          style="width: 100%;"
+        />
+        <div style="font-size: 12px; color: #909399; margin-top: 4px;">
+          Usada para alertas de excesso de velocidade
+        </div>
+      </el-form-item>
+      <div style="flex: 0.7;"></div>
+    </div>
+
     <!-- Linha 2: Broker e Operadora -->
     <div style="display: flex; justify-content: space-between; gap: 20px;">
       <el-form-item :label="KT('device.brocker')" style="flex: 0.7;">
@@ -959,6 +978,7 @@
 
 
 import 'element-plus/es/components/input/style/css'
+import 'element-plus/es/components/input-number/style/css'
 import 'element-plus/es/components/button/style/css'
 import 'element-plus/es/components/switch/style/css'
 import 'element-plus/es/components/select/style/css'
@@ -973,7 +993,9 @@ import 'element-plus/es/components/upload/style/css'
 import 'element-plus/es/components/divider/style/css'
 import 'element-plus/es/components/alert/style/css'
 import 'element-plus/es/components/tag/style/css'
-import {ElDialog,ElSlider,ElMessage,ElMessageBox,ElNotification,ElTabs,ElTabPane,ElForm,ElSwitch,ElFormItem,ElSelect,ElOption,ElButton,ElInput,ElUpload,ElDivider,ElAlert,ElTag} from "element-plus";
+import {ElDialog,ElSlider,ElMessage,ElMessageBox,ElNotification,ElTabs,ElTabPane,ElForm,ElSwitch,ElFormItem,ElSelect,ElOption,ElButton,ElInput,ElInputNumber,ElUpload,ElDivider,ElAlert,ElTag} from "element-plus";
+
+import { toKmh } from '../../../utils/speedNormalizer';
 
 
 import TabAttributes from "./tab-attributes";
@@ -1429,9 +1451,22 @@ const editDevice = (id)=>{
   for(let k of Object.keys(defaultDeviceData)){
     if(k==='attributes') {
       formData.value[k] = (device[k] === null) ? {} : JSON.parse(JSON.stringify(device[k]));
-      // eslint-disable-next-line no-undef
-      if(formData.value[k]['speedLimit']){
-        formData.value.attributes.speedLimit = parseFloat(T('units.'+store.getters['server/getAttribute']('speedUnit','speedUnit'),{speed: formData.value.attributes.speedLimit}).replace(/[^0-9]/g, ''));
+      
+      // PR-09B: Normalização de speedLimit para km/h
+      // Compatibilidade: converter legado se necessário
+      const serverUnit = store.getters['server/getAttribute']('speedUnit','kmh');
+      
+      if (!formData.value.attributes.speedLimitKmh && formData.value.attributes.speedLimit) {
+        // Converter speedLimit legado para speedLimitKmh (sempre em km/h)
+        formData.value.attributes.speedLimitKmh = toKmh(
+          Number(formData.value.attributes.speedLimit), 
+          serverUnit
+        );
+      }
+      
+      // Garantir que speedLimitKmh é number ou undefined
+      if (formData.value.attributes.speedLimitKmh) {
+        formData.value.attributes.speedLimitKmh = Number(formData.value.attributes.speedLimitKmh);
       }
       
     }else {
@@ -1696,9 +1731,18 @@ const doSave = () => {
         delete formData.value.attributes['litersx100km'];
       }
 
-      // Converter e formatar limite de velocidade
-      if (formData.value.attributes['speedLimit']) {
-        formData.value.attributes.speedLimit = parseFloat(T('units.' + store.getters['server/getAttribute']('speedUnit', 'speedUnit') + 'Reverse', { speed: formData.value.attributes.speedLimit }).replace(/[^0-9]/g, ''));
+      // PR-09B: Salvar velocidade de notificação (sempre em km/h)
+      if (formData.value.attributes.speedLimitKmh !== undefined && 
+          formData.value.attributes.speedLimitKmh !== null && 
+          formData.value.attributes.speedLimitKmh !== '') {
+        const v = Number(formData.value.attributes.speedLimitKmh);
+        // Salvar em speedLimitKmh (novo padrão) e speedLimit (compatibilidade)
+        formData.value.attributes.speedLimitKmh = v;
+        formData.value.attributes.speedLimit = v;
+      } else {
+        // Se vazio/0, remover para não poluir attributes
+        delete formData.value.attributes.speedLimitKmh;
+        delete formData.value.attributes.speedLimit;
       }
 
       // Notificação de salvamento

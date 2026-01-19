@@ -303,6 +303,8 @@ const messages = {
             status: 'Estado',
             iccid: 'ICCID',
             phone: 'Teléfono',
+            speedLimitKmh: 'Límite de Velocidad (km/h)',
+            speedLimitKmhHelp: 'Usado para alertas de exceso de velocidad',
             operator: 'Operadora',
             model: 'Modelo',
             plate: 'Placa',

@@ -57,16 +57,16 @@ import {ElSelect,ElOption,ElButton,ElInput} from "element-plus";
 
 const defaultAvailableAttributes = {
   device: [
-      'lockOnExit',
-      'speedLimit'
+      'lockOnExit'
+      // 'speedLimit' - Movido para campo oficial do form (PR-09B)
   ],
   user: [
       'telegramChatId'
   ],
   geofence: [
     'color',
-    'lockOnExit',
-    'speedLimit'
+    'lockOnExit'
+    // 'speedLimit' - Movido para campo oficial do form (PR-09B)
   ]
 }
 

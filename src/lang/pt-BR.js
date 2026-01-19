@@ -556,6 +556,8 @@ const messages = {
             status: 'Status',
             iccid: 'ICCID',
             phone: 'Telefone',
+            speedLimitKmh: 'Velocidade de Notificação (km/h)',
+            speedLimitKmhHelp: 'Usada para alertas de excesso de velocidade',
             operator: 'Operadora',
             model: 'Modelo',
             plate: 'Placa',
