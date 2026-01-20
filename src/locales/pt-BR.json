@@ -1,0 +1,35 @@
+{
+  "message": "olá i18n !!",
+  "speedEvents": {
+    "title": "Eventos de Velocidade",
+    "loading": "Carregando...",
+    "empty": "Nenhum evento neste período",
+    "saveFirstMessage": "Salve o dispositivo primeiro para visualizar eventos de velocidade",
+    "filter": {
+      "today": "Hoje",
+      "last7": "Últimos 7 dias",
+      "last30": "Últimos 30 dias"
+    },
+    "columns": {
+      "time": "Data/Hora",
+      "speed": "Velocidade",
+      "limit": "Limite",
+      "exceed": "Excedeu",
+      "address": "Endereço",
+      "driver": "Motorista"
+    },
+    "pagination": {
+      "prev": "Anterior",
+      "next": "Próximo",
+      "info": "Página {current} de {total}"
+    },
+    "badge": {
+      "noLimit": "Sem limite",
+      "noLimitHelp": "Nenhum limite de velocidade configurado para este dispositivo",
+      "limit": "Limite: {limit} km/h",
+      "limitHelp": "Limite de velocidade configurado para notificações",
+      "todayCount": "Hoje: {count}",
+      "todayHelp": "Número de violações de velocidade hoje"
+    }
+  }
+}

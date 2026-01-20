@@ -989,6 +989,26 @@
           </div>
         </el-tab-pane>
 
+        <!-- PR-10B: Speed Events Tab -->
+        <el-tab-pane name="speed-events">
+          <template #label>
+            <i class="fas fa-tachometer-alt"></i> {{ KT('speedEvents.title') }}
+          </template>
+
+          <div v-if="formData.id" style="padding: 0;">
+            <!-- SpeedEventHistory component with lazy loading -->
+            <SpeedEventHistory 
+              v-if="tab === 'speed-events'"
+              :device-id="formData.id" 
+              :driver-id="formData.attributes?.driverUniqueId || null"
+            />
+          </div>
+          <div v-else style="padding: 20px; text-align: center; color: #909399;">
+            <i class="fas fa-info-circle" style="font-size: 24px; margin-bottom: 10px;"></i>
+            <p>{{ KT('speedEvents.saveFirstMessage') }}</p>
+          </div>
+        </el-tab-pane>
+
         <el-tab-pane  >
         <template #label>
         <i class="fas fa-check"></i> {{ KT('device.observations') }}
@@ -1047,6 +1067,7 @@ import { parseSpeedKmh, isProbablyWrongSpeedLimit, formatSpeedKmh } from '../../
 
 
 import TabAttributes from "./tab-attributes";
+import SpeedEventHistory from '../../../components/speed/SpeedEventHistory.vue'; // PR-10B
 
 import {ref, reactive, watch, computed} from 'vue';
 import {useStore} from 'vuex'

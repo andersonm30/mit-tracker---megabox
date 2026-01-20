@@ -12,6 +12,7 @@ import drivers from './modules/drivers'
 import calendars from './modules/calendars'
 import maintenance from './modules/maintenance'
 import reports from './modules/reports'
+import speedEvents from './modules/speedEvents' // PR-10B: Speed Events module
 // import routes from './modules/routes' // TEMPORARIAMENTE COMENTADO PARA DEBUG
 
 import i18n from '../lang/';
@@ -429,7 +430,8 @@ const store = createStore({
         drivers,
         calendars,
         maintenance,
-        reports
+        reports,
+        speedEvents // PR-10B: Speed Events module
         // routes // TEMPORARIAMENTE COMENTADO PARA DEBUG
     }
 })

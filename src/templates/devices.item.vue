@@ -25,6 +25,39 @@
           </span>
         </div>
 
+        <!-- PR-10B: Speed Event Badges -->
+        <div v-if="speedLimitBadges.show" class="speed-badges">
+          <!-- Badge: Sem limite (azul) -->
+          <span
+            v-if="speedLimitBadges.noLimit"
+            class="speed-badge speed-badge--no-limit"
+            @mouseenter.stop="showTip($event, KT('speedEvents.badge.noLimitHelp'))"
+            @mouseleave="hideTip"
+          >
+            <i class="fas fa-tachometer-alt"></i> {{ KT('speedEvents.badge.noLimit') }}
+          </span>
+
+          <!-- Badge: Limite configurado -->
+          <span
+            v-else
+            class="speed-badge speed-badge--limit"
+            @mouseenter.stop="showTip($event, KT('speedEvents.badge.limitHelp'))"
+            @mouseleave="hideTip"
+          >
+            <i class="fas fa-tachometer-alt"></i> {{ KT('speedEvents.badge.limit', { limit: deviceProp.attributes.speedLimitKmh }) }}
+          </span>
+
+          <!-- Badge: Eventos hoje (se > 0) -->
+          <span
+            v-if="todayCount > 0"
+            class="speed-badge speed-badge--today"
+            @mouseenter.stop="showTip($event, KT('speedEvents.badge.todayHelp'))"
+            @mouseleave="hideTip"
+          >
+            <i class="fas fa-exclamation-circle"></i> {{ KT('speedEvents.badge.todayCount', { count: todayCount }) }}
+          </span>
+        </div>
+
         <!-- IMEI + Placa -->
         <div class="meta-info">
           <div v-if="deviceProp.uniqueId" class="meta-item">
@@ -211,7 +244,7 @@
 </template>
 
 <script setup>
-import { computed, defineProps, defineEmits, inject, unref } from 'vue'
+import { computed, defineProps, defineEmits, inject, unref, ref, onMounted } from 'vue' // PR-10B: added ref, onMounted
 import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
 import { ElMessageBox, ElNotification, ElMessage } from 'element-plus'
@@ -283,6 +316,32 @@ const driverId = computed(() => effectiveDriverId.value);
 const driverObj = computed(() =>
   effectiveDriverId.value ? store.getters['drivers/getDriverByUniqueId']?.(effectiveDriverId.value) ?? null : null
 );
+
+/* PR-10B: Speed Events Badges */
+const todayCount = ref(0)
+
+// Fetch today's speed event count (com cache 60s no store)
+onMounted(async () => {
+  if (deviceProp.value?.id) {
+    try {
+      todayCount.value = await store.dispatch('speedEvents/fetchTodayCount', deviceProp.value.id)
+    } catch (err) {
+      console.warn('[PR-10B] Error fetching today count:', err)
+      todayCount.value = 0
+    }
+  }
+})
+
+// Computed para controlar exibição de badges
+const speedLimitBadges = computed(() => {
+  const limit = deviceProp.value?.attributes?.speedLimitKmh ?? 0
+  return {
+    show: limit !== undefined, // mostrar badges se speedLimitKmh existe (mesmo que 0)
+    noLimit: limit <= 0,
+    hasLimit: limit > 0,
+    limitValue: limit
+  }
+});
 
 /* Conversões de velocidade */
 const speedKmh = computed(() => {
@@ -801,6 +860,68 @@ function copyToClipboard(text) {
 
 .navigate-button { color: #ea580c; border-color: #ea580c; }
 .navigate-button:hover:not(.disabled) { background-color: #fff7ed; }
+
+/* ===== PR-10B: Speed Badges ===== */
+.speed-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.speed-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: help;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.speed-badge i {
+  font-size: 9px;
+}
+
+.speed-badge:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Badge: Sem limite (azul) */
+.speed-badge--no-limit {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: #ffffff;
+  border: 1px solid #1d4ed8;
+}
+
+/* Badge: Limite configurado (verde) */
+.speed-badge--limit {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: #ffffff;
+  border: 1px solid #047857;
+}
+
+/* Badge: Eventos hoje (laranja/vermelho) */
+.speed-badge--today {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: #ffffff;
+  border: 1px solid #b45309;
+  animation: pulse-badge 2s ease-in-out infinite;
+}
+
+@keyframes pulse-badge {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
 
 /* ===== Footer / Indicadores ===== */
 .device-footer {
