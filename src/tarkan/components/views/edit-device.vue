@@ -154,21 +154,68 @@
       </el-form-item>
     </div>
 
-    <!-- Linha Velocidade: Velocidade de Notificação (PR-09B) -->
+    <!-- Linha Velocidade: Velocidade de Notificação (PR-09B + PR-09C Guardrails) -->
     <div style="display: flex; justify-content: space-between; gap: 20px;">
       <el-form-item label="Velocidade de Notificação (km/h)" style="flex: 0.7;">
-        <el-input-number 
-          v-model="formData.attributes.speedLimitKmh" 
-          :min="0" 
-          :max="300" 
-          :step="1" 
-          controls-position="right"
-          placeholder="Ex: 80"
-          style="width: 100%;"
-        />
-        <div style="font-size: 12px; color: #909399; margin-top: 4px;">
-          Usada para alertas de excesso de velocidade
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <el-input-number 
+            v-model="formData.attributes.speedLimitKmh" 
+            :min="0" 
+            :max="300" 
+            :step="1" 
+            controls-position="right"
+            placeholder="Ex: 80"
+            style="flex: 1;"
+            @blur="handleSpeedLimitBlur"
+          />
+          <!-- Badge de status (PR-09C) -->
+          <el-tag 
+            v-if="speedLimitStatus.hasLimit" 
+            type="success" 
+            size="small"
+            effect="plain"
+          >
+            Configurado
+          </el-tag>
+          <el-tag 
+            v-else 
+            type="info" 
+            size="small"
+            effect="plain"
+          >
+            Sem limite
+          </el-tag>
         </div>
+        
+        <!-- Helper text + tooltip (PR-09C) -->
+        <div style="font-size: 12px; color: #909399; margin-top: 4px;">
+          Usada para alertas de excesso de velocidade<br/>
+          <span style="color: #606266;">💡 Valores comuns: urbano 40–60, rodovia 80–110</span>
+        </div>
+        
+        <!-- Warnings não bloqueantes (PR-09C) -->
+        <el-alert 
+          v-if="speedLimitStatus.warnings.low" 
+          type="warning" 
+          :closable="false"
+          show-icon
+          style="margin-top: 8px;"
+        >
+          <template #title>
+            Valor muito baixo (< 20 km/h) - provável erro
+          </template>
+        </el-alert>
+        <el-alert 
+          v-if="speedLimitStatus.warnings.high" 
+          type="warning" 
+          :closable="false"
+          show-icon
+          style="margin-top: 8px;"
+        >
+          <template #title>
+            Valor muito alto (> 180 km/h) - provável erro
+          </template>
+        </el-alert>
       </el-form-item>
       <div style="flex: 0.7;"></div>
     </div>
@@ -996,6 +1043,7 @@ import 'element-plus/es/components/tag/style/css'
 import {ElDialog,ElSlider,ElMessage,ElMessageBox,ElNotification,ElTabs,ElTabPane,ElForm,ElSwitch,ElFormItem,ElSelect,ElOption,ElButton,ElInput,ElInputNumber,ElUpload,ElDivider,ElAlert,ElTag} from "element-plus";
 
 import { toKmh } from '../../../utils/speedNormalizer';
+import { parseSpeedKmh, isProbablyWrongSpeedLimit, formatSpeedKmh } from '../../../utils/speedHelpers';
 
 
 import TabAttributes from "./tab-attributes";
@@ -1402,6 +1450,27 @@ const getColorsFromAttribute = ()=>{
 
 
 }
+
+// PR-09C: Computed para status e warnings de speedLimit
+const speedLimitStatus = computed(() => {
+  const value = formData.value.attributes?.speedLimitKmh;
+  const check = isProbablyWrongSpeedLimit(value);
+  
+  return {
+    hasLimit: value > 0,
+    warnings: {
+      low: check.low,  // < 20 km/h
+      high: check.high  // > 180 km/h
+    }
+  };
+});
+
+// PR-09C: Handler de blur para sanitização do input
+const handleSpeedLimitBlur = () => {
+  if (formData.value.attributes?.speedLimitKmh !== undefined) {
+    formData.value.attributes.speedLimitKmh = parseSpeedKmh(formData.value.attributes.speedLimitKmh);
+  }
+};
 
 
 const newDevice = ()=>{

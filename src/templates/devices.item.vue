@@ -379,13 +379,19 @@ const footerIndicators = computed(() => {
   const speedLimitKmh = Number(deviceProp.value?.attributes?.speedLimitKmh ?? deviceProp.value?.attributes?.speedLimit ?? 0);
   const overLimit = speedLimitKmh > 0 && sp > speedLimitKmh;
   const su = speedUnit.value === 'mph' ? 'mph' : 'km/h'
+  
+  // PR-09C: Badge com formatação consistente do limite de velocidade
+  const speedLimitBadge = speedLimitKmh > 0 
+    ? `Limite: ${speedLimitKmh} km/h` 
+    : 'Sem limite';
+  
   arr.push({
     key: 'speed',
     icon: 'fas fa-tachometer-alt',
     color: overLimit ? '#ef4444' : '#3b82f6',
     value: `${sp} ${su}`,
-    tooltip: `Velocidade: ${sp} ${su}`,
-    statusClass: 'speed-indicator',
+    tooltip: `Velocidade: ${sp} ${su} | ${speedLimitBadge}`,
+    statusClass: overLimit ? 'speed-indicator over-speed-limit' : 'speed-indicator',
     valueClass: overLimit ? 'over-limit' : ''
   })
 
