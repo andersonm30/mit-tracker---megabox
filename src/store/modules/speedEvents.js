@@ -260,7 +260,7 @@ export default {
          * 
          * @param {number} [deviceId] - ID do device (se omitido, limpa tudo)
          */
-        clearTodayCountCache(context, deviceId) {
+        clearTodayCountCache(_, deviceId) {
             if (deviceId) {
                 todayCountCache.delete(deviceId);
             } else {

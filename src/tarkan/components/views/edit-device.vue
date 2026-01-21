@@ -202,7 +202,7 @@
           style="margin-top: 8px;"
         >
           <template #title>
-            Valor muito baixo (< 20 km/h) - provável erro
+            Valor muito baixo (&lt; 20 km/h) - provável erro
           </template>
         </el-alert>
         <el-alert 
@@ -1063,7 +1063,7 @@ import 'element-plus/es/components/tag/style/css'
 import {ElDialog,ElSlider,ElMessage,ElMessageBox,ElNotification,ElTabs,ElTabPane,ElForm,ElSwitch,ElFormItem,ElSelect,ElOption,ElButton,ElInput,ElInputNumber,ElUpload,ElDivider,ElAlert,ElTag} from "element-plus";
 
 import { toKmh } from '../../../utils/speedNormalizer';
-import { parseSpeedKmh, isProbablyWrongSpeedLimit, formatSpeedKmh } from '../../../utils/speedHelpers';
+import { parseSpeedKmh, isProbablyWrongSpeedLimit } from '../../../utils/speedHelpers';
 
 
 import TabAttributes from "./tab-attributes";
@@ -1072,12 +1072,7 @@ import SpeedEventHistory from '../../../components/speed/SpeedEventHistory.vue';
 import {ref, reactive, watch, computed} from 'vue';
 import {useStore} from 'vuex'
 import DvCar from "./dv-car";
-import i18n from "../../../lang/";
 import KT from "../../func/kt";
-
-const T = (a,b) =>{
- return i18n.global.t(a,b);
-}
 
 const store = useStore();
 
