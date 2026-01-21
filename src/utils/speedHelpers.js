@@ -7,8 +7,6 @@
  * Padrão: km/h sempre (alinhado com PR-09A backend + PR-09B frontend)
  */
 
-import { toKmh, sanitizeKmh } from './speedNormalizer';
-
 /**
  * Formata velocidade para exibição
  * 

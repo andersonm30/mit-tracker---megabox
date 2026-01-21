@@ -139,7 +139,6 @@ const props = defineProps({
 
 // Setup
 const store = useStore();
-const { t } = useI18n();
 
 // State
 const selectedPreset = ref('today');

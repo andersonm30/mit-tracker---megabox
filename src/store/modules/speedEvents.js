@@ -199,7 +199,7 @@ export default {
          * @param {number} deviceId - ID do device
          * @returns {Promise<number>} - Total de eventos hoje
          */
-        async fetchTodayCount({ commit }, deviceId) {
+        async fetchTodayCount(_, deviceId) {
             if (!deviceId) {
                 return 0;
             }
