@@ -122,7 +122,6 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
 import { useStore } from 'vuex';
-import { useI18n } from 'vue-i18n';
 import { formatSpeedKmh } from '@/utils/speedHelpers';
 
 // Props
