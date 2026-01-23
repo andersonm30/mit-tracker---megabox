@@ -1,0 +1,44 @@
+/**
+ * PR-10A.1: Buscar positions desde último ID processado (cursor-based polling)
+ * 
+ * Este método deve ser adicionado ao final de traccarConnector.php (antes do })
+ * Localização: back-end/app/Tarkan/traccarConnector.php
+ * 
+ * @param int $lastPositionId Último position_id processado
+ * @param int $limit Máximo de positions a retornar
+ * @return array Array de positions ordenado por id ASC
+ */
+public function getPositionsSince(int $lastPositionId, int $limit = 500): array
+{
+    $URL = $this->config['host'] . '/positions';
+    
+    $request = Http::acceptJson();
+    
+    if (isset($this->config['username']) && isset($this->config['password'])) {
+        $request->withBasicAuth(
+            $this->config['username'],
+            $this->config['password']
+        );
+    }
+    
+    $response = $request->get($URL);
+    
+    if ($response->status() !== 200) {
+        return [];
+    }
+    
+    $allPositions = $response->json() ?? [];
+    
+    // Filtrar positions com id > lastPositionId
+    $newPositions = array_filter($allPositions, function($pos) use ($lastPositionId) {
+        return isset($pos['id']) && $pos['id'] > $lastPositionId;
+    });
+    
+    // Ordenar por id ASC
+    usort($newPositions, function($a, $b) {
+        return ($a['id'] ?? 0) - ($b['id'] ?? 0);
+    });
+    
+    // Limitar quantidade
+    return array_slice($newPositions, 0, $limit);
+}
