@@ -44,6 +44,9 @@ const routes = [
     { path: '/commands', component: ()=>import('./templates/commands'), meta: {title: 'menu.commands',shown: true} },
     { path: '/drivers', component: ()=>import('./templates/drivers-dashboard'), meta: {title: 'Motoristas',shown: true} },
     { path: '/drivers/:driverId/report', component: ()=>import('./templates/driver-report'), meta: {title: 'Relatório do Motorista',shown: false,backBtn: '/drivers'} },
+    // Faturas (Invoices)
+    { path: '/invoices', component: ()=>import('./tarkan/components/views/show-invoices'), meta: {title: 'menu.invoices',shown: true} },
+    { path: '/invoices-manager', component: ()=>import('./tarkan/components/views/show-invoices-manager'), meta: {title: 'menu.invoicesManager',shown: true} },
     {path: '/login', component: ()=>import('@/templates/login.vue'),name: 'Login', meta: {public: true}},
     {path: '/motorista', component: ()=>import('@/templates/login.vue'),name: 'DriverLogin', meta: {public: true,isDriver: true}},
     {path: '/qr-driver', component: ()=>import('@/templates/qr-driver.vue'),name: 'Driver', meta: {isDriver: true}},

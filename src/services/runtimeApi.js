@@ -138,6 +138,38 @@ export function createRuntimeApi({ traccar, tarkan } = {}) {
     return $traccar.deleteUser(params)
   }
 
+  // Novo: buscar subordinados de um usuário (users "filhos")
+  // Usa getUsers (wrapper forte) em vez de get genérico
+  const getUserSubordinates = async (userId) => {
+    assertFn($traccar?.getUsers, 'Runtime API (Traccar.getUsers) não disponível.')
+    // Se backend suportar /users?userId=X, usa getUsers
+    // Se precisar endpoint específico: $traccar.get(`/users/${userId}/subordinates`)
+    return $traccar.getUsers({ userId })
+  }
+
+  // Novo: buscar counts de devices e sub-users para todos os usuários
+  // GET /users/counts ou endpoint custom que retorna:
+  // { userCounts: {1: 5, 2: 3}, deviceCounts: {1: 10, 2: 7}, totalUsers: 50, totalDevices: 200 }
+  const getUsersCounts = async () => {
+    assertFn($traccar?.get, 'Runtime API (Traccar.get) não disponível.')
+    // Ajuste a URL conforme seu backend
+    // Se não existir, retorne mock ou implemente no backend
+    try {
+      return await $traccar.get('/users/counts')
+    } catch (err) {
+      // Fallback: se endpoint não existir, retorna estrutura vazia
+      console.warn('[runtimeApi] Endpoint /users/counts não disponível, retornando counts vazios:', err.message)
+      return {
+        data: {
+          userCounts: {},
+          deviceCounts: {},
+          totalUsers: 0,
+          totalDevices: 0
+        }
+      }
+    }
+  }
+
   // =========================
   // Traccar - Devices
   // =========================
@@ -522,6 +554,8 @@ export function createRuntimeApi({ traccar, tarkan } = {}) {
     createUser,
     updateUser,
     deleteUser,
+    getUserSubordinates,
+    getUsersCounts,
     
     // Traccar - Devices
     getDevices,

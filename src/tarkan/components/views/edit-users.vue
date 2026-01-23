@@ -2,19 +2,41 @@
   <el-dialog :lock-scroll="true" :top="'50px'" :width="'60%'" v-model="show" title="Teste">
 
     <template v-slot:title>
-      <div  style="border-bottom: #e0e0e0 1px solid;padding: 20px;">
+      <div class="modal-header-full">
+        <div class="header-content">
+          <i class="fas fa-users header-icon"></i>
+          <div class="header-title">{{ KT('user.users') }}</div>
+        </div>
+      </div>
+      
+      <!-- Cards de Estatísticas -->
+      <div class="users-stats-card">
+        <div class="users-stat-item" :class="{ active: selectedFilter === 'all' }" @click="filterBy('all')">
+          <i class="fas fa-users stat-icon"></i>
+          <span class="stat-number">{{ totalUsers }}</span>
+          <span class="stat-label">{{ KT('total') || 'Total' }}</span>
+        </div>
+        <div class="users-stat-item" :class="{ active: selectedFilter === 'admin' }" @click="filterBy('admin')">
+          <i class="fas fa-user-shield stat-icon admin"></i>
+          <span class="stat-number">{{ adminCount }}</span>
+          <span class="stat-label">{{ KT('user.admins') || 'Admins' }}</span>
+        </div>
+        <div class="users-stat-item" :class="{ active: selectedFilter === 'suspended' }" @click="filterBy('suspended')">
+          <i class="fas fa-user-lock stat-icon suspended"></i>
+          <span class="stat-number">{{ suspendedCount }}</span>
+          <span class="stat-label">{{ KT('user.suspended') || 'Suspensos' }}</span>
+        </div>
+      </div>
+      
+      <!-- Barra de busca -->
+      <div style="padding: 20px; padding-top: 10px; border-bottom: #e0e0e0 1px solid;">
         <div class="modal-title" style="display: flex;width: calc(100% - 50px)">
-
           <el-input v-model="query" :placeholder="KT('user.search')" style="--el-input-border-radius: 5px;margin-right: 5px;"></el-input>
 
-
-            <el-button
-                v-if="store.getters.advancedPermissions(17)"
-                @mouseleave="hideTip" @mouseenter.stop="showTip($event,KT('user.add'))"
-                type="primary" @click="editUserRef.newUser()"><i class="fas fa-user-plus"></i></el-button>
-
-
-
+          <el-button
+              v-if="store.getters.advancedPermissions(17)"
+              @mouseleave="hideTip" @mouseenter.stop="showTip($event,KT('user.add'))"
+              type="primary" @click="editUserRef.newUser()"><i class="fas fa-user-plus"></i></el-button>
         </div>
       </div>
     </template>
@@ -49,11 +71,11 @@
 
 
 
-          <div style="margin-left: 5px; margin-right: 5px;" :set="user = store.getters['users/getUser'](selected)">
+          <div style="margin-left: 5px; margin-right: 5px;">
             <el-button
                 v-if="store.getters.advancedPermissions(16) && store.getters.advancedPermissions(18)"
                 @mouseleave="hideTip" @mouseenter.stop="showTip($event,KT('user.users'))"
-                plain :disabled="selected===0 || !(user && (user.userLimit===-1 || user.userLimit>0))" @click="linkObjectsRef.showObjects({userId: selected, type: 'users'});">
+                plain :disabled="selected===0 || !(selectedUser && (selectedUser.userLimit===-1 || selectedUser.userLimit>0))" @click="linkObjectsRef.showObjects({userId: selected, type: 'users'});">
               <i class="fas fa-users"></i>
             </el-button>
           </div>
@@ -207,13 +229,21 @@
 
 
 
-      <div class="itm" v-for="(u,k) in filteredUsers" :key="k" @click="selected = (selected!==u.id)?u.id:0" :class="{tr1: (k%2),tr2: !(k%2),selected: (selected === u.id)}" style="display: flex;">
+      <div class="itm" v-for="(u,k) in filteredUsersFinal" :key="k" @click="selected = (selected!==u.id)?u.id:0" :class="{tr1: (k%2),tr2: !(k%2),selected: (selected === u.id)}" style="display: flex;">
 
         <div style="width: 30px;padding: 10px;font-size: 14px;">{{u.id}}</div>
         <div style="flex: 1;padding: 10px;font-size: 14px;">{{u.name}}</div>
         <div style="flex: 1;padding: 10px;font-size: 14px;text-align: center;">{{u.email}}</div>
-        <div style="width: 90px;padding: 10px;font-size: 14px;text-align: center;">{{(u.administrator)?$t('yes'):$t('no')}}</div>
-        <div style="width: 90px;padding: 10px;font-size: 14px;text-align: center;">{{(u.disabled)?$t('yes'):$t('no')}}</div>
+        <div style="width: 90px;padding: 10px;font-size: 14px;text-align: center;">
+          <span v-if="u.administrator" class="tag tag-admin">
+            <i class="fas fa-crown"></i> {{ KT('user.admin') || 'Admin' }}
+          </span>
+          <span v-else class="tag tag-user">{{ KT('user.user') || 'Usuário' }}</span>
+        </div>
+        <div style="width: 90px;padding: 10px;font-size: 14px;text-align: center;">
+          <span v-if="u.disabled" class="tag tag-suspended">{{ KT('user.suspended') || 'Suspenso' }}</span>
+          <span v-else class="tag tag-active">{{ KT('user.active') || 'Ativo' }}</span>
+        </div>
       </div>
 
     </div>
@@ -240,7 +270,7 @@ import 'element-plus/es/components/checkbox/style/css'
 
 import {ElDialog,ElMessage,ElButton,ElInput} from "element-plus";
 
-import {ref,defineExpose,inject,computed} from 'vue';
+import {ref,defineExpose,inject,computed,watch} from 'vue';
 import {useStore} from 'vuex'
 
 import {ElMessageBox} from "element-plus/es/components/message-box";
@@ -259,6 +289,9 @@ const store = useStore();
 const query = ref('');
 const selected = ref(0);
 const show = ref(false);
+const selectedFilter = ref('all');
+
+const selectedUser = computed(() => store.getters['users/getUser'](selected.value));
 
 const editUserRef = inject('edit-user');
 const linkObjectsRef = inject('link-objects');
@@ -347,6 +380,41 @@ const filteredUsers = computed(()=>{
       ;
 })
 
+// Computed para aplicar filtro de estatísticas
+const filteredUsersFinal = computed(() => {
+  const baseFiltered = filteredUsers.value;
+  
+  if (selectedFilter.value === 'all') {
+    return baseFiltered;
+  } else if (selectedFilter.value === 'admin') {
+    return baseFiltered.filter(u => u.administrator === true);
+  } else if (selectedFilter.value === 'suspended') {
+    return baseFiltered.filter(u => u.disabled === true);
+  }
+  
+  return baseFiltered;
+});
+
+// Estatísticas computadas
+const totalUsers = computed(() => filteredUsers.value.length);
+const adminCount = computed(() => filteredUsers.value.filter(u => u.administrator).length);
+const suspendedCount = computed(() => filteredUsers.value.filter(u => u.disabled).length);
+
+// Função para filtrar por tipo
+const filterBy = (type) => {
+  selectedFilter.value = type;
+};
+
+// Watch para resetar selected quando não estiver mais visível
+watch(() => filteredUsersFinal.value, (newList) => {
+  if (selected.value !== 0) {
+    const isVisible = newList.some(u => u.id === selected.value);
+    if (!isVisible) {
+      selected.value = 0;
+    }
+  }
+});
+
 
 const doDelete = () =>{
 
@@ -420,6 +488,131 @@ defineExpose({
 
 <style>
 
+/* ===== MÓDULO 1: Header Moderno ===== */
+.modal-header-full {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 20px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-icon {
+  font-size: 24px;
+}
+
+.header-title {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+/* ===== MÓDULO 1: Cards de Estatísticas ===== */
+.users-stats-card {
+  display: flex;
+  gap: 16px;
+  padding: 20px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.users-stat-item {
+  flex: 1;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 20px;
+  border-radius: 12px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.users-stat-item:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.users-stat-item.active {
+  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
+  transform: scale(1.05);
+}
+
+.stat-icon {
+  display: block;
+  font-size: 28px;
+  margin-bottom: 12px;
+  opacity: 0.9;
+}
+
+.stat-icon.admin {
+  color: #ffd700;
+}
+
+.stat-icon.suspended {
+  color: #ff6b6b;
+}
+
+.stat-number {
+  display: block;
+  font-size: 32px;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.stat-label {
+  display: block;
+  font-size: 14px;
+  opacity: 0.9;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ===== MÓDULO 1: Tags Visuais ===== */
+.tag {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tag-admin {
+  background: #fef0f0;
+  color: #f56c6c;
+  border: 1px solid #fbc4c4;
+}
+
+.tag-admin i {
+  margin-right: 4px;
+  color: #ffd700;
+}
+
+.tag-user {
+  background: #f0f9ff;
+  color: #409eff;
+  border: 1px solid #c6e2ff;
+}
+
+.tag-active {
+  background: #f0f9ff;
+  color: #67c23a;
+  border: 1px solid #c2e7b0;
+}
+
+.tag-suspended {
+  background: #fef0f0;
+  color: #f56c6c;
+  border: 1px solid #fbc4c4;
+}
+
+/* ===== Estilos Originais (Mantidos) ===== */
 .itm{
   border-bottom: silver 1px dotted;
 }

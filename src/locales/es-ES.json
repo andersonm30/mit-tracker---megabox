@@ -31,5 +31,64 @@
       "todayCount": "Hoy: {count}",
       "todayHelp": "Número de violaciones de velocidad hoy"
     }
-  }
+  },
+  "route": {
+    "selectDevicePrompt": "Seleccione un dispositivo",
+    "selectDeviceDesc": "Elija un dispositivo de la lista de arriba para ver el historial de rutas."
+  },
+  "menu": {
+    "invoices": "Mis Facturas",
+    "invoicesManager": "Gestión de Cobros"
+  },
+  "invoice": {
+    "title": "Facturas",
+    "add": "Añadir Factura",
+    "delete": "Eliminar",
+    "receivedCash": "Pagado en Efectivo",
+    "generatePDF": "Generar PDF",
+    "userInfo": "Información del Usuario",
+    "financialSummary": "Resumen Financiero",
+    "totalBilled": "Total Facturado",
+    "totalPaid": "Total Pagado",
+    "pendingAmount": "Pendiente de Pago",
+    "noInvoices": "No se encontraron facturas",
+    "confirmCash": "¿Confirmar pago en efectivo?",
+    "confirmCashSuccess": "¡Factura marcada como pagada!",
+    "confirmDelete": "¿Está seguro de que desea eliminar esta factura?",
+    "confirmDeleteSuccess": "¡Factura eliminada con éxito!",
+    "confirmLock": "¿Desea bloquear al usuario?",
+    "confirmLockSuccess": "¡Usuario bloqueado!",
+    "confirmUnlock": "¿Desea desbloquear al usuario?",
+    "confirmUnlockSuccess": "¡Usuario desbloqueado!",
+    "addSuccess": "¡Factura añadida con éxito!",
+    "statuses": {
+      "PENDING": "Pendiente",
+      "OVERDUE": "Vencida",
+      "RECEIVED": "Pagada",
+      "RECEIVED_IN_CASH": "Pagado en Efectivo",
+      "CONFIRMED": "Confirmada"
+    },
+    "id": "ID",
+    "dueDate": "Fecha de Vencimiento",
+    "value": "Valor",
+    "status": "Estado",
+    "paymentDate": "Fecha de Pago",
+    "balance": "Saldo",
+    "pay": "Pagar"
+  },
+  "user": {
+    "name": "Nombre",
+    "billingCpfCnpj": "CPF/CNPJ",
+    "email": "Correo Electrónico",
+    "phone": "Teléfono",
+    "address": "Dirección",
+    "company": "Empresa"
+  },
+  "success": "Éxito",
+  "notAvailable": "No Disponible",
+  "no": "No",
+  "ok": "OK",
+  "cancel": "Cancelar",
+  "fixed": "Fijo",
+  "percent": "Porcentaje"
 }

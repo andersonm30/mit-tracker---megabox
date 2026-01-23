@@ -31,5 +31,64 @@
       "todayCount": "Hoje: {count}",
       "todayHelp": "Número de violações de velocidade hoje"
     }
-  }
+  },
+  "route": {
+    "selectDevicePrompt": "Selecione um dispositivo",
+    "selectDeviceDesc": "Escolha um dispositivo na lista acima para visualizar o histórico de rotas."
+  },
+  "menu": {
+    "invoices": "Minhas Faturas",
+    "invoicesManager": "Gestão de Cobranças"
+  },
+  "invoice": {
+    "title": "Faturas",
+    "add": "Adicionar Fatura",
+    "delete": "Deletar",
+    "receivedCash": "Pago em Dinheiro",
+    "generatePDF": "Gerar PDF",
+    "userInfo": "Informações do Usuário",
+    "financialSummary": "Resumo Financeiro",
+    "totalBilled": "Total Faturado",
+    "totalPaid": "Total Pago",
+    "pendingAmount": "Pendente de Pagamento",
+    "noInvoices": "Nenhuma fatura encontrada",
+    "confirmCash": "Confirmar pagamento em dinheiro?",
+    "confirmCashSuccess": "Fatura marcada como paga!",
+    "confirmDelete": "Tem certeza que deseja deletar esta fatura?",
+    "confirmDeleteSuccess": "Fatura deletada com sucesso!",
+    "confirmLock": "Deseja bloquear o usuário?",
+    "confirmLockSuccess": "Usuário bloqueado!",
+    "confirmUnlock": "Deseja desbloquear o usuário?",
+    "confirmUnlockSuccess": "Usuário desbloqueado!",
+    "addSuccess": "Fatura adicionada com sucesso!",
+    "statuses": {
+      "PENDING": "Pendente",
+      "OVERDUE": "Vencida",
+      "RECEIVED": "Paga",
+      "RECEIVED_IN_CASH": "Pago em Dinheiro",
+      "CONFIRMED": "Confirmada"
+    },
+    "id": "ID",
+    "dueDate": "Vencimento",
+    "value": "Valor",
+    "status": "Status",
+    "paymentDate": "Data Pagamento",
+    "balance": "Saldo",
+    "pay": "Pagar"
+  },
+  "user": {
+    "name": "Nome",
+    "billingCpfCnpj": "CPF/CNPJ",
+    "email": "Email",
+    "phone": "Telefone",
+    "address": "Endereço",
+    "company": "Empresa"
+  },
+  "success": "Sucesso",
+  "notAvailable": "Não disponível",
+  "no": "Não",
+  "ok": "OK",
+  "cancel": "Cancelar",
+  "fixed": "Fixo",
+  "percent": "Porcentagem"
 }

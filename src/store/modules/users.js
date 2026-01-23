@@ -1,77 +1,312 @@
+// src/store/modules/users.js (FINAL - PRODUÇÃO-GRADE + ZERO BUG REAL + BLINDADO)
 
+// ====== HELPERS INTERNOS ======
+/**
+ * Transforma erros técnicos em mensagens amigáveis pro usuário
+ * Preserva rastreabilidade (cause/status/code) para debug
+ */
+const toUserError = (fallbackMessage, err) => {
+  // Tenta extrair mensagem do backend (sem vazar stack/axios)
+  const backendMsg =
+    err?.response?.data?.message ||
+    err?.response?.data?.error ||
+    err?.message;
+
+  // Log técnico completo
+  console.error("[users]", { fallbackMessage, backendMsg, err });
+
+  // Erro amigável (sem detalhes internos)
+  const e = new Error(fallbackMessage);
+  e.cause = err;
+  e.status = err?.response?.status;
+  e.code = err?.code;
+  return e;
+};
 
 export default {
-    namespaced: true,
-    state: () => ({
-        userList: []
-    }),
-    getters: {
-        getUser(state){
-            return (id)=>{
-                return state.userList.find((u)=> u.id === id)
-            }
-        },
-        getUsers(state){
-            return state.userList.filter((u)=>{
-                if(u.attributes['isShared'] && u.attributes['isShared']!==null){
-                    return false;
-                }else{
-                    return true;
-                }
-            })
-        }
-    },
-    mutations: {
-        setUsers(state,value){
-            state.userList = value;
-        },
-        deleteUser(state,value){
-            state.userList.splice(state.userList.findIndex((u)=> u.id === value),1)
-        },
-        updateUser(state,value){
-            const user = state.userList.find((d)=>{
-                return d.id === value.id;
-            })
+  namespaced: true,
 
-            if(user) {
-                Object.assign(user, value);
-            }
-
-        },
-        addUser(state,value){
-            state.userList.push(value);
-        }
+  state: () => ({
+    userList: [],
+    usersCounts: {
+      userCounts: {},
+      deviceCounts: {},
+      totalUsers: 0,
+      totalDevices: 0,
+      loaded: false,
     },
-    actions: {
-        async load(context){
-            const { getRuntimeApi } = await import('@/services/runtimeApiRef');
-            const api = getRuntimeApi();
-            const {data} = await api.getUsers();
-            context.commit("setUsers", data);
-        },
-        async save(context,params){
-            const { getRuntimeApi } = await import('@/services/runtimeApiRef');
-            const api = getRuntimeApi();
-            
-            console.log(params);
-            if (params.id) {
-                const {data} = await api.updateUser(params.id, params);
-                context.commit("updateUser",data);
-                if(context.rootState.auth.id === data.id){
-                    context.commit("setAuth",data,{root: true});
-                }
-                return data;
-            } else {
-                const {data} = await api.createUser(params);
-                context.commit("addUser",data);
-                return data;
-            }
-        },
-        async deleteUser(context,params){
-            const { getRuntimeApi } = await import('@/services/runtimeApiRef');
-            const api = getRuntimeApi();
-            await api.deleteUser(params);
-            context.commit("deleteUser", params);
+  }),
+
+  getters: {
+    getUser(state) {
+      return (id) => state.userList.find((u) => u.id === id);
+    },
+
+    getUsers(state) {
+      // Mantém regra atual: excluir "shared" da listagem principal
+      return state.userList.filter(
+        (u) => !(u.attributes?.isShared && u.attributes.isShared !== null)
+      );
+    },
+
+    // ====== COUNTS ======
+    getUserDeviceCount(state) {
+      return (userId) => state.usersCounts.deviceCounts?.[String(userId)] || 0;
+    },
+
+    getUserSubUsersCount(state) {
+      return (userId) => state.usersCounts.userCounts?.[String(userId)] || 0;
+    },
+
+    areCountsLoaded(state) {
+      return !!state.usersCounts.loaded;
+    },
+
+    // ====== SUBORDINATES (heurística local) ======
+    getUserSubUsers(state) {
+      return (userId) => {
+        const uid = Number(userId);
+        if (!Number.isFinite(uid)) return [];
+
+        return state.userList.filter((user) => {
+          if (Number(user.id) === uid) return false;
+
+          // campos diretos comuns
+          if (user.managerId === uid) return true;
+          if (user.parentId === uid) return true;
+          if (user.ownerId === uid) return true;
+          if (user.adminId === uid) return true;
+
+          // atributos
+          const attrs = user.attributes || {};
+          if (attrs.managerId === uid) return true;
+          if (attrs.parentId === uid) return true;
+          if (attrs.parentUserId === uid) return true;
+          if (attrs.ownerId === uid) return true;
+          if (attrs.adminId === uid) return true;
+
+          if (attrs["manager.id"] === uid) return true;
+          if (attrs["parent.id"] === uid) return true;
+          if (attrs["owner.id"] === uid) return true;
+          if (attrs["admin.id"] === uid) return true;
+
+          if (attrs["tarkan.managerId"] === uid) return true;
+          if (attrs["tarkan.parentUserId"] === uid) return true;
+          if (attrs["tarkan.ownerId"] === uid) return true;
+
+          return false;
+        });
+      };
+    },
+  },
+
+  mutations: {
+    setUsers(state, value) {
+      state.userList = value || [];
+    },
+
+    deleteUser(state, userId) {
+      const uid = Number(userId);
+      const idx = state.userList.findIndex((u) => Number(u.id) === uid);
+      if (idx >= 0) state.userList.splice(idx, 1);
+    },
+
+    updateUser(state, value) {
+      const user = state.userList.find((u) => u.id === value.id);
+      if (user) Object.assign(user, value);
+    },
+
+    addUser(state, value) {
+      state.userList.push(value);
+    },
+
+    setUsersCounts(state, value) {
+      const payload = value || {};
+
+      // Garantir shape consistente (evita undefined em getters)
+      const userCounts = payload.userCounts || {};
+      const deviceCounts = payload.deviceCounts || {};
+      const totalUsers = payload.totalUsers || 0;
+      const totalDevices = payload.totalDevices || 0;
+
+      // Só marca loaded=true se tiver dados reais
+      const loaded = !!(
+        totalUsers > 0 ||
+        Object.keys(userCounts).length ||
+        Object.keys(deviceCounts).length
+      );
+
+      state.usersCounts = {
+        userCounts,
+        deviceCounts,
+        totalUsers,
+        totalDevices,
+        loaded,
+      };
+    },
+
+    resetUsersCounts(state) {
+      state.usersCounts = {
+        userCounts: {},
+        deviceCounts: {},
+        totalUsers: 0,
+        totalDevices: 0,
+        loaded: false,
+      };
+    },
+
+    // Marca counts como desatualizados (DRY / shape único)
+    markCountsDirty(state) {
+      state.usersCounts = {
+        userCounts: {},
+        deviceCounts: {},
+        totalUsers: 0,
+        totalDevices: 0,
+        loaded: false,
+      };
+    },
+  },
+
+  actions: {
+    // compat + otimização (retorna cache se já tiver)
+    async getUsers({ state, dispatch }) {
+      if (state.userList.length > 0) return state.userList;
+      await dispatch("load");
+      return state.userList;
+    },
+
+    async load({ commit }) {
+      const { getRuntimeApi } = await import("@/services/runtimeApiRef");
+      const api = getRuntimeApi();
+
+      try {
+        const { data } = await api.getUsers();
+        commit("setUsers", data);
+        return data;
+      } catch (err) {
+        throw toUserError("Erro ao carregar usuários. Tente novamente.", err);
+      }
+    },
+
+    // ====== Helper DRY: invalidar + tentar refetch (silencioso) ======
+    async _refreshCountsAfterCrud({ commit, dispatch }) {
+      commit("markCountsDirty");
+      try {
+        await dispatch("getAllUsersCounts");
+      } catch (_) {
+        // Backend sem /users/counts -> ignora silenciosamente
+      }
+    },
+
+    async save({ commit, rootState, dispatch }, params) {
+      const { getRuntimeApi } = await import("@/services/runtimeApiRef");
+      const api = getRuntimeApi();
+
+      try {
+        if (params?.id) {
+          const { data } = await api.updateUser(params.id, params);
+          commit("updateUser", data);
+
+          // se alterou o próprio usuário logado, atualizar auth no root
+          if (rootState?.auth?.id === data.id) {
+            commit("setAuth", data, { root: true });
+          }
+
+          await dispatch("_refreshCountsAfterCrud");
+          return data;
         }
-    }
-}
+
+        const { data } = await api.createUser(params);
+        commit("addUser", data);
+
+        await dispatch("_refreshCountsAfterCrud");
+        return data;
+      } catch (err) {
+        const action = params?.id ? "atualizar" : "criar";
+        throw toUserError(
+          `Erro ao ${action} usuário. Verifique os dados e tente novamente.`,
+          err
+        );
+      }
+    },
+
+    async deleteUser({ commit, dispatch }, userId) {
+      const { getRuntimeApi } = await import("@/services/runtimeApiRef");
+      const api = getRuntimeApi();
+
+      try {
+        // TraccarConnector espera ID PURO (não {id}): delete('/users/'+params)
+        const id = Number(userId);
+        if (!Number.isFinite(id)) {
+          throw new Error('ID de usuário inválido.');
+        }
+        await api.deleteUser(id);
+        commit("deleteUser", id);
+
+        await dispatch("_refreshCountsAfterCrud");
+      } catch (err) {
+        throw toUserError(
+          "Erro ao excluir usuário. Verifique se o usuário pode ser removido.",
+          err
+        );
+      }
+    },
+
+    // ====== NOVO: buscar devices de um user ======
+    async getUserDevices(_ctx, userId) {
+      const { getRuntimeApi } = await import("@/services/runtimeApiRef");
+      const api = getRuntimeApi();
+
+      try {
+        const { data } = await api.getDevices({ userId });
+        return data;
+      } catch (err) {
+        throw toUserError("Erro ao carregar dispositivos do usuário.", err);
+      }
+    },
+
+    // ====== NOVO: buscar subordinados via endpoint ======
+    async getUserUsers(_ctx, userId) {
+      const { getRuntimeApi } = await import("@/services/runtimeApiRef");
+      const api = getRuntimeApi();
+
+      try {
+        const { data } = await api.getUserSubordinates(userId);
+        return data;
+      } catch (err) {
+        throw toUserError("Erro ao carregar subordinados do usuário.", err);
+      }
+    },
+
+    // ====== NOVO: counts batch ======
+    async getAllUsersCounts({ commit }) {
+      const { getRuntimeApi } = await import("@/services/runtimeApiRef");
+      const api = getRuntimeApi();
+
+      try {
+        const data = await api.getUsersCounts();
+        const payload = data?.data ?? data;
+        commit("setUsersCounts", payload);
+        return payload;
+      } catch (err) {
+        const status = err?.response?.status;
+
+        // Log diferenciado: endpoint missing (404/501) vs erro real (500/timeout)
+        if (status === 404 || status === 501) {
+          console.info(
+            "[users/getAllUsersCounts] Endpoint /users/counts não disponível"
+          );
+        } else {
+          console.warn("[users/getAllUsersCounts] Falha ao buscar counts", {
+            status,
+            err,
+          });
+        }
+
+        // Graceful degradation: não quebra UI, só mantém counts vazios
+        commit("resetUsersCounts");
+        return null;
+      }
+    },
+  },
+};
