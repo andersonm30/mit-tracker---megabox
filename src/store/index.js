@@ -235,6 +235,13 @@ const store = createStore({
         },
         setToken(state,value){
             state.auth.attributes['notificationTokens'] = value;
+        },
+        updateAuthAttributes(state, attrs) {
+            // ✅ Mutation oficial para atualizar attributes do auth
+            // Usado por UserNoticeModal para lastSeenAt/seenOnce
+            if (state.auth && state.auth.attributes) {
+                Object.assign(state.auth.attributes, attrs);
+            }
         }
     },
     actions: {

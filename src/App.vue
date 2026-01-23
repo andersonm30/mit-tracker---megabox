@@ -194,6 +194,27 @@
               </li>
             </router-link>
 
+            <!-- Faturas (Minhas Faturas) -->
+            <router-link to="/invoices" custom v-slot="{ href, navigate, isActive, isExactActive }">
+              <li :class="{ active: isActive, 'exact-active': isExactActive }">
+                <a :href="href" @click.prevent="onMenuItemClick(navigate)" :aria-label="$t('menu.invoices')">
+                  <el-icon><i class="fas fa-file-invoice-dollar" aria-hidden="true"></i></el-icon>
+                  <span class="text">{{ $t('menu.invoices') }}</span>
+                </a>
+              </li>
+            </router-link>
+
+            <!-- Gestão de Cobranças (Admin/Gerente) -->
+            <router-link v-if="store.getters.isAdmin" to="/invoices-manager" custom
+              v-slot="{ href, navigate, isActive, isExactActive }">
+              <li :class="{ active: isActive, 'exact-active': isExactActive }">
+                <a :href="href" @click.prevent="onMenuItemClick(navigate)" :aria-label="$t('menu.invoicesManager')">
+                  <el-icon><i class="fas fa-money-bill-wave" aria-hidden="true"></i></el-icon>
+                  <span class="text">{{ $t('menu.invoicesManager') }}</span>
+                </a>
+              </li>
+            </router-link>
+
             <div class="indicator"></div>
           </ul>
 
@@ -477,6 +498,7 @@ const logObjectsRef = ref(null)
 const editCalendarsRef = ref(null)
 const editMaintenancesRef = ref(null)
 const editThemeRef = ref(null)
+const userNoticeModalRef = ref(null) // ✅ NOVO: ref para UserNoticeModal
 const showGraphicsRef = ref(null)
 const userNoticeModalRef = ref(null)
 const invoicesRef = ref(null)
@@ -1395,6 +1417,22 @@ onMounted(() => {
   window.addEventListener('offline', updateConnectionStatus)
   updateConnectionStatus()
 })
+
+/* ===========================
+ *  USER NOTICE: Exibe aviso após auth carregar
+ * =========================== */
+watch(
+  () => store.state.auth?.id,
+  (authId) => {
+    if (authId) {
+      // Aguarda 500ms para UI estabilizar completamente
+      setTimeout(() => {
+        userNoticeModalRef.value?.showNotice();
+      }, 500);
+    }
+  },
+  { immediate: true } // Executa imediatamente se auth já estiver carregado
+)
 
 onBeforeUnmount(() => {
   // Remove router guards (evita acumular em hot reload)
