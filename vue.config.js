@@ -51,23 +51,24 @@ module.exports = {
                 changeOrigin: true,
                 secure: false
             },
-            // Proxy para /tarkan/* para evitar CORS em desenvolvimento
-            '/tarkan': {
+            // Proxy para /mit/* (novo branding)
+            '/mit': {
                 target: 'http://localhost/back-end',
                 changeOrigin: true,
                 secure: false
             }
+            // Proxy /tarkan removido - FASE 6 completa
         }
     },
 
     pwa: {
-        name: 'Tarkan',
+        name: 'MIT.app',
         themeColor: '#05a7e3',
         msTileColor: '#abe6ff',
         appleMobileWebAppCapable: 'yes',
         appleMobileWebAppStatusBarStyle: 'black',
         workboxPluginMode: "InjectManifest",
-        manifestPath:"tarkan/assets/custom/manifest.json",
+        manifestPath:"mit/assets/custom/manifest.json",
         workboxOptions: {
             swSrc: "src/service-worker.js",
             exclude: [
@@ -90,11 +91,11 @@ module.exports = {
         },
         iconPaths:{
             faviconSVG: null,
-            favicon32: 'tarkan/assets/custom/icons/favicon-32x32.png',
-            favicon16: 'tarkan/assets/custom/icons/favicon-16x16.png',
-            appleTouchIcon: 'tarkan/assets/custom/icons/apple-touch-icon-152x152.png',
+            favicon32: 'mit/assets/custom/icons/favicon-32x32.png',
+            favicon16: 'mit/assets/custom/icons/favicon-16x16.png',
+            appleTouchIcon: 'mit/assets/custom/icons/apple-touch-icon-152x152.png',
             maskIcon: null,
-            msTileImage: 'tarkan/assets/custom/icons/msapplication-icon-144x144.png'
+            msTileImage: 'mit/assets/custom/icons/msapplication-icon-144x144.png'
         }
 
     },

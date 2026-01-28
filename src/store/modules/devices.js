@@ -324,7 +324,7 @@ export default {
         isFollowingId: 0,
         showRoutes: false,
         trail: false,
-        streetview: false,
+        streetview: false, // ✅ Desativado por padrão
         showPercurso: false,
         togglePercurso: false,
         togglePontosCorrelacao: false,

@@ -104,12 +104,20 @@ const addUser = (userId) => {
 onMounted(async () => {
   // Carrega users se ainda não tiver
   if (!store.state.users?.userList?.length) {
-    try { await store.dispatch('users/load'); } catch (_) {}
+    try { 
+      await store.dispatch('users/load'); 
+    } catch (_) {
+      // Falha silenciosa - OK
+    }
   }
 
   // Tenta counts (silencioso se backend não tiver /users/counts)
   if (!areCountsLoaded.value) {
-    try { await store.dispatch('users/getAllUsersCounts'); } catch (_) {}
+    try { 
+      await store.dispatch('users/getAllUsersCounts'); 
+    } catch (_) {
+      // Backend pode não ter endpoint /users/counts ainda
+    }
   }
 });
 </script>

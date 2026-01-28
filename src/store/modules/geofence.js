@@ -5,7 +5,11 @@ export default {
         mapEditing: 0,
         mapPointEditing: 0,
         mapPointEditingType: 'linestring',
-        mapPointEditingParams: []
+        mapPointEditingParams: [],
+        // ✅ FENCE-002: Controle de modo draw vs pan
+        editMode: null, // null | 'draw' | 'edit' | 'pan'
+        canPan: true,
+        canZoom: true
     }),
     getters: {
         isEditing(state){
@@ -84,9 +88,28 @@ export default {
             state.mapEditing = 1;
             state.mapPointEditing = 1;
             state.mapPointEditingType = value;
+            // ✅ FENCE-002: Desabilitar pan/zoom durante draw
+            state.editMode = 'draw';
+            state.canPan = false;
+            state.canZoom = false;
         },
         disableEditing(state){
             state.mapEditing = 0;
+            // ✅ FENCE-002: Reabilitar pan/zoom
+            state.editMode = null;
+            state.canPan = true;
+            state.canZoom = true;
+        },
+        setEditMode(state, mode) {
+            // ✅ FENCE-002: Mutation dedicada para controle de modo
+            state.editMode = mode;
+            if (mode === 'draw' || mode === 'edit') {
+                state.canPan = false;
+                state.canZoom = false;
+            } else {
+                state.canPan = true;
+                state.canZoom = true;
+            }
         },
         setParams(state,value){
             state.mapPointEditingParams = value;

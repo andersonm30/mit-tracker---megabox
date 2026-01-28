@@ -1,20 +1,20 @@
-<template>
-  <el-dialog :lock-scroll="true" v-model="show" width="70%" @closed="onDialogClosed">
-
-    <template v-slot:title>
-      <div style="border-bottom: #e0e0e0 1px solid;padding: 20px;">
-        <div class="modal-title">{{title}}</div>
-      </div>
-    </template>
-    <template v-slot:footer>
-      <div  style="border-top: #e0e0e0 1px solid;padding: 20px;display: flex;justify-content: space-between;">
-
-        <div style="display: flex; gap: 10px;">
+﻿<template>
+  <BaseModal
+    v-model="show"
+    :title="title"
+    icon="fas fa-location-arrow"
+    width="70%"
+    variant="device"
+    @closed="onDialogClosed"
+  >
+    <template #footer>
+      <div class="device-footer">
+        <div class="device-footer-left">
           <el-button type="info" plain @click="generatePDF()" v-if="formData.id">
             <i class="fas fa-file-pdf"></i> {{KT('device.generatePDF')}}
           </el-button>
         </div>
-        <div style="display: flex; gap: 10px;">
+        <div class="device-footer-right">
           <el-button type="danger" plain @click="doCancel()">{{KT('cancel')}}</el-button>
           <el-button type="primary" @click="doSave()">{{KT('save')}}</el-button>
         </div>
@@ -33,14 +33,14 @@
   </template>
 
   <!-- Primeira linha: uniqueId, nome e switch (em uma única linha) -->
-  <div style="display: flex; justify-content: space-between; gap: 20px;">
-    <el-form-item :label="KT('device.imei')" prop="uniqueId" style="flex: 0.7;">
+  <div class="form-row">
+    <el-form-item :label="KT('device.imei')" prop="uniqueId" class="form-col-70">
       <el-input v-model="formData.uniqueId"></el-input>
     </el-form-item>
-    <el-form-item :label="KT('device.name')" prop="name" style="flex: 0.7;">
+    <el-form-item :label="KT('device.name')" prop="name" class="form-col-70">
       <el-input v-model="formData.name"></el-input>
     </el-form-item>
-    <el-form-item v-if="store.state.auth.administrator" :label="KT('device.status')" style="flex: 0.7;">
+    <el-form-item v-if="store.state.auth.administrator" :label="KT('device.status')" class="form-col-70">
       <el-switch
         v-model="formData.disabled"
         :inactive-text="KT('disabled')"
@@ -52,8 +52,8 @@
   </div>
 
   <!-- Nova seção para o estado do dispositivo -->
-  <div v-if="store.state.auth.administrator" style="display: flex; justify-content: space-between; gap: 20px; margin-bottom: 20px; padding: 10px; background-color: #f8f8f8; border-radius: 5px;">
-    <el-form-item :label="KT('device.state')" style="flex: 1;">
+  <div v-if="store.state.auth.administrator" class="device-state-section">
+    <el-form-item :label="KT('device.state')" class="form-full">
       <el-select v-model="formData.attributes['device.state']" placeholder="Estado do dispositivo" style="width: 100%;">
         <el-option label="Instalado em Cliente" value="installed"></el-option>
         <el-option label="Em Serviço Técnico" value="in_service"></el-option>
@@ -66,8 +66,8 @@
   </div>
 
   <!-- Campos de Marca e Modelo de GPS -->
-  <div style="display: flex; justify-content: space-between; gap: 20px; margin-bottom: 20px;">
-    <el-form-item label="Marca GPS" style="flex: 0.7;">
+  <div class="form-row">
+    <el-form-item label="Marca GPS" class="form-col-70">
       <el-select 
         v-model="selectedGpsBrand" 
         filterable 
@@ -79,7 +79,7 @@
         <el-option v-for="brand in gpsBrands" :key="brand" :label="brand" :value="brand"></el-option>
       </el-select>
     </el-form-item>
-    <el-form-item :label="KT('device.model')" style="flex: 0.7;">
+    <el-form-item :label="KT('device.model')" class="form-col-70">
       <el-select 
         v-model="formData.attributes['device.model']" 
         filterable 
@@ -98,8 +98,8 @@
   </div>
   
   <!-- Campos de Tecnologia e Protocolo -->
-  <div style="display: flex; justify-content: space-between; gap: 20px; margin-bottom: 20px;">
-    <el-form-item :label="KT('device.technology')" style="flex: 0.7;">
+  <div class="form-row">
+    <el-form-item :label="KT('device.technology')" class="form-col-70">
       <el-select v-model="formData.attributes['device.technology']" placeholder="Tecnologia" style="width: 100%;">
         <el-option label="2G" value="2G"></el-option>
         <el-option label="3G" value="3G"></el-option>
@@ -111,7 +111,7 @@
         <el-option label="Tag RFID" value="Tag_RFID"></el-option>
       </el-select>
     </el-form-item>
-    <el-form-item :label="KT('device.protocol')" style="flex: 0.7;">
+    <el-form-item :label="KT('device.protocol')" class="form-col-70">
       <el-select v-model="formData.attributes['device.protocol']" filterable placeholder="Protocolo" style="width: 100%;">
         <el-option v-for="protocol in protocols" :key="protocol" :label="protocol" :value="protocol"></el-option>
       </el-select>
@@ -119,8 +119,8 @@
   </div>
 
   <!-- Segunda linha: grupo (largura completa) -->
-  <div style="display: flex; justify-content: space-between; gap: 20px;">
-    <el-form-item :label="KT('group.group')" style="flex: 1;">
+  <div class="form-row">
+    <el-form-item :label="KT('group.group')" class="form-full">
       <el-select v-model="formData.groupId" :value-key="'id'" filterable :placeholder="KT('group.group')" :size="'large'" :no-match-text="KT('NO_MATCH_TEXT')" :no-data-text="KT('NO_DATA_TEXT')">
         <el-option :label="KT('no')" :value="0"></el-option>
         <el-option v-for="item in store.state.groups.groupList" :key="item.id" :label="item.name" :value="item.id"></el-option>
@@ -144,20 +144,20 @@
 
   <el-form :model="formData">
     <!-- Linha 1: ICCID e Número SIM -->
-    <div style="display: flex; justify-content: space-between; gap: 20px;">
-      <el-form-item :label="KT('device.iccid')" style="flex: 0.7;">
+    <div class="form-row">
+      <el-form-item :label="KT('device.iccid')" class="form-col-70">
         <el-input v-model="formData.attributes['iccid']" placeholder="Insira o ICCID"></el-input>
       </el-form-item>
 
-      <el-form-item :label="KT('device.phone')" style="flex: 0.7;">
+      <el-form-item :label="KT('device.phone')" class="form-col-70">
         <el-input v-model="formData.attributes['phone']" placeholder="Insira o Número do SIM"></el-input>
       </el-form-item>
     </div>
 
     <!-- Linha Velocidade: Velocidade de Notificação (PR-09B + PR-09C Guardrails) -->
-    <div style="display: flex; justify-content: space-between; gap: 20px;">
-      <el-form-item label="Velocidade de Notificação (km/h)" style="flex: 0.7;">
-        <div style="display: flex; align-items: center; gap: 8px;">
+    <div class="form-row">
+      <el-form-item label="Velocidade de Notificação (km/h)" class="form-col-70">
+        <div class="speed-limit-input">
           <el-input-number 
             v-model="formData.attributes.speedLimitKmh" 
             :min="0" 
@@ -165,7 +165,7 @@
             :step="1" 
             controls-position="right"
             placeholder="Ex: 80"
-            style="flex: 1;"
+            class="form-full"
             @blur="handleSpeedLimitBlur"
           />
           <!-- Badge de status (PR-09C) -->
@@ -188,7 +188,7 @@
         </div>
         
         <!-- Helper text + tooltip (PR-09C) -->
-        <div style="font-size: 12px; color: #909399; margin-top: 4px;">
+        <div class="speed-limit-helper">
           Usada para alertas de excesso de velocidade<br/>
           <span style="color: #606266;">💡 Valores comuns: urbano 40–60, rodovia 80–110</span>
         </div>
@@ -217,34 +217,34 @@
           </template>
         </el-alert>
       </el-form-item>
-      <div style="flex: 0.7;"></div>
+      <div class="form-col-70"></div>
     </div>
 
     <!-- Linha 2: Broker e Operadora -->
-    <div style="display: flex; justify-content: space-between; gap: 20px;">
-      <el-form-item :label="KT('device.brocker')" style="flex: 0.7;">
+    <div class="form-row">
+      <el-form-item :label="KT('device.brocker')" class="form-col-70">
         <el-input v-model="formData.attributes['broker']" :placeholder="KT('device.brocker')"></el-input>
       </el-form-item>
 
-      <el-form-item :label="KT('device.operator')" style="flex: 0.7;">
+      <el-form-item :label="KT('device.operator')" class="form-col-70">
         <el-input v-model="formData.attributes['operator']" placeholder="Insira a Operadora"></el-input>
       </el-form-item>
     </div>
 
     <!-- Linha 3: APN e Valor Mensal -->
-    <div style="display: flex; justify-content: space-between; gap: 20px;">
-      <el-form-item :label="KT('device.apn')" style="flex: 0.7;">
+    <div class="form-row">
+      <el-form-item :label="KT('device.apn')" class="form-col-70">
         <el-input v-model="formData.attributes['APN']" placeholder="Insira o APN"></el-input>
       </el-form-item>
 
-      <el-form-item :label="KT('device.ValoMensual')" style="flex: 0.7;">
+      <el-form-item :label="KT('device.ValoMensual')" class="form-col-70">
         <el-input v-model="formData.attributes['ValoMensual']" placeholder="Valor Mensal"></el-input>
       </el-form-item>
     </div>
 
     <!-- Linha 4: Data de Ativação e Data de Vencimento -->
-    <div style="display: flex; justify-content: space-between; gap: 20px;">
-      <el-form-item :label="KT('device.dataSimAct')" style="flex: 0.7;">
+    <div class="form-row">
+      <el-form-item :label="KT('device.dataSimAct')" class="form-col-70">
         <el-input v-model="formData.attributes['dataSimAct']" 
                   type="date" 
                   placeholder="Data de Ativação" 
@@ -252,7 +252,7 @@
         </el-input>
       </el-form-item>
 
-      <el-form-item :label="KT('device.dataSimVal')" style="flex: 0.7;">
+      <el-form-item :label="KT('device.dataSimVal')" class="form-col-70">
         <el-input v-model="formData.attributes['dataSimVal']" 
                   type="date" 
                   placeholder="Data de Vencimento" 
@@ -301,9 +301,9 @@
                   :label="`${user.name} (${user.email})`"
                   :value="user.id"
                 >
-                  <div style="display: flex; justify-content: space-between;">
+                  <div class="user-option">
                     <span>{{ user.name }}</span>
-                    <span style="color: #8492a6; font-size: 13px;">{{ user.email }}</span>
+                    <span class="user-email">{{ user.email }}</span>
                   </div>
                 </el-option>
               </el-select>
@@ -386,8 +386,8 @@
         <i class="fas fa-car"></i> {{ KT('device.details') }}
       </template>
 
-      <div style="display: flex; justify-content: space-between; gap: 20px;">
-    <el-form-item label="Marca do Veículo" style="flex: 0.5;">
+      <div class="form-row">
+    <el-form-item label="Marca do Veículo" class="form-col-50">
         <el-select 
             v-model="selectedVehicleBrand" 
             filterable 
@@ -399,7 +399,7 @@
         </el-select>
     </el-form-item>
 
-    <el-form-item :label="KT('device.model')" style="flex: 0.5;">
+    <el-form-item :label="KT('device.model')" class="form-col-50">
         <el-select 
             v-model="formData.model" 
             filterable 
@@ -412,39 +412,39 @@
     </el-form-item>
 </div>
 
-<div style="display: flex; justify-content: space-between; gap: 20px;">
+<div class="form-row">
     
 
-    <el-form-item :label="KT('device.date')" style="flex: 0.7;">
+    <el-form-item :label="KT('device.date')" class="form-col-70">
         <el-input v-model="formData.attributes['date']"></el-input>
     </el-form-item>
 
-    <el-form-item :label="KT('device.vin')" style="flex: 0.7;">
+    <el-form-item :label="KT('device.vin')" class="form-col-70">
         <el-input v-model="formData.attributes['vin']"></el-input>
     </el-form-item>
-    <el-form-item :label="KT('device.chassis')" style="flex: 0.7;">
+    <el-form-item :label="KT('device.chassis')" class="form-col-70">
         <el-input v-model="formData.attributes['chassis']"></el-input>
     </el-form-item>
 
-    <el-form-item :label="KT('device.plate')" style="flex: 0.7;">
+    <el-form-item :label="KT('device.plate')" class="form-col-70">
         <el-input v-model="formData.attributes['placa']"></el-input>
     </el-form-item>
 </div>
 
 <!-- Linha com consumo médio, preço de combustível e tanque -->
-<div style="display: flex; justify-content: space-between; gap: 20px;">
-    <el-form-item label="Consumo Médio (Opcional)" style="flex: 0.33;">
+<div class="form-row">
+    <el-form-item label="Consumo Médio (Opcional)" class="form-col-33">
         <el-input v-model.number="formData.attributes['litersx100km']" 
                   placeholder="Padrão: 10.0"
                   type="number"
                   step="0.1">
           <template #append>L/100km</template>
         </el-input>
-        <div style="font-size: 11px; color: #909399; margin-top: 5px;">
+        <div class="field-helper">
           Se vazio, usa 10 L/100km
         </div>
     </el-form-item>
-    <el-form-item :label="KT('device.fuelPrice')" style="flex: 0.33;">
+    <el-form-item :label="KT('device.fuelPrice')" class="form-col-33">
         <el-input v-model.number="formData.attributes['fuelPrice']" 
                   placeholder="Ex: 6.50"
                   type="number"
@@ -452,7 +452,7 @@
           <template #prepend>R$</template>
         </el-input>
     </el-form-item>
-    <el-form-item :label="KT('device.tank')" style="flex: 0.33;">
+    <el-form-item :label="KT('device.tank')" class="form-col-33">
         <el-input v-model.number="formData.attributes['fuelTank']" 
                   placeholder="Ex: 50"
                   type="number"
@@ -462,9 +462,9 @@
     </el-form-item>
 </div>
 
-<div style="display: flex; justify-content: space-between; gap: 20px;">
-    <el-form-item :label="KT('device.odometer')" style="flex: 0.8;">
-        <div style="display: flex; align-items: center; gap: 5px;">
+<div class="form-row">
+    <el-form-item :label="KT('device.odometer')" class="form-col-80">
+        <div class="accumulator-input">
             <el-input 
                 v-model.number="odometerData" 
                 :disabled="!showOdometerEdit"
@@ -494,8 +494,8 @@
         </div>
     </el-form-item>
     
-    <el-form-item :label="KT('device.hoursMovement')" style="flex: 0.6;">
-        <div style="display: flex; align-items: center; gap: 5px;">
+    <el-form-item :label="KT('device.hoursMovement')" class="form-col-60">
+        <div class="accumulator-input">
             <el-input 
                 v-model.number="hoursData" 
                 :disabled="!showHoursEdit"
@@ -525,11 +525,11 @@
         </div>
     </el-form-item>
     
-    <el-form-item label="Modo de Exibição" style="flex: 0.4; font-family: 'Roboto', sans-serif;">
+    <el-form-item label="Modo de Exibição" class="form-col-40">
         <el-select 
             v-model="formData.attributes['tarkan.displayMode']" 
             placeholder="Selecione"
-            style="width: 100%; font-family: 'Roboto', sans-serif;">
+            class="full-width-select">
             <el-option 
                 label="KM" 
                 value="odometer">
@@ -553,7 +553,7 @@
     </h3>
     
     <!-- Abas para Ícones Padrão e V2 -->
-    <el-tabs v-model="activeIconTab" type="card" style="margin-bottom: 10px;">
+    <el-tabs v-model="activeIconTab" type="card" class="icon-tabs">
         <!-- Aba Ícones Padrão -->
         <el-tab-pane label="Ícones Padrão" name="default">
             <div class="el-form-item">
@@ -604,18 +604,18 @@
 <!-- Seção de ícones movida mais abaixo -->
 
         
-          <div style="display: flex;">
-            <div style="flex: 1;margin-right: 30px;">
-          <label class="el-form-item__label" style="margin-bottom: -15px !important;font-weight: bold;display: flex;justify-content: space-between">
+          <div class="color-customization">
+            <div class="color-section">
+          <label class="el-form-item__label color-label">
             {{KT('device.color1')}}
-            <div style="margin-top: 0px;">
+            <div class="color-switch">
               <el-switch v-model="useCustomColor1"  :active-text="KT('customize')"></el-switch>
             </div>
           </label>
-          <div v-if="useCustomColor1" style="display: flex;flex-direction: column;padding: 10px;">
+          <div v-if="useCustomColor1" class="color-sliders">
 
-            <div class="el-form-item" style="flex: 1;margin-right: 5px;">
-              <label class="el-form-item__label" style="margin-bottom: -15px !important">{{KT('device.hue')}}</label>
+            <div class="el-form-item slider-item">
+              <label class="el-form-item__label slider-label">{{KT('device.hue')}}</label>
               <div class="el-form-item__content" >
 
                 <el-slider v-model="hue" :max="360"></el-slider>
@@ -623,8 +623,8 @@
             </div>
 
 
-            <div class="el-form-item" style="flex: 1;margin-right: 5px;">
-              <label class="el-form-item__label" style="margin-bottom: -15px !important">{{KT('device.saturate')}}</label>
+            <div class="el-form-item slider-item">
+              <label class="el-form-item__label slider-label">{{KT('device.saturate')}}</label>
               <div class="el-form-item__content" >
 
                 <el-slider v-model="saturation" :max="300"></el-slider>
@@ -632,32 +632,32 @@
             </div>
 
 
-            <div class="el-form-item" style="flex: 1;">
-              <label class="el-form-item__label" style="margin-bottom: -15px !important">{{KT('device.brightness')}}</label>
+            <div class="form-full">
+              <label class="el-form-item__label slider-label">{{KT('device.brightness')}}</label>
               <div>
                 <el-slider v-model="brightnes" :max="200"></el-slider>
               </div>
             </div>
 
           </div>
-          <div v-else style="margin-top: 15px;display: flex;flex-wrap: wrap;">
-            <div v-for="(c,ck) in availableColors" :key="'color1'+ck" style="margin-right: 2px;margin-bottom: 2px;border: silver 1px solid;border-radius: 3px;cursor: pointer;" @click="setColor1(c);" :style="{'filter': 'hue-rotate('+c.hue+'deg) saturate('+(c.saturation)+') brightness('+(c.brightness)+')'}">
-              <div style="background: #3e8db9;width: 30px; height: 30px;"></div>
+          <div v-else class="color-palette">
+            <div v-for="(c,ck) in availableColors" :key="'color1'+ck" class="color-swatch" @click="setColor1(c);" :style="{'filter': 'hue-rotate('+c.hue+'deg) saturate('+(c.saturation)+') brightness('+(c.brightness)+')'}">
+              <div class="color-box"></div>
             </div>
           </div>
 
             </div>
             <div style="flex: 1;margin-left: 30px;">
-          <label class="el-form-item__label" style="margin-bottom: -15px !important;font-weight: bold;display: flex;justify-content: space-between">
+          <label class="el-form-item__label color-label">
             {{KT('device.color2')}}
-            <div style="margin-top: 0px;">
+            <div class="color-switch">
               <el-switch v-model="useCustomColor2"  :active-text="KT('customize')"></el-switch>
             </div>
           </label>
-          <div v-if="useCustomColor2" style="display: flex;flex-direction: column;padding: 10px;">
+          <div v-if="useCustomColor2" class="color-sliders">
 
-            <div class="el-form-item" style="flex: 1;margin-right: 5px;">
-              <label class="el-form-item__label" style="margin-bottom: -15px !important">{{KT('device.hue')}}</label>
+            <div class="el-form-item slider-item">
+              <label class="el-form-item__label slider-label">{{KT('device.hue')}}</label>
               <div class="el-form-item__content" >
 
                 <el-slider v-model="hue2" :max="360"></el-slider>
@@ -665,8 +665,8 @@
             </div>
 
 
-            <div class="el-form-item" style="flex: 1;margin-right: 5px;">
-              <label class="el-form-item__label" style="margin-bottom: -15px !important">{{KT('device.saturate')}}</label>
+            <div class="el-form-item slider-item">
+              <label class="el-form-item__label slider-label">{{KT('device.saturate')}}</label>
               <div class="el-form-item__content" >
 
                 <el-slider v-model="saturation2" :max="300"></el-slider>
@@ -674,8 +674,8 @@
             </div>
 
 
-            <div class="el-form-item" style="flex: 1;">
-              <label class="el-form-item__label" style="margin-bottom: -15px !important">{{KT('device.brightness')}}</label>
+            <div class="form-full">
+              <label class="el-form-item__label slider-label">{{KT('device.brightness')}}</label>
               <div>
                 <el-slider v-model="brightnes2" :max="200"></el-slider>
               </div>
@@ -683,8 +683,8 @@
 
           </div>
           <div v-else style="margin-top: 15px;display: flex;margin-bottom: 10px;flex-wrap: wrap;">
-            <div v-for="(c,ck) in availableColors" :key="'color2'+ck" style="margin-right: 2px;margin-bottom: 2px;border: silver 1px solid;border-radius: 3px;cursor: pointer;" @click="setColor2(c);" :style="{'filter': 'hue-rotate('+c.hue+'deg) saturate('+(c.saturation)+') brightness('+(c.brightness)+')'}">
-              <div style="background: #3e8db9;width: 30px; height: 30px;"></div>
+            <div v-for="(c,ck) in availableColors" :key="'color2'+ck" class="color-swatch" @click="setColor2(c);" :style="{'filter': 'hue-rotate('+c.hue+'deg) saturate('+(c.saturation)+') brightness('+(c.brightness)+')'}">
+              <div class="color-box"></div>
             </div>
           </div>
             </div>
@@ -1003,7 +1003,7 @@
               :driver-id="formData.attributes?.driverUniqueId || null"
             />
           </div>
-          <div v-else style="padding: 20px; text-align: center; color: #909399;">
+          <div v-else class="empty-state">
             <i class="fas fa-info-circle" style="font-size: 24px; margin-bottom: 10px;"></i>
             <p>{{ KT('speedEvents.saveFirstMessage') }}</p>
           </div>
@@ -1027,7 +1027,7 @@
     </el-tabs>
 
     </el-form>
-  </el-dialog>
+  </BaseModal>
 
   
 
@@ -1060,14 +1060,14 @@ import 'element-plus/es/components/upload/style/css'
 import 'element-plus/es/components/divider/style/css'
 import 'element-plus/es/components/alert/style/css'
 import 'element-plus/es/components/tag/style/css'
-import {ElDialog,ElSlider,ElMessage,ElMessageBox,ElNotification,ElTabs,ElTabPane,ElForm,ElSwitch,ElFormItem,ElSelect,ElOption,ElButton,ElInput,ElInputNumber,ElUpload,ElDivider,ElAlert,ElTag} from "element-plus";
+import {ElSlider,ElMessage,ElMessageBox,ElNotification,ElTabs,ElTabPane,ElForm,ElSwitch,ElFormItem,ElSelect,ElOption,ElButton,ElInput,ElInputNumber,ElUpload,ElDivider,ElAlert,ElTag} from "element-plus";
 
 import { toKmh } from '../../../utils/speedNormalizer';
 import { parseSpeedKmh, isProbablyWrongSpeedLimit } from '../../../utils/speedHelpers';
 
-
+import BaseModal from '../ui/BaseModal.vue';
 import TabAttributes from "./tab-attributes";
-import SpeedEventHistory from '../../../components/speed/SpeedEventHistory.vue'; // PR-10B
+import SpeedEventHistory from '../../../components/speed/SpeedEventHistory.vue';
 
 import {ref, reactive, watch, computed} from 'vue';
 import {useStore} from 'vuex'
@@ -1909,8 +1909,12 @@ const doSave = () => {
 
 // Função para limpar backdrop quando o dialog fecha (corrige bug do mapa cinza)
 const onDialogClosed = () => {
+  console.log('✅ CLOSED EVENT FIRED at', new Date().toISOString());
+  
   // Remover qualquer backdrop residual que possa estar causando o mapa cinza
   const backdrops = document.querySelectorAll('.el-overlay');
+  console.log('📊 Backdrops found:', backdrops.length);
+  
   backdrops.forEach(backdrop => {
     if (backdrop && backdrop.parentNode) {
       backdrop.parentNode.removeChild(backdrop);
@@ -1920,6 +1924,8 @@ const onDialogClosed = () => {
   // Garantir que o body não fique com overflow hidden
   document.body.style.overflow = '';
   document.body.classList.remove('el-popup-parent--hidden');
+  
+  console.log('✅ Cleanup complete');
 };
 
 const generatePDF = async () => {
@@ -2326,27 +2332,90 @@ const generatePDF = async () => {
 
 </script>
 
-<style>
+<style scoped>
+/* Usando tokens do BaseModal (--m-*) */
+:deep(.bm--device .bm-body) {
+  min-height: 0;
+  max-height: calc(100vh - 180px);
+  overflow: auto;
+  padding: 0 !important;
+}
 
-.el-select.el-select--large{
+.device-footer {
+  border-top: 1px solid var(--m-border);
+  padding: 20px;
+  display: flex;
+  justify-content: space-between;
+  background: var(--m-bg);
+}
+
+.device-footer-left,
+.device-footer-right {
+  display: flex;
+  gap: 10px;
+}
+
+.el-tabs__nav-wrap {
+  padding-left: 20px;
+  padding-right: 20px;
+  background: var(--m-bg);
+}
+
+.el-tabs__content {
+  padding: 20px;
+  background: var(--m-bg);
+}
+
+.form-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.form-col-70 { flex: 0.7; }
+.form-col-60 { flex: 0.6; }
+.form-col-80 { flex: 0.8; }
+.form-col-50 { flex: 0.5; }
+.form-col-40 { flex: 0.4; }
+.form-col-33 { flex: 0.33; }
+.form-full { flex: 1; }
+
+/* Utilities */
+.full-width-select {
   width: 100%;
 }
 
-.el-dialog__body,.el-dialog__footer{
-  padding: 0px !important;
+.helper-text {
+  color: var(--m-subtext);
 }
 
-.el-tabs__nav-wrap{
-  padding-left: 20px;
-  padding-right: 20px;
+.device-state-section {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 20px;
+  padding: 10px;
+  background-color: var(--m-muted-bg);
+  border-radius: 5px;
 }
 
-.el-tabs__content{
-  padding-left: 20px;
-  padding-right: 20px;
+.speed-limit-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-/* Estilos para la solapa de usuario */
+.speed-limit-helper {
+  font-size: 12px;
+  color: var(--m-subtext);
+  margin-top: 4px;
+}
+
+.speed-warning {
+  margin-top: 8px;
+}
+
 .user-form-container {
   display: flex;
   flex-direction: column;
@@ -2354,19 +2423,26 @@ const generatePDF = async () => {
 }
 
 .user-section {
-  background: #f8f9fa;
+  background: var(--m-muted-bg);
   padding: 20px;
   border-radius: 8px;
-  border: 1px solid #e9ecef;
+  border: 1px solid var(--m-border);
 }
 
 .section-title {
   margin: 0 0 20px 0;
-  color: #495057;
+  color: var(--m-text);
   font-size: 16px;
   font-weight: 600;
-  border-bottom: 2px solid #dee2e6;
+  border-bottom: 2px solid var(--m-border);
   padding-bottom: 8px;
+}
+
+.section-description {
+  color: var(--m-subtext);
+  font-size: 13px;
+  margin-bottom: 15px;
+  line-height: 1.5;
 }
 
 .address-row {
@@ -2386,7 +2462,30 @@ const generatePDF = async () => {
   min-width: 140px;
 }
 
-/* Estilos para campos modificados */
+.street-field {
+  flex: 2;
+  min-width: 200px;
+}
+
+.number-field {
+  flex: 0 0 100px;
+  min-width: 100px;
+}
+
+.user-option {
+  display: flex;
+  justify-content: space-between;
+}
+
+.user-email {
+  color: var(--m-subtle);
+  font-size: 13px;
+}
+
+.user-linked-alert {
+  margin-top: 10px;
+}
+
 .changed-input {
   border-color: #f39c12 !important;
   box-shadow: 0 0 0 2px rgba(243, 156, 18, 0.2) !important;
@@ -2404,27 +2503,235 @@ const generatePDF = async () => {
   100% { opacity: 1; }
 }
 
-/* Mejoras para los botones de edición */
-.el-button.is-circle {
-  transition: all 0.3s ease;
+.accumulator-input {
+  display: flex;
+  align-items: center;
+  gap: 5px;
 }
 
-.el-button.is-circle:hover {
-  transform: scale(1.1);
+.field-helper {
+  font-size: 11px;
+  color: var(--m-subtext);
+  margin-top: 5px;
 }
 
-
-.street-field {
-  flex: 2;
-  min-width: 200px;
+.vehicle-section-title {
+  margin-top: 30px;
+  margin-bottom: 15px;
+  color: var(--m-text);
+  font-size: 16px;
+  font-weight: 600;
 }
 
-.number-field {
-  flex: 0 0 100px;
-  min-width: 100px;
+.icon-tabs {
+  margin-bottom: 10px;
 }
 
-/* Responsividad para móviles */
+.icon-grid-container {
+  display: flex;
+  border: 1px solid var(--m-border);
+  border-radius: 3px;
+  flex-wrap: wrap;
+  margin-right: -10px;
+  overflow-y: auto;
+  max-height: 350px;
+  padding: 5px;
+  background: var(--m-bg);
+}
+
+.icon-grid-v2 {
+  max-height: 500px;
+  padding: 10px;
+}
+
+.icon-grid-container::-webkit-scrollbar {
+  width: 10px;
+}
+
+.icon-grid-container::-webkit-scrollbar-track {
+  background: var(--m-muted-bg);
+  border-radius: 5px;
+}
+
+.icon-grid-container::-webkit-scrollbar-thumb {
+  background: var(--m-subtle);
+  border-radius: 5px;
+}
+
+.icon-grid-container::-webkit-scrollbar-thumb:hover {
+  background: var(--m-text);
+}
+
+.color-customization {
+  display: flex;
+}
+
+.color-section {
+  flex: 1;
+}
+
+.color-section:first-child {
+  margin-right: 30px;
+}
+
+.color-section:last-child {
+  margin-left: 30px;
+}
+
+.color-label {
+  margin-bottom: -15px !important;
+  font-weight: bold;
+  display: flex;
+  justify-content: space-between;
+}
+
+.color-switch {
+  margin-top: 0px;
+}
+
+.color-sliders {
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+}
+
+.slider-item {
+  flex: 1;
+  margin-right: 5px;
+}
+
+.slider-label {
+  margin-bottom: -15px !important;
+}
+
+.color-palette {
+  margin-top: 15px;
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.color-swatch {
+  margin-right: 2px;
+  margin-bottom: 2px;
+  border: 1px solid var(--m-border);
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.color-box {
+  background: #3e8db9;
+  width: 30px;
+  height: 30px;
+}
+
+.photos-container {
+  padding: 10px;
+}
+
+.photo-section {
+  background: var(--m-muted-bg);
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid var(--m-border);
+  margin-bottom: 20px;
+}
+
+.upload-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+  margin-top: 15px;
+}
+
+.upload-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.upload-label {
+  font-weight: 600;
+  color: var(--m-text);
+  font-size: 14px;
+  margin-bottom: 5px;
+}
+
+.photo-uploader {
+  width: 100%;
+}
+
+.photo-uploader :deep(.el-upload) {
+  width: 100%;
+  border: 2px dashed var(--m-border);
+  border-radius: 6px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s;
+  background-color: var(--m-bg);
+  aspect-ratio: 4/3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.photo-uploader :deep(.el-upload:hover) {
+  border-color: var(--m-accent-1);
+  background-color: var(--m-muted-bg);
+}
+
+.uploaded-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.upload-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  color: var(--m-subtext);
+  text-align: center;
+}
+
+.upload-placeholder i {
+  font-size: 32px;
+  margin-bottom: 8px;
+  color: var(--m-subtle);
+}
+
+.upload-text {
+  font-size: 13px;
+  color: var(--m-subtext);
+}
+
+.remove-photo-btn {
+  width: 100%;
+  margin-top: 5px;
+}
+
+.photo-description-input {
+  margin-top: 5px;
+}
+
+.photo-alert {
+  margin-top: 20px;
+}
+
+.empty-state {
+  padding: 20px;
+  text-align: center;
+  color: var(--m-subtext);
+}
+
+.empty-state i {
+  font-size: 24px;
+  margin-bottom: 10px;
+}
+
 @media (max-width: 768px) {
   .user-form-container {
     gap: 20px;
@@ -2451,17 +2758,15 @@ const generatePDF = async () => {
     font-size: 14px;
   }
   
-  /* Ajustar el footer para móviles */
-  .el-dialog__footer > div {
+  .device-footer {
     flex-direction: column !important;
     gap: 10px !important;
   }
   
-  .el-dialog__footer > div > div {
+  .device-footer > div {
     justify-content: center !important;
   }
   
-  /* Ajustar padding general en móviles */
   .el-tabs__content {
     padding-left: 10px;
     padding-right: 10px;
@@ -2472,21 +2777,22 @@ const generatePDF = async () => {
     padding-right: 10px;
   }
   
-  /* Hacer los botones más grandes en móviles */
   .el-button {
     min-height: 44px;
     padding: 12px 20px;
   }
-}
 
-/* Para pantallas muy pequeñas */
-@media (max-width: 480px) {
-  .el-dialog {
-    margin: 5px !important;
-    width: calc(100vw - 10px) !important;
-    max-height: calc(100vh - 10px) !important;
+  .upload-grid {
+    grid-template-columns: 1fr;
+    gap: 15px;
   }
   
+  .photo-section {
+    padding: 15px;
+  }
+}
+
+@media (max-width: 480px) {
   .el-tabs__content {
     padding-left: 5px;
     padding-right: 5px;
@@ -2507,192 +2813,26 @@ const generatePDF = async () => {
     margin-bottom: 15px;
   }
   
-  /* Asegurar que los botones no se corten */
-  .el-dialog__footer {
+  .device-footer {
     position: sticky !important;
     bottom: 0 !important;
-    background: white !important;
+    background: var(--m-bg) !important;
     z-index: 1000 !important;
-    border-top: 1px solid #e0e0e0 !important;
+    border-top: 1px solid var(--m-border) !important;
     margin-top: 0 !important;
   }
   
-  .el-dialog__body {
-    padding-bottom: 80px !important; /* Espacio para el footer */
+  :deep(.bm--device .bm-body) {
+    padding-bottom: 80px !important;
   }
   
-  /* Hacer los botones más accesibles en móvil */
   .el-button {
     min-height: 48px !important;
     font-size: 16px !important;
     width: 100% !important;
     margin-bottom: 5px !important;
   }
-}
 
-/* ============================================
-   ESTILOS PARA GRID DE ÍCONES
-   ============================================ */
-.icon-grid-container {
-  display: flex;
-  border: silver 1px solid;
-  border-radius: 3px;
-  flex-wrap: wrap;
-  margin-right: -10px;
-  overflow-y: auto;
-  max-height: 350px;
-  padding: 5px;
-}
-
-/* Grid V2 com mais altura para os 523 ícones */
-.icon-grid-v2 {
-  max-height: 500px;
-  padding: 10px;
-}
-
-/* Scroll customizado */
-.icon-grid-container::-webkit-scrollbar {
-  width: 10px;
-}
-
-.icon-grid-container::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 5px;
-}
-
-.icon-grid-container::-webkit-scrollbar-thumb {
-  background: #888;
-  border-radius: 5px;
-}
-
-.icon-grid-container::-webkit-scrollbar-thumb:hover {
-  background: #555;
-}
-
-/* ============================================
-   ESTILOS PARA FOTOS DE INSTALAÇÃO E VISTORIA
-   ============================================ */
-.photos-container {
-  padding: 10px;
-}
-
-.photo-section {
-  background: #f8f9fa;
-  padding: 20px;
-  border-radius: 8px;
-  border: 1px solid #e9ecef;
-  margin-bottom: 20px;
-}
-
-.photo-section .section-title {
-  margin: 0 0 10px 0;
-  color: #495057;
-  font-size: 16px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.photo-section .section-description {
-  color: #6c757d;
-  font-size: 13px;
-  margin-bottom: 20px;
-  line-height: 1.5;
-}
-
-.upload-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 20px;
-  margin-top: 15px;
-}
-
-.upload-item {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.upload-label {
-  font-weight: 600;
-  color: #495057;
-  font-size: 14px;
-  margin-bottom: 5px;
-}
-
-.photo-uploader {
-  width: 100%;
-}
-
-.photo-uploader .el-upload {
-  width: 100%;
-  border: 2px dashed #d9d9d9;
-  border-radius: 6px;
-  cursor: pointer;
-  position: relative;
-  overflow: hidden;
-  transition: all 0.3s;
-  background-color: #fafafa;
-  aspect-ratio: 4/3;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.photo-uploader .el-upload:hover {
-  border-color: #409eff;
-  background-color: #f5f7fa;
-}
-
-.uploaded-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.upload-placeholder {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  color: #8c939d;
-  text-align: center;
-}
-
-.upload-placeholder i {
-  font-size: 32px;
-  margin-bottom: 8px;
-  color: #c0c4cc;
-}
-
-.upload-text {
-  font-size: 13px;
-  color: #8c939d;
-}
-
-.remove-photo-btn {
-  width: 100%;
-  margin-top: 5px;
-}
-
-.photo-description-input {
-  margin-top: 5px;
-}
-
-/* Responsividade para fotos em mobile */
-@media (max-width: 768px) {
-  .upload-grid {
-    grid-template-columns: 1fr;
-    gap: 15px;
-  }
-  
-  .photo-section {
-    padding: 15px;
-  }
-  
   .photo-section .section-title {
     font-size: 14px;
   }
@@ -2701,5 +2841,4 @@ const generatePDF = async () => {
     font-size: 12px;
   }
 }
-
 </style>

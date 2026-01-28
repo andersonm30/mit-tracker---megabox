@@ -642,7 +642,7 @@
               <div class="driver-card-content">
                 <div class="driver-photo-enhanced">
                   <img :src="getDriverPhotoUrl(floatingPanelDevice)" :alt="getDriverName(floatingPanelDevice)"
-                    @error="$event.target.src = '/tarkan/assets/images/drivers/default.png'" class="driver-avatar" />
+                    @error="$event.target.src = driverImageUrl('default.png')" class="driver-avatar" />
                   <div class="photo-overlay" v-if="isDriverCNHExpired(floatingPanelDevice)">
                     <i class="fas fa-exclamation-triangle"></i>
                   </div>
@@ -693,7 +693,7 @@
             <div class="vehicle-image-section">
               <div class="vehicle-photo-large">
                 <img :src="getDeviceImageUrl(floatingPanelDevice)" :alt="floatingPanelDevice.name"
-                  @error="$event.target.src = '/tarkan/assets/images/categories/default.png'" />
+                  @error="$event.target.src = categoryImageUrl('default')" />
               </div>
             </div>
 
@@ -742,6 +742,7 @@
 <script setup>
 import { devLog, devWarn } from '@/utils/devLog';
 import { startMark, endMark } from '@/utils/devPerf';
+import { categoryImageUrl, driverImageUrl } from '@/branding';
 import {
   formatCPF,
   normalizeCourse,
@@ -1241,7 +1242,7 @@ const getDriverId = (device) => {
 };
 
 const getDriverPhotoUrl = (device) => {
-  if (!device) return '/tarkan/assets/images/drivers/default.png';
+  if (!device) return driverImageUrl('default.png');
   
   const position = store.getters["devices/getPosition"](device.id);
   const attrs = position?.attributes ?? {};
@@ -1274,7 +1275,7 @@ const getDriverPhotoUrl = (device) => {
       return url;
     }
   }
-  return '/tarkan/assets/images/drivers/default.png';
+  return driverImageUrl('default.png');
 };
 
 // Helper interno para resolver effectiveDriverId
@@ -1342,7 +1343,7 @@ const isDriverCNHExpiring = (device) => {
 // formatCPF movido para mapUtils.ts (FASE B1)
 
 const getDeviceImageUrl = (device) => {
-  if (!device) return '/tarkan/assets/images/categories/default.png';
+  if (!device) return categoryImageUrl('default');
   const cacheKey = `device_${device.id}`;
   if (imageUrlCache.value.has(cacheKey)) {
     return imageUrlCache.value.get(cacheKey);
@@ -1353,7 +1354,7 @@ const getDeviceImageUrl = (device) => {
     return url;
   }
   const category = device.category || 'default';
-  return `/tarkan/assets/images/categories/${category}.png`;
+  return categoryImageUrl(category);
 };
 
 const getVehiclePlate = (device) => {
@@ -2325,7 +2326,7 @@ const getPlaybackDeviceIconUrl = () => {
   }
   category = category || 'default';
 
-  const iconUrl = `/tarkan/assets/images/categories/${category}.png`;
+  const iconUrl = categoryImageUrl(category);
 
   devLog('[PlaybackIcon] 🚗 Usando categoria:', { deviceId, category, iconUrl });
   return iconUrl;

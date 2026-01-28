@@ -77,7 +77,6 @@ import 'element-plus/es/components/tabs/style/css'
 import 'element-plus/es/components/message/style/css'
 import 'element-plus/es/components/checkbox/style/css'
 import 'element-plus/es/components/message-box/style/css'
-import 'element-plus/es/components/dialog/style/css'
 import 'element-plus/es/components/notification/style/css'
 
 
@@ -89,7 +88,7 @@ import TabAttributes from "./tab-attributes";
 const defaultGeofenceData = {
   name: '',
   type: 'POLYGON',
-  attributes: []
+  attributes: {} // ✅ FIX: Objeto (não array) - consistência com Traccar
 }
 
 const defaultTraccarGeofenceData = {
@@ -105,10 +104,11 @@ const defaultTraccarGeofenceData = {
 
 
 
-import {ref,defineExpose} from 'vue';
+import {ref, inject} from 'vue'; // ✅ defineExpose é macro, não precisa importar
 import {useStore} from 'vuex'
 
 const store = useStore();
+const contextMenuRef = inject('contextMenu');
 
 
 
@@ -165,12 +165,20 @@ const editGeofence = (geofence)=>{
 
   formData.value.type = area.type;
 
-  if(area.type === 'CIRCLE')
-  {
-  ElMessageBox.confirm('Deseja realmente Editar esta geocerca de Circulo,VOCÊ TERÁ QUE CRIAR A AREA DE NOVO!!','Tem certeza?');
+  // ✅ FIX CRÍTICO: Preserva dados do círculo ao editar
+  if(area.type === 'CIRCLE') {
+    // Parse correto: CIRCLE (lat lng, radius)
+    const circleData = area.params;
+    if (circleData && circleData.length >= 4) {
+      store.commit("geofences/setParams", [
+        parseFloat(circleData[1]), // lat
+        parseFloat(circleData[2]), // lng
+        parseFloat(circleData[3])  // radius
+      ]);
+    }
+  } else {
+    store.commit("geofences/setParams", area.params);
   }
-
-  store.commit("geofences/setParams",area.params);
 
   show.value = true;
   //  })
@@ -178,11 +186,24 @@ const editGeofence = (geofence)=>{
 
 defineExpose({
   newGeofence,
-  editGeofence
+  editGeofence,
+  contextMenuRef
 });
 
 
-const doEditArea = ()=>{
+const doEditArea = async ()=>{
+  // ✅ FIX: Confirmação antes de limpar área existente
+  if(store.state.geofences.mapPointEditingParams.length > 0) {
+    try {
+      await ElMessageBox.confirm(
+        'Ao editar a área, os pontos atuais serão substituídos. Deseja continuar?',
+        'Confirmar Edição',
+        { type: 'warning' }
+      );
+    } catch {
+      return; // Cancelou
+    }
+  }
   store.dispatch("geofences/enableEditing",formData.value.type)
 }
 
@@ -191,17 +212,22 @@ const doCancel = ()=>{
 }
 
 
-var fenceAreaCircle = /\((.*?) (.*?),(.*?)\)/gi;
+// ✅ Regex patterns para POLYGON e LINESTRING (CIRCLE usa match inline)
 var fenceAreaPolygon = /(\s?([-\d.]*)\s([-\d.]*),?)/gm;
 var fenceAreaLinestring = /(\s?([-\d.]*)\s([-\d.]*),?)/gm;
 
 const getAreaParsed = (a)=>{
-  const type = a.split("(")[0].trim();
+  // ✅ NULL SAFETY: Evita crash se area vier vazio/null/undefined
+  if (!a || typeof a !== 'string') {
+    return { type: formData.value.type || 'POLYGON', params: [] };
+  }
+
+  const type = a.split("(")[0].trim().toUpperCase(); // ✅ FIX: Case-insensitive
 
 
   if(type === 'LINESTRING'){
 
-    const linestring = a.match(fenceAreaLinestring);
+    const linestring = a.match(fenceAreaLinestring) || []; // ✅ NULL SAFETY: Fallback se match null
     let tmp = [];
     linestring.forEach((L)=>{
       const S = L.trim().replace(",","").split(" ");
@@ -214,7 +240,7 @@ const getAreaParsed = (a)=>{
     return {type: 'LINESTRING',params: tmp};
   }else if(type === 'POLYGON'){
 
-    const polygon = a.match(fenceAreaPolygon);
+    const polygon = a.match(fenceAreaPolygon) || []; // ✅ NULL SAFETY: Fallback se match null
     let tmp = [];
     polygon.forEach((L)=>{
       const S = L.trim().replace(",","").split(" ");
@@ -227,15 +253,23 @@ const getAreaParsed = (a)=>{
     return {type: 'POLYGON',params: tmp};
 
   }else if(type === 'CIRCLE'){
-    return {type: 'CIRCLE',params: fenceAreaCircle.exec(a)};
+    // ✅ FIX CRÍTICO: Parse correto do WKT CIRCLE (lat lng, radius)
+    const match = a.match(/CIRCLE\s*\(\s*([-\d.]+)\s+([-\d.]+)\s*,\s*([-\d.]+)\s*\)/i);
+    if(match) {
+      return {
+        type: 'CIRCLE',
+        params: [match[0], match[1], match[2], match[3]] // [fullMatch, lat, lng, radius]
+      };
+    }
+    return {type: 'CIRCLE', params: []};
   }
 
   return {type};
 }
 
-const getParsedArea = ()=>{
+const getParsedArea = (paramsOverride)=>{
     const type = formData.value.type;
-    const params = store.state.geofences.mapPointEditingParams;
+    const params = paramsOverride || store.state.geofences.mapPointEditingParams; // ✅ FIX: Aceita override
     if(type==='CIRCLE'){
       return 'CIRCLE ('+params[0]+' '+params[1]+', '+params[2]+')';
     }else if(type==='LINESTRING'){
@@ -273,7 +307,26 @@ const doSave = ()=>{
 
   tmp.id = formData.value.id;
   tmp.name = formData.value.name;
-  tmp.area = getParsedArea();
+  
+  // ✅ FIX CRÍTICO: Auto-close de polígono SEM mutar store (cópia local)
+  let paramsForSave = store.state.geofences.mapPointEditingParams;
+  
+  if(formData.value.type === 'POLYGON') {
+    const params = store.state.geofences.mapPointEditingParams;
+    if(params.length < 3) {
+      ElMessageBox.alert('O polígono precisa ter pelo menos 3 pontos.', 'Área Inválida', { type: 'error' });
+      return;
+    }
+    // Fechar polígono em CÓPIA LOCAL se necessário (primeiro != último)
+    const first = params[0];
+    const last = params[params.length - 1];
+    if(first[0] !== last[0] || first[1] !== last[1]) {
+      // ✅ Cópia local - NÃO commita no store (evita mutação se cancelar)
+      paramsForSave = [...params, [first[0], first[1]]];
+    }
+  }
+  
+  tmp.area = getParsedArea(paramsForSave); // ✅ Passa cópia local
   tmp.attributes = formData.value.attributes;
 
   if(tmp.name.trim()===''){

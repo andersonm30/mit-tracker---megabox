@@ -23,7 +23,7 @@
 
           <div style="display: flex;justify-content: space-between">
             <div style="position: relative;background: var(--el-bg-color);width: 300px;height: 150px;">
-              <img style="width: 100px;position: absolute;top: 50%;left: calc(50% - 100px);transform: translateY(-50%);" :src="'/tarkan/assets/custom/icons/android-chrome-192x192.png?uncache='+uncache">
+              <img style="width: 100px;position: absolute;top: 50%;left: calc(50% - 100px);transform: translateY(-50%);" :src="'/mit/assets/custom/icons/android-chrome-192x192.png?uncache='+uncache">
             </div>
 
             <div>
@@ -112,7 +112,7 @@
               <div style="position: relative; width: 100%; height: 200px; border-radius: 6px; overflow: hidden; margin-bottom: 10px;">
                 <div 
                   style="width: 100%; height: 100%; background-size: cover; background-position: center;"
-                  :style="'background-image: url(/tarkan/assets/custom/bg.jpg?uncache='+uncache+');'"
+                  :style="'background-image: url(/mit/assets/custom/bg.jpg?uncache='+uncache+');'"
                 ></div>
                 <div v-if="labelConf.loginBackground.mode === 'static'" 
                      style="position: absolute; top: 10px; right: 10px; background: #67c23a; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px;">
@@ -132,7 +132,7 @@
                   
                   <!-- Preview de imagen actual -->
                   <div style="width: 100%; aspect-ratio: 16/9; background: #fff; border-radius: 4px; overflow: hidden; border: 1px solid #dcdfe6; margin-bottom: 10px;">
-                    <img :src="'/tarkan/assets/custom/bg.jpg?t=' + Date.now()" 
+                    <img :src="'/mit/assets/custom/bg.jpg?t=' + Date.now()" 
                          style="width: 100%; height: 100%; object-fit: cover;"
                          onerror="this.style.display='none'">
                   </div>
@@ -243,13 +243,13 @@
                 <div style="width: 100%; height: 100%; position: relative; background: #1a1a1a;">
                   <!-- Imagen 1 -->
                   <div style="position: absolute; width: 33.33%; height: 100%; left: 0; background-size: cover; background-position: center; opacity: 0.8;"
-                       :style="'background-image: url(/tarkan/assets/custom/bg.jpg?uncache='+uncache+');'"></div>
+                       :style="'background-image: url(/mit/assets/custom/bg.jpg?uncache='+uncache+');'"></div>
                   <!-- Imagen 2 -->
                   <div style="position: absolute; width: 33.33%; height: 100%; left: 33.33%; background-size: cover; background-position: center; opacity: 0.8;"
-                       :style="'background-image: url(/tarkan/assets/custom/bg1.jpg?uncache='+uncache+');'"></div>
+                       :style="'background-image: url(/mit/assets/custom/bg1.jpg?uncache='+uncache+');'"></div>
                   <!-- Imagen 3 -->
                   <div style="position: absolute; width: 33.33%; height: 100%; left: 66.66%; background-size: cover; background-position: center; opacity: 0.8;"
-                       :style="'background-image: url(/tarkan/assets/custom/bg2.jpg?uncache='+uncache+');'"></div>
+                       :style="'background-image: url(/mit/assets/custom/bg2.jpg?uncache='+uncache+');'"></div>
                   <!-- Indicador de movimiento -->
                   <div style="position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px;">
                     <i class="fas fa-chevron-left" style="color: white; opacity: 0.6;"></i>
@@ -315,7 +315,7 @@
                   <!-- Preview de imágenes -->
                   <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 10px;">
                     <div style="aspect-ratio: 16/9; background: #fff; border-radius: 4px; overflow: hidden; border: 1px solid #dcdfe6; position: relative;">
-                      <img :src="'/tarkan/assets/custom/bg.jpg?t=' + Date.now()" 
+                      <img :src="'/mit/assets/custom/bg.jpg?t=' + Date.now()" 
                            style="width: 100%; height: 100%; object-fit: cover;"
                            onerror="this.style.display='none'">
                       <div style="position: absolute; top: 5px; left: 5px; background: rgba(0,0,0,0.6); color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px;">
@@ -323,7 +323,7 @@
                       </div>
                     </div>
                     <div style="aspect-ratio: 16/9; background: #fff; border-radius: 4px; overflow: hidden; border: 1px solid #dcdfe6; position: relative;">
-                      <img :src="'/tarkan/assets/custom/bg1.jpg?t=' + Date.now()" 
+                      <img :src="'/mit/assets/custom/bg1.jpg?t=' + Date.now()" 
                            style="width: 100%; height: 100%; object-fit: cover;"
                            onerror="this.style.display='none'">
                       <div style="position: absolute; top: 5px; left: 5px; background: rgba(0,0,0,0.6); color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px;">
@@ -331,7 +331,7 @@
                       </div>
                     </div>
                     <div style="aspect-ratio: 16/9; background: #fff; border-radius: 4px; overflow: hidden; border: 1px solid #dcdfe6; position: relative;">
-                      <img :src="'/tarkan/assets/custom/bg2.jpg?t=' + Date.now()" 
+                      <img :src="'/mit/assets/custom/bg2.jpg?t=' + Date.now()" 
                            style="width: 100%; height: 100%; object-fit: cover;"
                            onerror="this.style.display='none'">
                       <div style="position: absolute; top: 5px; left: 5px; background: rgba(0,0,0,0.6); color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px;">
@@ -406,8 +406,8 @@
         <el-form label-width="150px" label-position="left">
 
           <div style="display: flex;justify-content: space-between">
-            <div class="loginfake" style="position: relative;width: 300px;height: 150px;" :style="'background-image: url(/tarkan/assets/custom/bg.jpg?uncache='+uncache+');'">
-              <img style="z-index: 9999999;width: 200px;position: absolute;top: 50%;left: calc(50% - 100px);transform: translateY(-50%);" :src="'/tarkan/assets/custom/logoWhite.png?uncache='+uncache">
+            <div class="loginfake" style="position: relative;width: 300px;height: 150px;" :style="'background-image: url(/mit/assets/custom/bg.jpg?uncache='+uncache+');'">
+              <img style="z-index: 9999999;width: 200px;position: absolute;top: 50%;left: calc(50% - 100px);transform: translateY(-50%);" :src="'/mit/assets/custom/logoWhite.png?uncache='+uncache">
             </div>
 
             <div>
@@ -439,7 +439,7 @@
 
           <div style="display: flex;justify-content: space-between">
             <div style="position: relative;background: var(--el-bg-color);width: 300px;height: 150px;">
-              <img style="width: 200px;position: absolute;top: 50%;left: calc(50% - 100px);transform: translateY(-50%);" :src="'/tarkan/assets/custom/logo.png?uncache='+uncache">
+              <img style="width: 200px;position: absolute;top: 50%;left: calc(50% - 100px);transform: translateY(-50%);" :src="'/mit/assets/custom/logo.png?uncache='+uncache">
             </div>
 
             <div>

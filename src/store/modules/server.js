@@ -87,7 +87,7 @@ export default {
     actions: {
         loadConfig(context){
             return new Promise((resolve,reject)=> {
-                fetch('/tarkan/assets/custom/config.json').then(async (response) => {
+                fetch('/mit/assets/custom/config.json').then(async (response) => {
                         const data = await response.json();
 
                         context.commit("setConfig",data);

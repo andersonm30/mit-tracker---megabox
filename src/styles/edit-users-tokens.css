@@ -1,0 +1,303 @@
+/**
+ * MITAPP EDIT-USERS - ESTILOS COM TOKENS
+ * ========================================
+ * Substitui hardcodes por tokens responsivos ao dark mode
+ */
+
+/* ===========================
+ *  TOKENS LOCAIS (HERDAM DO GLOBAL)
+ * =========================== */
+.users-dialog--mitapp {
+  --mit-accent: var(--brand-primary, #409EFF);
+  --mit-bg: var(--brand-bg, #FFFFFF);
+  --mit-surface: var(--brand-surface, #FAFAFA);
+  --mit-surface-elevated: var(--brand-surface-elevated, #FFFFFF);
+  --mit-text: var(--brand-text, #222222);
+  --mit-subtext: var(--brand-text-secondary, #606266);
+  --mit-border: var(--brand-border, #DCDFE6);
+  --mit-shadow: var(--brand-shadow-sm, 0 2px 4px rgba(0, 0, 0, 0.08));
+  --mit-shadow-hover: var(--brand-shadow-md, 0 4px 12px rgba(0, 0, 0, 0.12));
+  --mit-radius: var(--brand-radius-md, 6px);
+}
+
+/* Dark mode: tokens ajustados automaticamente */
+body.dark-mode .users-dialog--mitapp {
+  --mit-bg: var(--brand-bg, #1A1A1A);
+  --mit-surface: var(--brand-surface, #2A2A2A);
+  --mit-surface-elevated: var(--brand-surface-elevated, #333333);
+  --mit-text: var(--brand-text, #E0E0E0);
+  --mit-subtext: var(--brand-text-secondary, #B0B0B0);
+  --mit-border: var(--brand-border, #444444);
+  --mit-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  --mit-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+/* ===========================
+ *  STAT CARDS (TOKENS + DARK MODE)
+ * =========================== */
+.stat-card {
+  /* ✅ Usa tokens ao invés de hardcode */
+  background: var(--mit-accent);
+  color: white;
+  padding: 16px 18px;
+  border-radius: var(--mit-radius);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  transition: all 0.2s ease;
+  box-shadow: var(--mit-shadow);
+}
+
+.stat-card:hover {
+  box-shadow: var(--mit-shadow-hover);
+  transform: translateY(-2px);
+  filter: brightness(1.1);
+}
+
+.stat-card.active {
+  box-shadow: 0 0 0 3px rgba(64, 158, 255, 0.4);
+  transform: scale(1.02);
+  filter: brightness(1.15);
+}
+
+/* Dark mode: ajustes sutis */
+body.dark-mode .stat-card {
+  filter: brightness(0.9);
+}
+
+body.dark-mode .stat-card:hover {
+  filter: brightness(1.0);
+}
+
+body.dark-mode .stat-card.active {
+  filter: brightness(1.1);
+  box-shadow: 0 0 0 3px rgba(64, 158, 255, 0.6);
+}
+
+/* ===========================
+ *  MODAL BACKGROUND (TOKENS)
+ * =========================== */
+.users-modal-body {
+  background: var(--mit-bg);
+  color: var(--mit-text);
+}
+
+.users-content {
+  background: var(--mit-bg);
+}
+
+/* ===========================
+ *  TOOLBAR (TOKENS)
+ * =========================== */
+.users-toolbar {
+  background: var(--mit-surface);
+  border-bottom: 1px solid var(--mit-border);
+}
+
+.meta-text {
+  color: var(--mit-subtext);
+}
+
+/* ===========================
+ *  TABELA (DARK MODE)
+ * =========================== */
+.users-table {
+  background: var(--mit-bg);
+}
+
+/* Header da tabela */
+.users-table :deep(.el-table__header-wrapper) {
+  background: var(--mit-surface-elevated);
+}
+
+.users-table :deep(.el-table__header th) {
+  background: var(--mit-surface-elevated) !important;
+  color: var(--mit-text);
+  border-bottom: 1px solid var(--mit-border);
+}
+
+/* Linhas da tabela */
+.users-table :deep(.el-table__body tr) {
+  background: var(--mit-bg);
+  color: var(--mit-text);
+}
+
+.users-table :deep(.el-table__body tr:hover) {
+  background: var(--mit-surface) !important;
+}
+
+/* Zebra stripe */
+.users-table :deep(.el-table__body tr.el-table__row--striped) {
+  background: var(--mit-surface);
+}
+
+.users-table :deep(.el-table__body tr.el-table__row--striped:hover) {
+  background: var(--mit-surface-elevated) !important;
+}
+
+/* Bordas */
+.users-table :deep(.el-table__body td) {
+  border-bottom: 1px solid var(--mit-border);
+}
+
+/* ===========================
+ *  FOOTER (TOKENS)
+ * =========================== */
+.users-footer {
+  background: var(--mit-surface);
+  border-top: 1px solid var(--mit-border);
+}
+
+/* Botões no dark mode herdam do Element Plus */
+body.dark-mode .users-footer .el-button {
+  --el-button-bg-color: var(--mit-surface-elevated);
+  --el-button-text-color: var(--mit-text);
+  --el-button-border-color: var(--mit-border);
+}
+
+body.dark-mode .users-footer .el-button:hover {
+  --el-button-hover-bg-color: var(--brand-primary);
+  --el-button-hover-text-color: white;
+}
+
+/* ===========================
+ *  MOBILE CARDS (TOKENS)
+ * =========================== */
+.mobile-user-card {
+  background: var(--mit-surface);
+  border: 1px solid var(--mit-border);
+  border-radius: var(--mit-radius);
+  box-shadow: var(--mit-shadow);
+}
+
+.mobile-user-card:hover {
+  background: var(--mit-surface-elevated);
+  box-shadow: var(--mit-shadow-hover);
+}
+
+.mobile-user-name {
+  color: var(--mit-text);
+}
+
+.mobile-user-email {
+  color: var(--mit-subtext);
+}
+
+/* ===========================
+ *  LOADING STATE (SKELETON)
+ * =========================== */
+.skeleton-loader {
+  padding: 20px;
+  background: var(--mit-bg);
+}
+
+/* Dark mode: skeleton com cor ajustada */
+body.dark-mode .skeleton-loader :deep(.el-skeleton__item) {
+  background: linear-gradient(
+    90deg,
+    var(--mit-surface) 25%,
+    var(--mit-surface-elevated) 37%,
+    var(--mit-surface) 63%
+  );
+}
+
+/* ===========================
+ *  EMPTY STATE
+ * =========================== */
+.empty-state {
+  padding: 60px 20px;
+  text-align: center;
+  color: var(--mit-subtext);
+}
+
+.empty-state i {
+  font-size: 64px;
+  color: var(--mit-border);
+  margin-bottom: 16px;
+}
+
+.empty-state p {
+  font-size: 16px;
+  margin: 8px 0 24px;
+}
+
+/* ===========================
+ *  ERROR STATE
+ * =========================== */
+.error-state {
+  padding: 60px 20px;
+  text-align: center;
+  color: var(--brand-danger, #F56C6C);
+}
+
+.error-state i {
+  font-size: 64px;
+  margin-bottom: 16px;
+}
+
+.error-state p {
+  font-size: 16px;
+  margin: 8px 0 24px;
+  color: var(--mit-text);
+}
+
+/* ===========================
+ *  ACESSIBILIDADE
+ * =========================== */
+.search-input:focus-within {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: 2px;
+}
+
+/* Focus visível em botões */
+.stat-card:focus-visible {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: 4px;
+}
+
+/* ===========================
+ *  RESPONSIVO
+ * =========================== */
+@media (max-width: 768px) {
+  .users-dialog--mitapp :deep(.el-dialog) {
+    width: 95vw !important;
+    margin: 0 !important;
+  }
+  
+  .users-stats-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  
+  .stat-card {
+    padding: 12px 14px;
+  }
+  
+  .stat-icon {
+    font-size: 22px;
+  }
+  
+  .stat-number {
+    font-size: 20px;
+  }
+  
+  .stat-label {
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 480px) {
+  .users-stats-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .users-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .users-toolbar-meta {
+    justify-content: space-between;
+  }
+}

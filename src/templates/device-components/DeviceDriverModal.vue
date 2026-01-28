@@ -11,9 +11,9 @@
       <div class="driver-modal-header">
         <div class="driver-large-photo">
           <img 
-            :src="`/tarkan/assets/images/drivers/${driver.id}.png?v=${imageRefreshKey}`"
+            :src="driverPhotoUrl"
             :alt="driver.name"
-            onerror="this.onerror=null;this.src='/tarkan/assets/images/drivers/default.png';"
+            :onerror="`this.onerror=null;this.src='${defaultDriverPhoto}';`"
           />
         </div>
         <div class="driver-main-info">
@@ -170,6 +170,9 @@ import { ElDialog, ElButton } from 'element-plus';
 import 'element-plus/es/components/dialog/style/css';
 import 'element-plus/es/components/button/style/css';
 import KT from '../../tarkan/func/kt.js';
+import { driverImageUrl } from '@/branding';
+
+const defaultDriverPhoto = driverImageUrl('default.png');
 
 const props = defineProps({
   visible: {
@@ -193,6 +196,11 @@ const props = defineProps({
 const emit = defineEmits(['close', 'generate-pdf']);
 
 // Computed
+const driverPhotoUrl = computed(() => {
+  if (!props.driver) return defaultDriverPhoto;
+  return driverImageUrl(`${props.driver.id}.png?v=${props.imageRefreshKey}`);
+});
+
 const isExpired = computed(() => {
   if (!props.driver?.attributes?.cnhValidity) return false;
   const expiryDate = new Date(props.driver.attributes.cnhValidity);

@@ -527,7 +527,7 @@
         <div id="logo">
           <img
             v-if="store.state.server.labelConf.headLogo.image"
-            src="/tarkan/assets/custom/logo.png"
+            src="/mit/assets/custom/logo.png"
             @click="$router.push('/')"
             style="width: 11rem; cursor: pointer;"
             alt="Logo"
@@ -694,8 +694,8 @@
             :class="{'sidebar-closed': sidebarClosed,menuShown: menuShown,editing: store.state.geofences.mapEditing,minimized: minimized,bottom: ($route.meta.mobileBottom),shown: ($route.meta.shown)}"
             :style="{width: (store.state.auth.attributes['isShared'])?'100vw':''}"
           >
-            <!-- Street View sempre presente (paridade) -->
-            <street-view></street-view>
+            <!-- Street View condicional -->
+            <street-view v-if="store.state.devices.streetview"></street-view>
 
             <!-- Seus iframes continuam condicionais como já estão -->
             <iframe-calor v-if="store.state.devices.toggleCalor"></iframe-calor>
@@ -818,6 +818,7 @@ const KoreMap = lazy('KoreMap', () => import('./tarkan/components/kore-map'))
 
 import KT from './tarkan/func/kt'
 import actAnchor from './tarkan/func/actAnchor'
+import { assetUrl, categoryImageUrl, customAssetUrl } from '@/branding'
 
 import 'leaflet/dist/leaflet.css'
 
@@ -854,6 +855,10 @@ const store = useStore()
 // CSS Variables
 const css = getComputedStyle(document.documentElement)
 const primaryColor = css.getPropertyValue('--el-color-primary')?.trim() || '#409EFF'
+
+// ===== DARK MODE GLOBAL (ativa tokens CSS em modais) =====
+// App-dark.vue sempre está em dark mode
+document.body.classList.add('dark-mode')
 
 // Component Refs
 const contextMenuRef = ref(null)
@@ -994,19 +999,19 @@ const applyViewportVars = () => {
 }
 
 const getVehicleImage = (device) => {
-  if (!device) return '/tarkan/assets/images/categories/default.png'
+  if (!device) return '/mit/assets/images/categories/default.png'
   const timestamp = Date.now()
   const cacheBuster = device?.attributes?.imageTimestamp || timestamp
   const imageVersion = device?.attributes?.imageVersion || 0
   const driverUniqueId = device?.attributes?.driverUniqueId || ''
   const random = Math.random()
-  return `/tarkan/assets/images/${device?.id}.png?ts=${cacheBuster}&v=${imageVersion}&d=${driverUniqueId}&r=${random}&_=${timestamp}`
+  return `/mit/assets/images/${device?.id}.png?ts=${cacheBuster}&v=${imageVersion}&d=${driverUniqueId}&r=${random}&_=${timestamp}`
 }
 
 const onVehicleImgError = (e) => {
   const cat = currentDevice.value?.category || 'default'
   e.target.onerror = null
-  e.target.src = `/tarkan/assets/images/categories/${cat}.png`
+  e.target.src = `/mit/assets/images/categories/${cat}.png`
 }
 
 /* ===========================
@@ -1749,6 +1754,25 @@ provide('act-anchor', actAnchor)
     display: flex;
     align-content: space-between;
     justify-content: space-between;
+    color: var(--el-text-color-primary);
+  }
+
+  /* Fix: Header em dark mode com texto claro */
+  body.dark-mode #head {
+    background: #1a1a1a !important;
+    border-bottom-color: #444 !important;
+    color: #e0e0e0 !important;
+  }
+
+  body.dark-mode #head *,
+  body.dark-mode #head a,
+  body.dark-mode #head i,
+  body.dark-mode #head .uname,
+  body.dark-mode #btnmenu,
+  body.dark-mode #logo,
+  body.dark-mode #logo a,
+  body.dark-mode #user {
+    color: #e0e0e0 !important;
   }
 
   #head #user {

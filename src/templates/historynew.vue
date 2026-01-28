@@ -1384,7 +1384,7 @@ export default defineComponent({
           <div class="pdf-footer" style="margin-top: 20px; padding: 10px; border-top: 1px solid #eaeaea; display: flex; justify-content: space-between; align-items: center;">
             <div style="display: flex; align-items: center;">
               <img src="/img/favicon.ico" alt="Logo" style="height: 14px; margin-right: 6px;" />
-              <span style="font-size: 10px; color: #666;">Tarkan - Sistema de Rastreamento</span>
+              <span style="font-size: 10px; color: #666;">MIT.app - Sistema de Rastreamento</span>
             </div>
             <div style="display: flex; align-items: center; font-size: 10px; color: #666;">
               <i class="fas fa-file-pdf" style="margin-right: 5px;"></i> Página 1/1

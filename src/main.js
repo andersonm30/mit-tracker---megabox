@@ -1,6 +1,16 @@
 import { createApp } from 'vue'
 import App from './App.vue'
 
+// ✅ MITAPP: Anti-flash dark mode (aplica ANTES do Vue montar)
+try {
+  const saved = localStorage.getItem('darkMode')
+  if (saved && JSON.parse(saved)) {
+    document.body.classList.add('dark-mode')
+  }
+} catch (e) {
+  // Silent fail: se der erro, App.vue aplica depois
+}
+
 // ✨ Suprime warnings conhecidos do Vue
 const originalWarn = console.warn;
 console.warn = (...args) => {
@@ -27,6 +37,9 @@ import "element-plus/theme-chalk/index.css";
 
 // ✅ CSS Global para dropdowns/poppers do kore-map (teleportados fora do componente)
 import "@/assets/css/kore-map.poppers.css";
+
+// ✅ MITAPP: Design tokens globais (dark mode + white-label)
+import '@/styles/tokens.css';
 
 import ptBR from 'element-plus/es/locale/lang/pt-br' // Importa o locale em português
 

@@ -25,7 +25,7 @@
     <i class="fas fa-bars"></i>
   </div>
   <div id="logo">
-    <img src="/tarkan/assets/custom/logo.png" style="width: 11rem;" >
+    <img src="/mit/assets/custom/logo.png" style="width: 11rem;" >
   </div>
   <div style="display: flex;">
 

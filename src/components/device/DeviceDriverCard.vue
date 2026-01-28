@@ -11,9 +11,9 @@
               <div class="tooltip-driver-card">
                 <div class="tooltip-driver-header">
                   <img 
-                    :src="`/tarkan/assets/images/drivers/${driver.id}.png?v=${driverImageRefreshKey}`"
+                    :src="driverImageUrl(driver.id + '.png') + '?v=' + driverImageRefreshKey"
                     :alt="driver.name"
-                    onerror="this.onerror=null;this.src='/tarkan/assets/images/drivers/default.png';"
+                    :onerror="`this.onerror=null;this.src='${defaultDriverPhoto}'`"
                     class="tooltip-driver-photo-large"
                   />
                   <div class="tooltip-driver-info">
@@ -43,9 +43,9 @@
               </div>
             </template>
             <img 
-              :src="`/tarkan/assets/images/drivers/${driver.id}.png?v=${driverImageRefreshKey}`" 
+              :src="driverImageUrl(driver.id + '.png') + '?v=' + driverImageRefreshKey" 
               :alt="driver.name" 
-              onerror="this.onerror=null;this.src='/tarkan/assets/images/drivers/default.png';" 
+              :onerror="`this.onerror=null;this.src='${defaultDriverPhoto}'`" 
               class="driver-photo-small" />
           </el-tooltip>
         </div>
@@ -103,6 +103,10 @@
 
 <script setup>
 import KT from '../../tarkan/func/kt.js';
+import { driverImageUrl } from '@/branding';
+
+// Constante para fallback de imagem de motorista
+const defaultDriverPhoto = driverImageUrl('default.png');
 
 // ========================
 // PROPS

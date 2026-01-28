@@ -23,7 +23,7 @@
 
           <div style="display: flex;justify-content: space-between">
             <div style="position: relative;background: var(--el-bg-color);width: 300px;height: 150px;">
-              <img style="width: 100px;position: absolute;top: 50%;left: calc(50% - 100px);transform: translateY(-50%);" :src="'/tarkan/assets/custom/icons/android-chrome-192x192.png?uncache='+uncache">
+              <img style="width: 100px;position: absolute;top: 50%;left: calc(50% - 100px);transform: translateY(-50%);" :src="'/mit/assets/custom/icons/android-chrome-192x192.png?uncache='+uncache">
             </div>
 
             <div>
@@ -69,7 +69,7 @@
 
           <div style="display: flex;justify-content: space-between">
             <div style="position: relative;">
-              <div class="loginfake" :style="'background-image: url(/tarkan/assets/custom/bg.jpg?uncache='+uncache+');'"></div>
+              <div class="loginfake" :style="'background-image: url(/mit/assets/custom/bg.jpg?uncache='+uncache+');'"></div>
             </div>
 
             <div>
@@ -104,8 +104,8 @@
         <el-form label-width="150px" label-position="left">
 
           <div style="display: flex;justify-content: space-between">
-            <div class="loginfake" style="position: relative;width: 300px;height: 150px;" :style="'background-image: url(/tarkan/assets/custom/bg.jpg?uncache='+uncache+');'">
-              <img style="z-index: 9999999;width: 200px;position: absolute;top: 50%;left: calc(50% - 100px);transform: translateY(-50%);" :src="'/tarkan/assets/custom/logoWhite.png?uncache='+uncache">
+            <div class="loginfake" style="position: relative;width: 300px;height: 150px;" :style="'background-image: url(/mit/assets/custom/bg.jpg?uncache='+uncache+');'">
+              <img style="z-index: 9999999;width: 200px;position: absolute;top: 50%;left: calc(50% - 100px);transform: translateY(-50%);" :src="'/mit/assets/custom/logoWhite.png?uncache='+uncache">
             </div>
 
             <div>
@@ -137,7 +137,7 @@
 
           <div style="display: flex;justify-content: space-between">
             <div style="position: relative;background: var(--el-bg-color);width: 300px;height: 150px;">
-              <img style="width: 200px;position: absolute;top: 50%;left: calc(50% - 100px);transform: translateY(-50%);" :src="'/tarkan/assets/custom/logo.png?uncache='+uncache">
+              <img style="width: 200px;position: absolute;top: 50%;left: calc(50% - 100px);transform: translateY(-50%);" :src="'/mit/assets/custom/logo.png?uncache='+uncache">
             </div>
 
             <div>
@@ -346,6 +346,80 @@
 
         </el-form>
       </el-tab-pane>
+
+      <!-- ✅ TAB LOGIN WHITE-LABEL (novo) -->
+      <el-tab-pane label="Login" name="login">
+        <el-form label-width="170px" label-position="left">
+
+          <el-form-item label="Título do card">
+            <el-input
+              v-model="login.title"
+              placeholder="Bem-vindo"
+              maxlength="60"
+              show-word-limit
+            />
+          </el-form-item>
+
+          <el-form-item label="Subtítulo do card">
+            <el-input
+              v-model="login.subtitle"
+              placeholder="Acesse sua conta"
+              maxlength="90"
+              show-word-limit
+            />
+          </el-form-item>
+
+          <el-form-item label="Modo do background">
+            <el-select v-model="login.backgroundMode" style="width: 240px;">
+              <el-option label="Imagem" value="image" />
+              <el-option label="Gradiente" value="gradient" />
+              <el-option label="Cor sólida" value="solid" />
+            </el-select>
+          </el-form-item>
+
+          <el-form-item label="Background image URL" v-if="login.backgroundMode === 'image'">
+            <el-input
+              v-model="login.backgroundImageUrl"
+              placeholder="/mit/assets/custom/bg.jpg"
+            />
+            <div style="margin-top:6px; font-size:12px; opacity:.75;">
+              Dica: aceite URL absoluta ou path relativo.
+            </div>
+          </el-form-item>
+
+          <el-form-item label="Overlay (filtro)">
+            <el-color-picker
+              v-model="login.overlay"
+              :show-alpha="true"
+            />
+            <span style="margin-left:10px; font-size:12px; opacity:.75;">
+              Ex: rgba(0,0,0,0.35)
+            </span>
+          </el-form-item>
+
+          <div style="height: 20px;"></div>
+
+          <el-form-item label="Exibir Remember Me">
+            <el-switch v-model="login.showRememberMe" />
+          </el-form-item>
+
+          <el-form-item label="Exibir Esqueci Senha">
+            <el-switch v-model="login.showForgotPassword" />
+          </el-form-item>
+
+          <el-form-item
+            label="URL Esqueci Senha"
+            v-if="login.showForgotPassword"
+          >
+            <el-input
+              v-model="login.forgotPasswordUrl"
+              placeholder="https://suaempresa.com/recuperar-senha"
+            />
+          </el-form-item>
+
+        </el-form>
+      </el-tab-pane>
+
     </el-tabs>
   </el-dialog>
 </template>
@@ -386,6 +460,18 @@ const uncache = ref(new Date().getTime());
 
 const lastApplied = new Map();
 const saving = ref(false);
+
+// ✅ LOGIN WHITE-LABEL STATE (novo)
+const login = ref({
+  title: '',
+  subtitle: '',
+  backgroundMode: 'image', // 'image' | 'gradient' | 'solid'
+  backgroundImageUrl: '',
+  overlay: '',
+  showRememberMe: true,
+  showForgotPassword: false,
+  forgotPasswordUrl: ''
+});
 
 const defaultConfig = {
   title: '',
@@ -539,11 +625,29 @@ const onSuccess = ()=>{
   uncache.value = new Date().getTime();
 }
 
+// ✅ Carregar config atual do login ao abrir modal
+function hydrateLoginFromRuntime() {
+  try {
+    const cfg = window?.CONFIG || {};
+    const existing = cfg.login || cfg.labelConf?.login || null;
+    if (!existing) return;
+
+    login.value = {
+      ...login.value,
+      ...existing
+    };
+  } catch { /* ignora erro de parsing */ }
+}
+
 const showTheme = ()=>{
   title.value = 'Editar Tema';
   tab.value = 'general';
   formData.value = buildColors();
   labelConf.value = buildLabelConf();
+  
+  // ✅ Carregar config do login
+  hydrateLoginFromRuntime();
+  
   show.value = true;
   
   const attrs = store?.state?.server?.serverInfo?.attributes || {};
@@ -589,10 +693,47 @@ const doSave = async ()=>{
       // eslint-disable-next-line no-undef
       window.defaultThemeData = JSON.parse(JSON.stringify(formData.value));
       
+      // ✅ Salvar login (canônico)
+      window.CONFIG.login = {
+        ...(window.CONFIG.login || {}),
+        ...login.value
+      };
+
+      // (opcional) espelhar em labelConf se seu sistema usa labelConf
+      if (!window.CONFIG.labelConf) window.CONFIG.labelConf = {};
+      window.CONFIG.labelConf.login = window.CONFIG.login;
+
+      // ✅ HARDENING: sanitizar URL antes de aplicar CSS var
+      const safeCssUrl = (url) => {
+        if (!url || typeof url !== 'string') return '';
+        const trimmed = url.trim();
+        if (trimmed.toLowerCase().includes('javascript:')) return '';
+        if (trimmed.includes('<') || trimmed.includes('>')) return '';
+        return trimmed.replace(/['"`]/g, '');
+      };
+
+      // ✅ IMPORTANTE: atualizar tokens do login em runtime via CSS var
+      // (isso habilita o login a reagir sem reload)
+      try {
+        const bgUrl = safeCssUrl(window.CONFIG.login.backgroundImageUrl);
+        if (bgUrl) {
+          document.documentElement.style.setProperty('--login-bg-image', `url(${bgUrl})`);
+        }
+        
+        // ✅ HARDENING: overlay com fallback seguro
+        const overlay = (window.CONFIG.login.overlay || '').trim();
+        document.documentElement.style.setProperty('--login-overlay', overlay || 'var(--tk-login-filter)');
+      } catch { /* ignora erro ao aplicar tema */ }
+      
       // Notify App.vue to refresh header/logo/whatsapp
+      // ✅ HARDENING: payload consistente com timestamp
       // eslint-disable-next-line no-undef
       window.dispatchEvent(new CustomEvent('theme:updated', {
-        detail: { config: window.CONFIG, colors: window.defaultThemeData }
+        detail: { 
+          config: window.CONFIG, 
+          colors: window.defaultThemeData,
+          timestamp: Date.now()
+        }
       }));
     }
     

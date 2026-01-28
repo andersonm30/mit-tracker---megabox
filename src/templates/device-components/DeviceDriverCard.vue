@@ -15,7 +15,7 @@
                   <img 
                     :src="driverPhotoUrl"
                     :alt="driver.name"
-                    onerror="this.onerror=null;this.src='/tarkan/assets/images/drivers/default.png';"
+                    :onerror="`this.onerror=null;this.src='${defaultDriverPhoto}';`"
                     class="tooltip-driver-photo-large"
                   />
                   <div class="tooltip-driver-info">
@@ -47,7 +47,7 @@
             <img 
               :src="driverPhotoUrl" 
               :alt="driver.name" 
-              onerror="this.onerror=null;this.src='/tarkan/assets/images/drivers/default.png';" 
+              :onerror="`this.onerror=null;this.src='${defaultDriverPhoto}';`" 
               class="driver-photo-small" />
           </el-tooltip>
         </div>
@@ -104,6 +104,7 @@
 import { computed } from 'vue';
 import { ElTooltip } from 'element-plus';
 import KT from '../../tarkan/func/kt.js';
+import { driverImageUrl } from '@/branding';
 
 const props = defineProps({
   driver: {
@@ -122,9 +123,11 @@ const props = defineProps({
 
 defineEmits(['openDriverModal']);
 
+const defaultDriverPhoto = driverImageUrl('default.png');
+
 const driverPhotoUrl = computed(() => {
-  if (!props.driver) return '/tarkan/assets/images/drivers/default.png';
-  return `/tarkan/assets/images/drivers/${props.driver.id}.png?v=${props.driverImageRefreshKey}`;
+  if (!props.driver) return defaultDriverPhoto;
+  return driverImageUrl(`${props.driver.id}.png?v=${props.driverImageRefreshKey}`);
 });
 
 const cnhDaysToExpire = computed(() => {

@@ -128,18 +128,21 @@ const autoMarkAsSeen = async () => {
   }
 };
 
-// Método exposto para App.vue
-defineExpose({
-  showNotice: (forceShow = false) => {
-    if (forceShow || shouldShowNotice()) {
-      show.value = true;
-      
-      // Se não pode fechar, auto-registra para liberar no resto do período
-      if (!noticeData.value.canClose) {
-        autoMarkAsSeen();
-      }
+// Função pública para exibir o aviso
+const showNotice = (forceShow = false) => {
+  if (forceShow || shouldShowNotice()) {
+    show.value = true;
+    
+    // Se não pode fechar, auto-registra para liberar no resto do período
+    if (!noticeData.value.canClose) {
+      autoMarkAsSeen();
     }
   }
+};
+
+// Expor método para App.vue
+defineExpose({
+  showNotice
 });
 </script>
 

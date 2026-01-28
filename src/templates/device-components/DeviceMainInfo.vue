@@ -53,6 +53,7 @@
 <script setup>
 import { computed } from 'vue';
 import KT from '../../tarkan/func/kt.js';
+import { assetUrl } from '@/branding';
 
 const props = defineProps({
   device: {
@@ -71,7 +72,7 @@ const props = defineProps({
 
 const deviceImage = computed(() => {
   if (props.device?.attributes?.deviceImage) {
-    return `/tarkan/assets/images/devices/${props.device.attributes.deviceImage}`;
+    return assetUrl(`images/devices/${props.device.attributes.deviceImage}`);
   }
   return null;
 });

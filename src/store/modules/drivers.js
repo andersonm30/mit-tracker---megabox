@@ -30,7 +30,7 @@ export default {
         getDriverImageUrl(state){
             return (driverId) => {
                 if (driverId === null || driverId === undefined) return '';
-                const baseUrl = `/tarkan/assets/images/drivers/${driverId}.png`;
+                const baseUrl = `/mit/assets/images/drivers/${driverId}.png`;
                 const timestamp = state.imageUpdateTimestamp[driverId];
                 return timestamp ? `${baseUrl}?t=${timestamp}` : baseUrl;
             }
@@ -61,6 +61,7 @@ export default {
             };
         },
         clearImageTimestamp(state, driverId) {
+            // eslint-disable-next-line no-unused-vars
             const { [driverId]: _, ...rest } = state.imageUpdateTimestamp;
             state.imageUpdateTimestamp = rest;
         }

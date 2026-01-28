@@ -1,6 +1,6 @@
 <template>
   <div class="login">
-    <div id="logo" style="text-align: center;"><img width="25%" src="/tarkan/assets/custom/logoWhite.png"></div>
+    <div id="logo" style="text-align: center;"><img width="25%" src="/mit/assets/custom/logoWhite.png"></div>
 
     <div id="login-form">
       <div style="text-align: center;">
@@ -61,7 +61,7 @@ onMounted(()=>{
 
 <style scoped>
 .login{
-  background: url('/tarkan/assets/custom/bg.jpg');
+  background: url('/mit/assets/custom/bg.jpg');
   background-size: cover;
   width: 100vw;
   height: 100vh;

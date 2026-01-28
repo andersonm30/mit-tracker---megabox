@@ -13,6 +13,7 @@ import calendars from './modules/calendars'
 import maintenance from './modules/maintenance'
 import reports from './modules/reports'
 import speedEvents from './modules/speedEvents' // PR-10B: Speed Events module
+import ui from './modules/ui' // UI module (dark mode, theme preferences)
 // import routes from './modules/routes' // TEMPORARIAMENTE COMENTADO PARA DEBUG
 
 import i18n from '../lang/';
@@ -381,6 +382,9 @@ const store = createStore({
             const { getRuntimeApi } = await import('@/services/runtimeApiRef');
             const api = getRuntimeApi();
             
+            // Reset UI state (Street View, etc.) antes do logout
+            context.dispatch('ui/resetForLogout');
+            
             await api.deleteSession();
             context.commit("setAuth",false);
 
@@ -438,7 +442,8 @@ const store = createStore({
         calendars,
         maintenance,
         reports,
-        speedEvents // PR-10B: Speed Events module
+        speedEvents, // PR-10B: Speed Events module
+        ui // UI module (dark mode, theme preferences)
         // routes // TEMPORARIAMENTE COMENTADO PARA DEBUG
     }
 })

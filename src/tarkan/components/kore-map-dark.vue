@@ -4,6 +4,7 @@
         :marker-zoom-animation="false" @ready="mapReady($event)" @click="mapClick" @mousemove="mapMove" :center="center"
         @update:zoom="zoomUpdated($event)" style="width: 100%;height: 100%;">
 
+        <!-- Branding helpers imported in script setup -->
         <street-view v-if="store.state.devices.streetview" />
 
 
@@ -727,7 +728,7 @@
                     <div class="driver-card-content">
                         <div class="driver-photo-enhanced">
                             <img :src="getDriverPhotoUrl(floatingPanelDevice)" :alt="getDriverName(floatingPanelDevice)"
-                                @error="$event.target.src = '/tarkan/assets/images/drivers/default.png'"
+                                @error="$event.target.src = driverImageUrl('default.png')"
                                 class="driver-avatar" />
                             <div class="photo-overlay" v-if="isDriverCNHExpired(floatingPanelDevice)">
                                 <i class="fas fa-exclamation-triangle"></i>
@@ -805,7 +806,7 @@
                 <div class="vehicle-image-section">
                     <div class="vehicle-photo-large">
                         <img :src="getDeviceImageUrl(floatingPanelDevice)" :alt="floatingPanelDevice.name"
-                            @error="$event.target.src = '/tarkan/assets/images/categories/default.png'" />
+                            @error="$event.target.src = categoryImageUrl('default')" />
                     </div>
                 </div>
 
@@ -1122,6 +1123,8 @@
 
 <script setup>
 
+// Branding helpers
+import { assetUrl, categoryImageUrl, driverImageUrl } from '@/branding';
 
 import 'element-plus/es/components/input/style/css'
 import 'element-plus/es/components/button/style/css'
@@ -1756,7 +1759,7 @@ const imageUrlCache = ref(new Map());
 
 // Función para obtener la URL de la foto del conductor (cacheada)
 const getDriverPhotoUrl = (device) => {
-    if (!device) return '/tarkan/assets/images/drivers/default.png';
+    if (!device) return driverImageUrl('default.png');
 
     const cacheKey = `driver_${device.id}`;
     if (imageUrlCache.value.has(cacheKey)) {
@@ -1766,12 +1769,12 @@ const getDriverPhotoUrl = (device) => {
     const position = store.getters["devices/getPosition"](device.id);
     const driverUniqueId = position?.attributes?.driverUniqueId || device.attributes?.driverUniqueId;
 
-    let url = '/tarkan/assets/images/drivers/default.png';
+    let url = driverImageUrl('default.png');
     if (driverUniqueId) {
         const driver = store.getters['drivers/getDriverByUniqueId'](driverUniqueId);
         if (driver && driver.id) {
             const timestamp = new Date().getTime();
-            url = `/tarkan/assets/images/drivers/${driver.id}.png?v=${timestamp}`;
+            url = driverImageUrl(`${driver.id}.png`) + `?v=${timestamp}`;
         }
     }
 
@@ -1781,7 +1784,7 @@ const getDriverPhotoUrl = (device) => {
 
 // Función para obtener la URL de la imagen del dispositivo (cacheada)
 const getDeviceImageUrl = (device) => {
-    if (!device) return '/tarkan/assets/images/categories/default.png';
+    if (!device) return categoryImageUrl('default');
 
     const cacheKey = `device_${device.id}`;
     if (imageUrlCache.value.has(cacheKey)) {
@@ -1789,7 +1792,7 @@ const getDeviceImageUrl = (device) => {
     }
 
     // URL simple sin cache-busting constante
-    const url = `/tarkan/assets/images/${device.id}.png`;
+    const url = assetUrl(`images/${device.id}.png`);
     imageUrlCache.value.set(cacheKey, url);
     return url;
 };
@@ -2852,14 +2855,14 @@ const markerContext = async (evt, e) => {
                 tooltipUpdateInterval = setInterval(updateFollowTooltip, 1000);
                 updateFollowTooltip(); // Actualizar inmediatamente
 
-                // Activar Street View si hay token de Google disponible
-                const googleApiKey = store.getters['server/getAttribute']('google_api');
-                if (googleApiKey && googleApiKey.trim() !== '') {
-                    // Solo activar Street View si no está ya activado
-                    if (!store.state.devices.streetview) {
-                        store.dispatch("devices/toggleStreet");
-                    }
-                }
+                // ✅ REMOVIDO: Street View não deve abrir automaticamente
+                // Usuário pode ativar manualmente se quiser
+                // const googleApiKey = store.getters['server/getAttribute']('google_api');
+                // if (googleApiKey && googleApiKey.trim() !== '') {
+                //     if (!store.state.devices.streetview) {
+                //         store.dispatch("devices/toggleStreet");
+                //     }
+                // }
             }
         });
     }

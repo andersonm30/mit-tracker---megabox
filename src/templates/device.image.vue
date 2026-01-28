@@ -2,6 +2,7 @@
 import { defineProps, onMounted, onUnmounted, ref, watch, computed } from 'vue'
 import { useStore } from 'vuex'
 import axios from 'axios'
+import { assetUrl, categoryImageUrl } from '@/branding'
 
 const store = useStore()
 
@@ -21,8 +22,8 @@ const isUploading = ref(false)
 const carImageData = ref(null)
 const catImageData = ref(null)
 
-// Logo padrão - caminho direto
-const defaultLogo = '/tarkan/assets/logo.png'
+// Logo padrão - usando helper de branding
+const defaultLogo = assetUrl('logo.png')
 
 // Computed para determinar qual imagem mostrar
 const displayImage = computed(() => {
@@ -97,7 +98,7 @@ const changeImage = () => {
       })
 
       const deviceRequestKey = `device-${props.id}`
-      const devicePromise = getImage64(`/tarkan/assets/images/${props.id}.png?uncache=${uncache.value}`)
+      const devicePromise = getImage64(assetUrl(`images/${props.id}.png?uncache=${uncache.value}`))
       pendingRequests.set(deviceRequestKey, devicePromise)
 
       devicePromise
@@ -188,7 +189,7 @@ const loadImages = debounce(() => {
         const imageTimestamp = device?.attributes?.imageTimestamp || Date.now()
         const imageVersion = device?.attributes?.imageVersion || 0
         devicePromise = getImage64(
-          `/tarkan/assets/images/${deviceId}.png?t=${imageTimestamp}&v=${imageVersion}&r=${Math.random()}`
+          assetUrl(`images/${deviceId}.png?t=${imageTimestamp}&v=${imageVersion}&r=${Math.random()}`)
         )
         pendingRequests.set(deviceRequestKey, devicePromise)
 
@@ -228,7 +229,7 @@ const loadImages = debounce(() => {
       if (pendingRequests.has(categoryRequestKey)) {
         categoryPromise = pendingRequests.get(categoryRequestKey)
       } else {
-        categoryPromise = getImage64(`/tarkan/assets/images/categories/${deviceCategory}.png`)
+        categoryPromise = getImage64(categoryImageUrl(deviceCategory))
         pendingRequests.set(categoryRequestKey, categoryPromise)
 
         categoryPromise

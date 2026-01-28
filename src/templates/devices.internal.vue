@@ -337,6 +337,9 @@ import DeviceDriverCard from "../components/device/DeviceDriverCard.vue";
 import KT from '../tarkan/func/kt.js';
 import defaultDeviceData from '../defaultDeviceData.js';
 
+// Branding helpers
+import { assetUrl, categoryImageUrl, driverImageUrl } from '@/branding';
+
 // Composables
 import { useDeviceVideoPlayer } from "../composables/useDeviceVideoPlayer.js";
 import { useDualCamera } from "../composables/useDualCamera.js";
@@ -750,7 +753,7 @@ const testImage = (device, uncacheParam)=>{
   // PRIMERA VERIFICACIÓN: Si hasImage es false O undefined (salida), ir directo a categoría SIN request HTTP
   if (device && device.attributes && (device.attributes.hasImage === false || device.attributes.hasImage === undefined)) {
     console.log('🚁 DEVICES.INTERNAL.VUE - hasImage no-true - EVITANDO REQUEST 404, CATEGORÍA DIRECTA:', device.id);
-    const categoryUrl = `/tarkan/assets/images/categories/${(device.category) ? device.category : 'default'}.png?noDeviceImage=${Date.now()}`;
+    const categoryUrl = categoryImageUrl(device.category || 'default') + `?noDeviceImage=${Date.now()}`;
     imageUrl.value = categoryUrl;
     lastProcessedDeviceState = deviceStateKey;
     lastImageLoadTime = now;
@@ -762,24 +765,24 @@ const testImage = (device, uncacheParam)=>{
   
   // Cache-busting simple con uncache parameter
   const timestamp = uncacheParam || Date.now();
-  const deviceImageUrl = `/tarkan/assets/images/${device.id}.png?uncache=${timestamp}`;
+  const deviceImageUrlPath = assetUrl(`images/${device.id}.png?uncache=${timestamp}`);
   
-  console.log('🔍 Testeando imagen para device:', deviceImageUrl, 'Status device:', device.status);
+  console.log('🔍 Testeando imagen para device:', deviceImageUrlPath, 'Status device:', device.status);
   
   // Timeout para detectar cuando imagen no existe (especialmente en salidas)
   const timeout = setSafeTimeout(() => {
     console.log('⏰ Timeout - asumiendo imagen no existe, usando categoría para device:', device.id);
-    const categoryImageUrl = `/tarkan/assets/images/categories/${(device.category) ? device.category : 'default'}.png?uncache=${timestamp}`;
-    imageUrl.value = categoryImageUrl;
-    console.log('🚁 Imagen de categoría asignada por timeout:', categoryImageUrl);
+    const categoryImgUrl = categoryImageUrl(device.category || 'default') + `?uncache=${timestamp}`;
+    imageUrl.value = categoryImgUrl;
+    console.log('🚁 Imagen de categoría asignada por timeout:', categoryImgUrl);
   }, IMAGE_TIMEOUT_MS);
   
   testCar.onerror = ()=>{
         clearSafeTimeout(timeout);
         console.log('❌ Imagen de device no encontrada, usando categoría:', device.id);
-        const categoryImageUrl = `/tarkan/assets/images/categories/${(device.category) ? device.category : 'default'}.png?uncache=${timestamp}`;
-        imageUrl.value = categoryImageUrl;
-        console.log('🚁 Imagen de categoría:', categoryImageUrl);
+        const categoryImgUrl = categoryImageUrl(device.category || 'default') + `?uncache=${timestamp}`;
+        imageUrl.value = categoryImgUrl;
+        console.log('🚁 Imagen de categoría:', categoryImgUrl);
   }
   
   testCar.onload = ()=>{
@@ -791,12 +794,12 @@ const testImage = (device, uncacheParam)=>{
         // Forzar actualización limpiando primero
         imageUrl.value = '';
         setSafeTimeout(() => {
-          imageUrl.value = deviceImageUrl;
-          console.log('🖼️ Imagen device asignada:', deviceImageUrl);
+          imageUrl.value = deviceImageUrlPath;
+          console.log('🖼️ Imagen device asignada:', deviceImageUrlPath);
         }, 10);
   }
   
-  testCar.src = deviceImageUrl;
+  testCar.src = deviceImageUrlPath;
  
 }
 
@@ -2011,7 +2014,7 @@ watch(() => device.value?.status, (newStatus, oldStatus) => {
         const timer2 = setSafeTimeout(() => {
           // Paso 3: Imagen de categoría con cache-buster extremo
           const extremeForce = Date.now() + '_' + Math.random() + '_' + performance.now() + '_' + Math.floor(Math.random() * 999999);
-          const categoryUrl = '/tarkan/assets/images/categories/'+((device.value?.category)?device.value.category:'default')+'.png?extreme=' + extremeForce;
+          const categoryUrl = categoryImageUrl(device.value?.category || 'default') + '?extreme=' + extremeForce;
           imageUrl.value = categoryUrl;
           console.log('🚁 SALIDA - Imagen de categoría EXTREMA:', categoryUrl);
           
@@ -2292,8 +2295,8 @@ const generateSingleDriverReportHTML = () => {
         </div>
 
         <div class="driver-photo">
-            <img src="/tarkan/assets/images/drivers/${driver.id}.png?v=${driverImageRefreshKey.value}" 
-                 onerror="this.src='/tarkan/assets/images/drivers/default.png'" 
+            <img src="${driverImageUrl(driver.id + '.png')}?v=${driverImageRefreshKey.value}" 
+                 onerror="this.src='${driverImageUrl('default.png')}'" 
                  alt="${driver.name}" />
         </div>
 

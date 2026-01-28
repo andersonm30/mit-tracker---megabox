@@ -255,7 +255,7 @@ const generateDetailedReport = async (routePoints, deviceInfo) => {
         doc.setFontSize(8);
         doc.setTextColor(100, 100, 100);
         doc.text(
-          `Tarkan - Sistema de Rastreamento | Página ${data.pageNumber}`,
+          `MIT.app - Sistema de Rastreamento | Página ${data.pageNumber}`,
           pageWidth / 2,
           doc.internal.pageSize.getHeight() - 10,
           { align: 'center' }
@@ -343,7 +343,7 @@ const generateTabularReport = async (routePoints, deviceInfo) => {
         doc.setFontSize(8);
         doc.setTextColor(100, 100, 100);
         doc.text(
-          `Tarkan - Sistema de Rastreamento | Página ${data.pageNumber}`,
+          `MIT.app - Sistema de Rastreamento | Página ${data.pageNumber}`,
           pageWidth / 2,
           doc.internal.pageSize.getHeight() - 8,
           { align: 'center' }

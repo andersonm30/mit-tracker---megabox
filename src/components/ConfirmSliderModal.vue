@@ -108,6 +108,7 @@
 
 <script setup>
 import { ref, computed, watch, onBeforeUnmount, defineProps, defineEmits, defineExpose } from 'vue'
+import { assetUrl, categoryImageUrl } from '@/branding'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -234,17 +235,17 @@ const fillStyle = computed(() => {
 
 // Device image
 const deviceImage = computed(() => {
-  if (!props.device) return '/tarkan/assets/images/categories/default.png'
+  if (!props.device) return categoryImageUrl('default')
   const ts = props.device?.attributes?.imageTimestamp || 0
   const v = props.device?.attributes?.imageVersion || 0
-  return `/tarkan/assets/images/${props.device.id}.png?v=${v}&ts=${ts}`
+  return assetUrl(`images/${props.device.id}.png`) + `?v=${v}&ts=${ts}`
 })
 
 const onImgError = (e) => {
   const rawCat = props.device?.category || props.device?.attributes?.category || 'default'
   const safeCat = String(rawCat).toLowerCase().replace(/[^a-z0-9_-]/g, '') || 'default'
   e.target.onerror = null
-  e.target.src = `/tarkan/assets/images/categories/${safeCat}.png`
+  e.target.src = categoryImageUrl(safeCat)
 }
 
 // Geometry helpers

@@ -813,13 +813,14 @@ export function useMarkers(options) {
               mapApi.flyTo([position.latitude, position.longitude], 17, { animate: true, duration: 1 });
             }
 
-            // Activar Street View si hay token de Google disponible
-            const googleApiKey = store.getters['server/getAttribute']('google_api');
-            if (googleApiKey && googleApiKey.trim() !== '') {
-              if (!store.state.devices.streetview) {
-                store.dispatch("devices/toggleStreet");
-              }
-            }
+            // ✅ REMOVIDO: Street View não deve abrir automaticamente
+            // Usuário pode ativar manualmente se quiser
+            // const googleApiKey = store.getters['server/getAttribute']('google_api');
+            // if (googleApiKey && googleApiKey.trim() !== '') {
+            //   if (!store.state.devices.streetview) {
+            //     store.dispatch("devices/toggleStreet");
+            //   }
+            // }
           }
         });
       }

@@ -1,26 +1,33 @@
 <template>
-  <!-- Loading Progress -->
-  <div v-if="!store.getters['server/isReady']" class="global-loading-bar">
-    <el-progress :percentage="100" :indeterminate="true" :duration="2" :show-text="false" :color="primaryColor" />
+  <div v-if="!store.getters['server/isReady']" style="width: 100%;position: absolute;left: 0px; top: 0px;z-index: 999999999 ">
+    <el-progress
+      :percentage="100"
+      :indeterminate="true"
+      :duration="2"
+      :show-text="false"
+      :color="primaryColor"
+    />
   </div>
 
   <context-menu ref="contextMenuRef"></context-menu>
   <showtip></showtip>
 
-  <!-- WhatsApp Button (fixed + safe-area para não sumir em iPhones) -->
-  <a
-    v-if="whatsappNumber && whatsappNumber !== ''"
-    :href="'https://wa.me/' + whatsappNumber"
-    class="whatsapp-float"
-    target="_blank"
-    rel="noopener noreferrer"
-    aria-label="Abrir conversa no WhatsApp"
+  <div
+    v-if="store.state.server.labelConf.whatsapp && store.state.server.labelConf.whatsapp!=''"
+    style="position: absolute;right: 0px; bottom: 12px;z-index: 9999999999;"
   >
-    <img src="img/whatsapp.png" alt="WhatsApp" />
-  </a>
+    <a
+      :href="'https://wa.me/'+store.state.server.labelConf.whatsapp"
+      style="text-decoration: none;"
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label="Abrir conversa no WhatsApp"
+    >
+      <img src="img/whatsapp.png" alt="WhatsApp" />
+    </a>
+  </div>
 
-  <!-- Componentes que dependem de auth (modais e editores) -->
-  <template v-if="store.state.auth">
+  <div v-if="store.state.auth">
     <!-- IFTRUE_myFlag -->
     <edit-calendars ref="editCalendarsRef"></edit-calendars>
     <link-objects ref="linkObjectsRef"></link-objects>
@@ -35,230 +42,628 @@
     <edit-drivers ref="editDriversRef"></edit-drivers>
     <edit-maintenances ref="editMaintenancesRef"></edit-maintenances>
     <edit-theme ref="editThemeRef"></edit-theme>
+    <!-- FITRUE_myFlag -->
+
+    <!-- ADIÇÕES (paridade com concorrente) -->
     <show-invoices ref="invoicesRef"></show-invoices>
     <show-invoices-manager ref="invoicesManagerRef"></show-invoices-manager>
     <edit-integrations ref="integrationsRef"></edit-integrations>
     <edit-events ref="editEventsRef"></edit-events>
-    <!-- FITRUE_myFlag -->
+    <!-- FIM ADIÇÕES -->
 
     <edit-user ref="editUserRef"></edit-user>
     <edit-notifications ref="editNotificationsRef"></edit-notifications>
     <edit-device ref="editDeviceRef"></edit-device>
     <qr-device ref="qrDeviceRef"></qr-device>
     <show-graphic ref="showGraphicsRef"></show-graphic>
-    <user-notice-modal ref="userNoticeModalRef"></user-notice-modal>
 
-    <!-- ========== MODAL UNIFICADO DE CONFIRMAÇÃO ========== -->
-    <ConfirmSliderModal
-      v-model="showConfirmModal"
-      :device="currentDevice"
-      :mode="currentModalMode"
-      :loading="commandLoading"
-      :title="modalConfig.title"
-      :title-icon="modalConfig.titleIcon"
-      :warning-title="modalConfig.warningTitle"
-      :warning-text="modalConfig.warningText"
-      :confirm-label="modalConfig.confirmLabel"
-      :slider-label="modalConfig.sliderLabel"
-      :icon-class="modalConfig.iconClass"
-      :color-variant="modalConfig.colorVariant"
-      :rtl="modalConfig.rtl"
-      :allow-click-outside="currentModalMode !== 'delete'"
-      @confirm="handleModalConfirm"
-      @cancel="handleModalCancel"
-    />
+    <!-- Modal de BLOQUEIO -->
+    <div
+      v-if="showBlockModal"
+      role="dialog"
+      aria-modal="true"
+      :aria-labelledby="'blockTitle'"
+      :aria-describedby="'blockDesc'"
+      tabindex="-1"
+      @keydown.esc.stop="cancelBlock"
+      style="position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+             z-index: 9999; display: flex; align-items: center; justify-content: center;"
+    >
+      <div
+        style="background: rgba(240,240,240,0.7); backdrop-filter: blur(10px); color: #333;
+               border-radius: 12px; padding: 15px; width: 400px; max-width: 90%;
+               box-shadow: 0 10px 30px rgba(0,0,0,0.5);"
+      >
+        <div style="display: flex; margin-bottom: 20px;">
+          <img
+            :src="getVehicleImage(currentDevice)"
+            :alt="currentDevice?.name || 'Veículo'"
+            @error="onVehicleImgError"
+            style="width: 120px; height: 90px; object-fit: cover; margin-right: 15px;"
+          />
+          <div style="flex: 1;">
+            <h3 style="margin: 0 0 8px 0; color: #333; font-size: 18px;">{{ currentDevice?.name }}</h3>
+            <p v-if="currentDevice?.uniqueId" style="margin: 4px 0; color: #333; font-size: 14px;">
+              <strong>{{KT('imei')}}</strong> {{ currentDevice.uniqueId }}
+            </p>
+            <p v-if="currentDevice?.attributes?.placa" style="margin: 4px 0; color: #333; font-size: 14px;">
+              <strong>{{KT('plateLabel')}}</strong> {{ currentDevice.attributes.placa }}
+            </p>
+            <p style="margin: 4px 0; color: #333; font-size: 14px;">
+              <strong>{{KT('deviceStatus')}}</strong>
+              <span :style="{ color: currentDevice?.status === 'online' ? '#27ae60' : '#e74c3c' }">
+                {{ currentDevice?.status === 'online' ? KT('online') : KT('offline') }}
+              </span>
+            </p>
+          </div>
+        </div>
 
-    <!-- Indicador de conexão (fora do inert para sempre aparecer) -->
-    <div v-if="!isOnline" class="connection-status offline">
-      <i class="fas fa-wifi-slash" aria-hidden="true"></i>
-      <span>Sem conexão</span>
+        <div id="blockDesc" style="background: #fff3cd; border: 1px solid #f39c12; border-radius: 8px; padding: 15px; margin-bottom: 20px; text-align: center;">
+          <i class="fas fa-exclamation-triangle" style="color: #e74c3c; font-size: 24px; margin-bottom: 8px;" aria-hidden="true"></i>
+          <h4 id="blockTitle" style="color: #d63031; margin: 8px 0;">ATENÇÃO - USO APENAS EM EMERGÊNCIA</h4>
+          <p style="color: #636e72; margin: 0; font-size: 14px;">
+            {{ currentDevice?.status === 'online'
+                ? 'Este comando deve ser usado somente em casos de emergência como roubo ou furto.'
+                : KT('command.blockWarningOffline') }}
+          </p>
+        </div>
+
+        <div style="margin: 20px 0;">
+          <p style="text-align: center; margin-bottom: 15px; font-weight: 600;">{{KT('command.slideToConfirmBlock')}}</p>
+          <div
+            ref="blockSlider"
+            role="slider"
+            tabindex="0"
+            @keydown.stop="onBlockKeydown"
+            :aria-label="KT('command.slideToConfirmBlock')"
+            aria-orientation="horizontal"
+            :aria-valuemin="0"
+            :aria-valuemax="100"
+            :aria-valuenow="Math.round(blockProgress)"
+            :aria-valuetext="Math.round(blockProgress) + '%'"
+            :aria-disabled="commandLoading"
+            :aria-busy="commandLoading ? 'true' : 'false'"
+            style="position: relative; width: 100%; height: 50px; background: var(--el-fill-color-light, #e9ecef); border-radius: 25px; overflow: hidden; touch-action: none; user-select: none;"
+            :style="{ pointerEvents: commandLoading ? 'none' : 'auto' }"
+          >
+            <div
+              style="position: absolute; top: 0; left: 0; height: 100%; background: var(--el-color-danger); border-radius: 25px; transition: width 0.1s ease;"
+              :style="{ width: blockProgress + '%' }"
+              aria-hidden="true"
+            ></div>
+
+            <div
+              ref="blockThumb"
+              class="slider-thumb"
+              :style="{
+                left: blockThumbPosition + 'px',
+                background: blockConfirmed ? 'var(--el-color-danger)' : 'white',
+                color: blockConfirmed ? 'white' : '#495057',
+                cursor: commandLoading ? 'not-allowed' : 'grab'
+              }"
+              @mousedown="startBlockDrag"
+              @touchstart="startBlockDrag"
+              aria-hidden="true"
+            >
+              <i class="fas fa-lock" style="font-size: 14px;" aria-hidden="true"></i>
+            </div>
+
+            <div
+              style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+                     color: #6c757d; font-weight: 600; pointer-events: none; z-index: 5; font-size: 14px;"
+              :style="{ opacity: blockConfirmed ? 0 : 1 }"
+              aria-hidden="true"
+            >
+              Deslize para Bloquear
+            </div>
+            <div
+              v-if="blockConfirmed"
+              style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #333; font-weight: 700; z-index: 5; font-size: 14px;"
+              aria-live="polite"
+            >
+              {{KT('command.confirmed')}}
+            </div>
+          </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 20px;">
+          <button @click="cancelBlock" :disabled="commandLoading" style="padding: 10px 20px; background: var(--el-color-primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;" :style="{ opacity: commandLoading ? 0.6 : 1, cursor: commandLoading ? 'not-allowed' : 'pointer' }">
+            {{KT('cancel')}}
+          </button>
+        </div>
+      </div>
     </div>
 
-    <!-- ===== HEADER: SEMPRE ATIVO (fora do inert) ===== -->
-    <div id="head">
-      <div id="btnmenu" v-if="shouldShowHamburger" @click.stop="toggleMenu" 
-        :aria-label="isMenuOverlayOpen ? 'Fechar menu' : 'Abrir menu'"
-        :class="{ 'menu-active': isMenuOverlayOpen }">
-        <i :class="isMenuOverlayOpen ? 'fas fa-times' : 'fas fa-bars'" aria-hidden="true"></i>
-      </div>
-
-      <div id="logo">
-        <img v-if="headLogo?.image" src="/tarkan/assets/custom/logo.png"
-          @click="$router.push('/')" style="width: 11rem; cursor: pointer;" alt="Logo" />
-        <div v-else style="font-weight: bold; text-transform: uppercase; font-family: montserrat, roboto;">
-          <a @click.prevent="$router.push('/')"
-            style="cursor: pointer; color: var(--el-text-color-primary); text-decoration: none;"
-            aria-label="Ir para a página inicial">
-            {{ headLogo?.text || '' }}
-          </a>
+    <!-- Modal de DESBLOQUEIO -->
+    <div
+      v-if="showUnlockModal"
+      role="dialog"
+      aria-modal="true"
+      :aria-labelledby="'unlockTitle'"
+      :aria-describedby="'unlockDesc'"
+      tabindex="-1"
+      @keydown.esc.stop="cancelUnlock"
+      style="position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+             z-index: 9999; display: flex; align-items: center; justify-content: center;"
+    >
+      <div
+        style="background: rgba(240,240,240,0.7); backdrop-filter: blur(10px); color: #333;
+               border-radius: 12px; padding: 15px; width: 400px; max-width: 90%;
+               box-shadow: 0 10px 30px rgba(0,0,0,0.5);"
+      >
+        <div style="display: flex; margin-bottom: 20px;">
+          <img
+            :src="getVehicleImage(currentDevice)"
+            :alt="currentDevice?.name || 'Veículo'"
+            @error="onVehicleImgError"
+            style="width: 120px; height: 90px; object-fit: cover; margin-right: 15px;"
+          />
+          <div style="flex: 1;">
+            <h3 style="margin: 0 0 8px 0; color: #333; font-size: 18px;">{{ currentDevice?.name }}</h3>
+            <p v-if="currentDevice?.uniqueId" style="margin: 4px 0; color: #333; font-size: 14px;">
+              <strong>{{KT('imei')}}</strong> {{ currentDevice.uniqueId }}
+            </p>
+            <p v-if="currentDevice?.attributes?.placa" style="margin: 4px 0; color: #333; font-size: 14px;">
+              <strong>{{KT('plateLabel')}}</strong> {{ currentDevice.attributes.placa }}
+            </p>
+            <p style="margin: 4px 0; color: #333; font-size: 14px;">
+              <strong>{{KT('deviceStatus')}}</strong>
+              <span :style="{ color: currentDevice?.status === 'online' ? '#27ae60' : '#e74c3c' }">
+                {{ currentDevice?.status === 'online' ? KT('online') : KT('offline') }}
+              </span>
+            </p>
+          </div>
         </div>
-      </div>
 
-      <div style="display: flex;">
-        <el-tooltip :content="(store.state.events.mute) ? 'Ouvir Notificações' : 'Silenciar Notificações'">
-          <div id="mute" @click="store.dispatch('events/toggleMute')"
-            style="cursor: pointer; font-size: 1.2rem; margin: 0.3rem 0.5rem;"
-            aria-label="Alternar som de notificações">
-            <span v-if="store.state.events.mute">
-              <i class="fas fa-volume-mute" style="color: silver;" aria-hidden="true"></i>
-            </span>
-            <span v-else>
-              <i class="fas fa-volume-up" aria-hidden="true"></i>
-            </span>
+        <div id="unlockDesc" style="background: #d4edda; border: 1px solid #27ae60; border-radius: 8px; padding: 15px; margin-bottom: 20px; text-align: center;">
+          <i class="fas fa-unlock" style="color: #27ae60; font-size: 24px; margin-bottom: 8px;" aria-hidden="true"></i>
+          <h4 id="unlockTitle" style="color: #27ae60; margin: 8px 0;">CONFIRMAÇÃO NECESSÁRIA</h4>
+          <p style="color: #636e72; margin: 0; font-size: 14px;">
+            {{ currentDevice?.status === 'online' ? 'Confirme que deseja executar este comando no veículo.' : KT('command.unlockWarningOffline') }}
+          </p>
+        </div>
+
+        <div style="margin: 20px 0;">
+          <p style="text-align: center; margin-bottom: 15px; font-weight: 600;">{{KT('command.slideToConfirmUnlock')}}</p>
+          <div
+            ref="unlockSlider"
+            role="slider"
+            tabindex="0"
+            @keydown.stop="onUnlockKeydown"
+            :aria-label="KT('command.slideToConfirmUnlock')"
+            aria-orientation="horizontal"
+            :aria-valuemin="0"
+            :aria-valuemax="100"
+            :aria-valuenow="Math.round(unlockProgress)"
+            :aria-valuetext="Math.round(unlockProgress) + '%'"
+            :aria-disabled="commandLoading"
+            :aria-busy="commandLoading ? 'true' : 'false'"
+            style="position: relative; width: 100%; height: 50px; background: var(--el-fill-color-light, #e9ecef); border-radius: 25px; overflow: hidden; touch-action: none; user-select: none;"
+            :style="{ pointerEvents: commandLoading ? 'none' : 'auto' }"
+          >
+            <div
+              style="position: absolute; top: 0; height: 100%; background: var(--el-color-success); border-radius: 25px; transition: width 0.1s ease;"
+              :style="{ width: unlockProgress + '%', left: '0', right: 'auto' }"
+              aria-hidden="true"
+            ></div>
+
+            <div
+              ref="unlockThumb"
+              class="slider-thumb"
+              :style="{
+                left: unlockThumbPosition + 'px',
+                background: unlockConfirmed ? 'var(--el-color-success)' : 'white',
+                color: unlockConfirmed ? 'white' : '#495057',
+                cursor: commandLoading ? 'not-allowed' : 'grab'
+              }"
+              @mousedown="startUnlockDrag"
+              @touchstart="startUnlockDrag"
+              aria-hidden="true"
+            >
+              <i class="fas fa-unlock" style="font-size: 14px;" aria-hidden="true"></i>
+            </div>
+
+            <div
+              style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #6c757d; font-weight: 600; pointer-events: none; z-index: 5; font-size: 14px;"
+              :style="{ opacity: unlockConfirmed ? 0 : 1 }"
+              aria-hidden="true"
+            >
+              → Deslize para Desbloquear
+            </div>
+            <div
+              v-if="unlockConfirmed"
+              style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #333; font-weight: 700; z-index: 5; font-size: 14px;"
+              aria-live="polite"
+            >
+              {{KT('command.confirmed')}}
+            </div>
           </div>
-        </el-tooltip>
+        </div>
 
-        <push-notification-btn v-if="store.state.auth"></push-notification-btn>
-
-        <div id="user" @click="userMenu($event)" style="cursor: pointer;" aria-label="Abrir menu do usuário">
-          <div class="uname" v-if="store.state.auth && !store.state.auth.attributes['isShared']"
-            style="font-size: 0.8rem; margin: 0.5rem 0.5rem;">
-            {{ store.state.auth.name }}
-          </div>
-
-          <div class="uname" v-else style="text-align: right; font-size: 1.4rem; margin: 0.3rem 0.5rem;">
-            <div style="font-size: 0.3rem;">Expira em:</div>
-            <div style="font-size: 0.5rem">{{ store.getters.expiresCountDown }}</div>
-          </div>
-
-          <i style="font-size: 1.4rem; margin: 0.3rem 0.5rem;" class="fas fa-user-circle" aria-hidden="true"></i>
+        <div style="text-align: center; margin-top: 20px;">
+          <button @click="cancelUnlock" :disabled="commandLoading" style="padding: 10px 20px; background: var(--el-color-primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;" :style="{ opacity: commandLoading ? 0.6 : 1, cursor: commandLoading ? 'not-allowed' : 'pointer' }">
+            {{KT('cancel')}}
+          </button>
         </div>
       </div>
     </div>
 
-    <div id="content">
-      <template v-if="store.getters['isDriver']">
-        <router-view></router-view>
-      </template>
-
-      <template v-else>
-        <!-- ===== MENU: SEMPRE ATIVO (fora do inert) ===== -->
-        <div id="menu" v-if="shouldRenderMenu" :class="{ isopen: effectiveMenuOpen, 'sidebar-closed': sidebarClosed }">
-          <ul>
-            <router-link v-if="store.getters.advancedPermissions(8)" to="/devices" custom
-              v-slot="{ href, navigate, isActive, isExactActive }">
-              <li :class="{ active: isActive || isExactActive, 'exact-active': isExactActive }">
-                <a :href="href" @click.prevent="onMenuItemClick(navigate)" :aria-label="$t('menu.devices')">
-                  <el-icon><i class="fas fa-location-arrow" aria-hidden="true"></i></el-icon>
-                  <span class="text">{{ $t('menu.devices') }}</span>
-                </a>
-              </li>
-            </router-link>
-
-            <router-link v-if="store.getters.advancedPermissions(72)" to="/reports" custom
-              v-slot="{ href, navigate, isActive, isExactActive }">
-              <li :class="{ active: isActive, 'exact-active': isExactActive }">
-                <a :href="href" @click.prevent="onMenuItemClick(navigate)" :aria-label="$t('menu.reports')">
-                  <el-icon><i class="fas fa-chart-bar" aria-hidden="true"></i></el-icon>
-                  <span class="text">{{ $t('menu.reports') }}</span>
-                </a>
-              </li>
-            </router-link>
-
-            <router-link v-if="store.getters.advancedPermissions(40)" to="/geofence" custom
-              v-slot="{ href, navigate, isActive, isExactActive }">
-              <li :class="{ active: isActive, 'exact-active': isExactActive }">
-                <a :href="href" @click.prevent="onMenuItemClick(navigate)" :aria-label="$t('menu.geofence')">
-                  <el-icon><i class="fas fa-draw-polygon" aria-hidden="true"></i></el-icon>
-                  <span class="text">{{ $t('menu.geofence') }}</span>
-                </a>
-              </li>
-            </router-link>
-
-            <router-link v-if="store.getters.advancedPermissions(56)" to="/commands" custom
-              v-slot="{ href, navigate, isActive, isExactActive }">
-              <li :class="{ active: isActive, 'exact-active': isExactActive }">
-                <a :href="href" @click.prevent="onMenuItemClick(navigate)" :aria-label="$t('menu.commands')">
-                  <el-icon><i class="far fa-keyboard" aria-hidden="true"></i></el-icon>
-                  <span class="text">{{ $t('menu.commands') }}</span>
-                </a>
-              </li>
-            </router-link>
-
-            <router-link v-if="store.getters.advancedPermissions(48)" to="/groups" custom
-              v-slot="{ href, navigate, isActive, isExactActive }">
-              <li :class="{ active: isActive, 'exact-active': isExactActive }">
-                <a :href="href" @click.prevent="onMenuItemClick(navigate)" :aria-label="$t('menu.groups')">
-                  <el-icon><i class="far fa-object-group" aria-hidden="true"></i></el-icon>
-                  <span class="text">{{ $t('menu.groups') }}</span>
-                </a>
-              </li>
-            </router-link>
-
-            <router-link to="/notifications" custom v-slot="{ href, navigate, isActive, isExactActive }">
-              <li :class="{ active: isActive, 'exact-active': isExactActive }">
-                <a :href="href" @click.prevent="onMenuItemClick(navigate)" :aria-label="$t('menu.notifications')">
-                  <el-icon><i class="fas fa-bell" aria-hidden="true"></i></el-icon>
-                  <span class="text">{{ $t('menu.notifications') }}</span>
-                </a>
-              </li>
-            </router-link>
-
-            <!-- Faturas (Minhas Faturas) -->
-            <router-link to="/invoices" custom v-slot="{ href, navigate, isActive, isExactActive }">
-              <li :class="{ active: isActive, 'exact-active': isExactActive }">
-                <a :href="href" @click.prevent="onMenuItemClick(navigate)" :aria-label="$t('menu.invoices')">
-                  <el-icon><i class="fas fa-file-invoice-dollar" aria-hidden="true"></i></el-icon>
-                  <span class="text">{{ $t('menu.invoices') }}</span>
-                </a>
-              </li>
-            </router-link>
-
-            <!-- Gestão de Cobranças (Admin/Gerente) -->
-            <router-link v-if="store.getters.isAdmin" to="/invoices-manager" custom
-              v-slot="{ href, navigate, isActive, isExactActive }">
-              <li :class="{ active: isActive, 'exact-active': isExactActive }">
-                <a :href="href" @click.prevent="onMenuItemClick(navigate)" :aria-label="$t('menu.invoicesManager')">
-                  <el-icon><i class="fas fa-money-bill-wave" aria-hidden="true"></i></el-icon>
-                  <span class="text">{{ $t('menu.invoicesManager') }}</span>
-                </a>
-              </li>
-            </router-link>
-
-            <div class="indicator"></div>
-          </ul>
-
-          <div id="version">
-            <template v-if="store.state.server?.serverInfo?.version">
-              {{ $t('version') }}@ {{ store.state.server.serverInfo.version || '-' }}
-            </template>
+    <!-- Modal de ÂNCORA (ativar/desativar) -->
+    <div
+      v-if="showAnchorModal"
+      role="dialog"
+      aria-modal="true"
+      :aria-labelledby="'anchorTitle'"
+      :aria-describedby="'anchorDesc'"
+      tabindex="-1"
+      @keydown.esc.stop="cancelAnchor"
+      style="position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+             z-index: 9999; display: flex; align-items: center; justify-content: center;"
+    >
+      <div
+        style="background: rgba(240,240,240,0.7); backdrop-filter: blur(10px); color: #333;
+               border-radius: 12px; padding: 15px; width: 400px; max-width: 90%;
+               box-shadow: 0 10px 30px rgba(0,0,0,0.5);"
+      >
+        <div style="display: flex; margin-bottom: 20px;">
+          <img
+            :src="getVehicleImage(currentDevice)"
+            :alt="currentDevice?.name || 'Veículo'"
+            @error="onVehicleImgError"
+            style="width: 120px; height: 90px; object-fit: cover; margin-right: 15px;"
+          />
+          <div style="flex: 1;">
+            <h3 style="margin: 0 0 8px 0; color: #333; font-size: 18px;">{{ currentDevice?.name }}</h3>
+            <p v-if="currentDevice?.uniqueId" style="margin: 4px 0; color: #333; font-size: 14px;">
+              <strong>{{KT('imei')}}</strong> {{ currentDevice.uniqueId }}
+            </p>
+            <p v-if="currentDevice?.attributes?.placa" style="margin: 4px 0; color: #333; font-size: 14px;">
+              <strong>{{KT('plateLabel')}}</strong> {{ currentDevice.attributes.placa }}
+            </p>
+            <p style="margin: 4px 0; color: #333; font-size: 14px;">
+              <strong>{{KT('deviceStatus')}}</strong>
+              <span :style="{ color: currentDevice?.status === 'online' ? '#27ae60' : '#e74c3c' }">
+                {{ currentDevice?.status === 'online' ? KT('online') : KT('offline') }}
+              </span>
+            </p>
           </div>
-
         </div>
 
-        <!-- ===== Wrapper inert: SOMENTE painel e mapa ficam bloqueados quando modal aberto ===== -->
-        <div class="inert-wrap" v-bind="modalOpen ? { inert: '' } : {}" :aria-hidden="modalOpen ? 'true' : 'false'">
-          <!-- PAINEL LATERAL -->
-          <div id="open" :class="{
-            minimized: minimized,
-            bottom: ($route.meta.mobileBottom),
-            mobileExpanded: mobileExpand,
-            shown: ($route.meta.shown),
-            editing: store.state.geofences.mapEditing,
-            allowExpand: $route.meta.allowExpand,
-            expanded: ($route.meta.allowExpand && $route.query.expand === 'true')
-          }">
-            <div style="width: calc(100%);" :style="{ display: (store.state.geofences.mapEditing) ? 'none' : '' }">
+        <div id="anchorDesc" style="background: #fff3cd; border: 1px solid #f39c12; border-radius: 8px; padding: 15px; margin-bottom: 20px; text-align: center;">
+          <i class="fas fa-anchor" style="color: #f39c12; font-size: 24px; margin-bottom: 8px;" aria-hidden="true"></i>
+          <h4 id="anchorTitle" style="color: #f39c12; margin: 8px 0;">
+            {{ currentCommand?.type === 'anchor_enable' ? KT('command.activateAnchor') : KT('command.deactivateAnchor') }}
+          </h4>
+          <p style="color: #636e72; margin: 0; font-size: 14px;">
+            {{ currentCommand?.type === 'anchor_enable' ? KT('command.anchorActivateDescription') : KT('command.anchorDeactivateDescription') }}
+          </p>
+        </div>
+
+        <div style="margin: 20px 0%;">
+          <p style="text-align: center; margin-bottom: 15px; font-weight: 600;">{{KT('command.slideToConfirmGeneric')}}</p>
+          <div
+            ref="anchorSlider"
+            role="slider"
+            tabindex="0"
+            @keydown.stop="onAnchorKeydown"
+            :aria-label="KT('command.slideToConfirmGeneric')"
+            aria-orientation="horizontal"
+            :aria-valuemin="0"
+            :aria-valuemax="100"
+            :aria-valuenow="Math.round(anchorProgress)"
+            :aria-valuetext="Math.round(anchorProgress) + '%'"
+            :aria-disabled="commandLoading"
+            :aria-busy="commandLoading ? 'true' : 'false'"
+            style="position: relative; width: 100%; height: 50px; background: var(--el-fill-color-light, #e9ecef); border-radius: 25px; overflow: hidden; touch-action: none; user-select: none;"
+            :style="{ pointerEvents: commandLoading ? 'none' : 'auto' }"
+          >
+            <div
+              style="position: absolute; top: 0; height: 100%; background: var(--el-color-warning); border-radius: 25px; transition: width 0.1s ease;"
+              :style="{
+                width: anchorProgress + '%',
+                left: currentCommand?.type === 'anchor_disable' ? 'auto' : '0',
+                right: currentCommand?.type === 'anchor_disable' ? '0' : 'auto'
+              }"
+              aria-hidden="true"
+            ></div>
+
+            <div
+              ref="anchorThumb"
+              class="slider-thumb"
+              :style="{
+                left: anchorThumbPosition + 'px',
+                background: anchorConfirmed ? 'var(--el-color-warning)' : 'white',
+                color: anchorConfirmed ? 'white' : '#495057',
+                cursor: commandLoading ? 'not-allowed' : 'grab'
+              }"
+              @mousedown="startAnchorDrag"
+              @touchstart="startAnchorDrag"
+              aria-hidden="true"
+            >
+              <i class="fas fa-anchor" style="font-size: 14px;" aria-hidden="true"></i>
+            </div>
+
+            <div
+              style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+                     color: #6c757d; font-weight: 600; pointer-events: none; z-index: 5; font-size: 14px;"
+              :style="{ opacity: anchorConfirmed ? 0 : 1 }"
+              aria-hidden="true"
+            >
+              {{ currentCommand?.type === 'anchor_enable' ? KT('command.slideRightToActivate') : KT('command.slideLeftToDeactivate') }}
+            </div>
+            <div
+              v-if="anchorConfirmed"
+              style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #333; font-weight: 700; z-index: 5; font-size: 14px;"
+              aria-live="polite"
+            >
+              {{KT('command.confirmed')}}
+            </div>
+          </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 20px;">
+          <button @click="cancelAnchor" :disabled="commandLoading" style="padding: 10px 20px; background: var(--el-color-primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;" :style="{ opacity: commandLoading ? 0.6 : 1, cursor: commandLoading ? 'not-allowed' : 'pointer' }">
+            {{KT('cancel')}}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de EXCLUSÃO -->
+    <div
+      v-if="showDeleteModal"
+      role="dialog"
+      aria-modal="true"
+      :aria-labelledby="'deleteTitle'"
+      :aria-describedby="'deleteDesc'"
+      tabindex="-1"
+      @keydown.esc.stop="cancelDelete"
+      style="position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+             z-index: 9999; display: flex; align-items: center; justify-content: center;"
+    >
+      <div
+        style="background: rgba(240,240,240,0.7); backdrop-filter: blur(10px); color: #333;
+               border-radius: 12px; padding: 15px; width: 400px; max-width: 90%;
+               box-shadow: 0 10px 30px rgba(0,0,0,0.5);"
+      >
+        <div style="display: flex; margin-bottom: 20px;">
+          <div style="margin-left: 15px;">
+            <h3 id="deleteTitle" style="margin: 0 0 5px 0; font-size: 18px; color: #dc3545;">⚠️ {{KT('device.remove')}}</h3>
+            <p style="margin: 5px 0;"><strong>{{KT('device.name')}}:</strong> {{ currentDevice?.name }}</p>
+            <p style="margin: 5px 0;">
+              <strong>{{KT('deviceStatus')}}</strong>
+              <span :style="{ color: currentDevice?.status === 'online' ? '#27ae60' : '#e74c3c' }">
+                {{ currentDevice?.status === 'online' ? KT('online') : KT('offline') }}
+              </span>
+            </p>
+          </div>
+        </div>
+
+        <div id="deleteDesc" style="background: #f8d7da; border: 1px solid #dc3545; border-radius: 8px; padding: 15px; margin-bottom: 20px; text-align: center;">
+          <p style="margin: 0; font-weight: bold; color: #dc3545;">
+            🗑️ {{KT('device.question_del1')}}
+          </p>
+          <p style="margin: 5px 0 0 0; font-size: 12px; color: #666;">
+            {{KT('device.question_del2')}}
+          </p>
+        </div>
+
+        <div style="margin: 20px 0;">
+          <p style="text-align: center; margin-bottom: 15px; font-weight: 600;">{{KT('command.slideToConfirmDelete')}}</p>
+          <div
+            ref="deleteSlider"
+            role="slider"
+            tabindex="0"
+            @keydown.stop="onDeleteKeydown"
+            :aria-label="KT('command.slideToConfirmDelete')"
+            aria-orientation="horizontal"
+            :aria-valuemin="0"
+            :aria-valuemax="100"
+            :aria-valuenow="Math.round(deleteProgress)"
+            :aria-valuetext="Math.round(deleteProgress) + '%'"
+            :aria-disabled="commandLoading"
+            :aria-busy="commandLoading ? 'true' : 'false'"
+            style="position: relative; width: 100%; height: 50px; background: var(--el-fill-color-light, #e9ecef); border-radius: 25px; overflow: hidden; touch-action: none; user-select: none;"
+            :style="{ pointerEvents: commandLoading ? 'none' : 'auto' }"
+          >
+            <div
+              style="position: absolute; top: 0; left: 0; height: 100%; background: var(--el-color-danger); border-radius: 25px; transition: width 0.1s ease;"
+              :style="{ width: deleteProgress + '%' }"
+              aria-hidden="true"
+            ></div>
+
+            <div
+              ref="deleteThumb"
+              class="slider-thumb"
+              :style="{
+                left: deleteThumbPosition + 'px',
+                background: deleteConfirmed ? 'var(--el-color-danger)' : 'white',
+                color: deleteConfirmed ? 'white' : '#495057',
+                cursor: commandLoading ? 'not-allowed' : 'grab'
+              }"
+              @mousedown="startDeleteDrag"
+              @touchstart="startDeleteDrag"
+              aria-hidden="true"
+            >
+              <i class="fas fa-trash" style="font-size: 14px;" aria-hidden="true"></i>
+            </div>
+
+            <div
+              style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+                     color: #6c757d; font-weight: 600; pointer-events: none; z-index: 5; font-size: 14px;"
+              :style="{ opacity: deleteConfirmed ? 0 : 1 }"
+              aria-hidden="true"
+            >
+              Deslizar para Excluir
+            </div>
+            <div
+              v-if="deleteConfirmed"
+              style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #333; font-weight: 700; z-index: 5; font-size: 14px;"
+              aria-live="polite"
+            >
+              {{KT('command.confirmed')}}
+            </div>
+          </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 20px;">
+          <button @click="cancelDelete" :disabled="commandLoading" style="padding: 10px 20px; background: var(--el-color-primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;" :style="{ opacity: commandLoading ? 0.6 : 1, cursor: commandLoading ? 'not-allowed' : 'pointer' }">
+            {{KT('cancel')}}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Wrapper com inert/aria-hidden para desativar o fundo quando qualquer modal estiver aberto ===== -->
+    <div
+      :inert="showBlockModal || showUnlockModal || showAnchorModal || showDeleteModal"
+      :aria-hidden="(showBlockModal || showUnlockModal || showAnchorModal || showDeleteModal) ? 'true' : 'false'"
+    >
+      <div id="head">
+        <!-- botão do menu com .stop para não propagar -->
+        <div id="btnmenu" @click.stop="toggleSidebar" aria-label="Alternar menu">
+          <i class="fas fa-bars" aria-hidden="true"></i>
+        </div>
+        <div id="logo">
+          <img
+            v-if="store.state.server.labelConf.headLogo.image"
+            :src="logoSrc"
+            @click="$router.push('/')"
+            style="width: 11rem; cursor: pointer;"
+            alt="Logo"
+          />
+          <div v-else style="font-weight: bold;text-transform: uppercase;font-family: montserrat, roboto;">
+            <a @click.prevent="$router.push('/')" style="cursor: pointer; color: var(--el-text-color-primary); text-decoration: none;" aria-label="Ir para a página inicial">
+              {{store.state.server.labelConf.headLogo.text}}
+            </a>
+          </div>
+        </div>
+        <div style="display: flex;">
+          <el-tooltip :content="(store.state.events.mute)?'Ouvir Notificações':'Silenciar Notificações'">
+            <div id="mute" @click="store.dispatch('events/toggleMute')" style="cursor: pointer;font-size: 1.2rem;margin: 0.3rem 0.5rem;" aria-label="Alternar som de notificações">
+              <span v-if="store.state.events.mute"><i class="fas fa-volume-mute" style="color: silver;" aria-hidden="true"></i></span>
+              <span v-else><i class="fas fa-volume-up" aria-hidden="true"></i></span>
+            </div>
+          </el-tooltip>
+
+          <push-notification-btn v-if="store.state.auth"></push-notification-btn>
+
+          <div id="user" @click="userMenu($event)" style="cursor: pointer;" aria-label="Abrir menu do usuário">
+            <div class="uname" v-if="store.state.auth && !store.state.auth.attributes['isShared']" style="font-size: 0.8rem;margin: 0.5rem 0.5rem;">
+              {{store.state.auth.name}}
+            </div>
+            <div class="uname" v-else style="text-align: right;font-size: 1.4rem;margin: 0.3rem 0.5rem;">
+              <div style="font-size: 0.3rem;">Expira em:</div>
+              <div style="font-size: 0.5rem">{{store.getters.expiresCountDown}}</div>
+            </div>
+            <i style="font-size: 1.4rem;margin: 0.3rem 0.5rem;" class="fas fa-user-circle" aria-hidden="true"></i>
+          </div>
+        </div>
+      </div>
+
+      <div id="content">
+        <template v-if="store.getters['isDriver']">
+          <router-view></router-view>
+        </template>
+
+        <template v-else>
+          <div id="menu" :class="{isopen: menuShown, 'sidebar-closed': sidebarClosed }" v-if="store.state.auth && !store.state.auth.attributes['isShared']">
+            <ul>
+              <router-link v-if="store.getters.advancedPermissions(8)" to="/devices" custom v-slot="{ href, navigate, isActive, isExactActive }">
+                <li :class="{active: isActive || isExactActive,'exact-active': isExactActive}">
+                  <a :href="href" @click="(e) => { navigate(e); autoCloseSidebarOnNav(); }">
+                    <el-icon><i class="fas fa-car" aria-hidden="true"></i></el-icon>
+                    <span class="text">{{$t('menu.devices')}}</span>
+                  </a>
+                </li>
+              </router-link>
+
+              <!-- Relatórios -->
+              <router-link v-if="store.getters.advancedPermissions(72)" to="/reports" custom v-slot="{ href, navigate, isActive, isExactActive }">
+                <li :class="{active: isActive,'exact-active': isExactActive}">
+                  <a :href="href" @click="(e) => { navigate(e); autoCloseSidebarOnNav(); }">
+                    <el-icon><i class="fas fa-chart-bar" aria-hidden="true"></i></el-icon>
+                    <span class="text">{{$t('menu.reports')}}</span>
+                  </a>
+                </li>
+              </router-link>
+
+              <!-- Geocerca -->
+              <router-link v-if="store.getters.advancedPermissions(40)" to="/geofence" custom v-slot="{ href, navigate, isActive, isExactActive }">
+                <li :class="{active: isActive,'exact-active': isExactActive}">
+                  <a :href="href" @click="(e) => { navigate(e); autoCloseSidebarOnNav(); }">
+                    <el-icon><i class="fas fa-draw-polygon" aria-hidden="true"></i></el-icon>
+                    <span class="text">{{$t('menu.geofence')}}</span>
+                  </a>
+                </li>
+              </router-link>
+
+              <!-- Comandos -->
+              <router-link v-if="store.getters.advancedPermissions(56)" to="/commands" custom v-slot="{ href, navigate, isActive, isExactActive }">
+                <li :class="{active: isActive,'exact-active': isExactActive}">
+                  <a :href="href" @click="(e) => { navigate(e); autoCloseSidebarOnNav(); }">
+                    <el-icon><i class="far fa-keyboard" aria-hidden="true"></i></el-icon>
+                    <span class="text">{{$t('menu.commands')}}</span>
+                  </a>
+                </li>
+              </router-link>
+
+              <!-- Grupos -->
+              <router-link v-if="store.getters.advancedPermissions(48)" to="/groups" custom v-slot="{ href, navigate, isActive, isExactActive }">
+                <li :class="{active: isActive,'exact-active': isExactActive}">
+                  <a :href="href" @click="(e) => { navigate(e); autoCloseSidebarOnNav(); }">
+                    <el-icon><i class="far fa-object-group" aria-hidden="true"></i></el-icon>
+                    <span class="text">{{$t('menu.groups')}}</span>
+                  </a>
+                </li>
+              </router-link>
+
+              <!-- Notificações -->
+              <router-link to="/notifications" custom v-slot="{ href, navigate, isActive, isExactActive }">
+                <li :class="{active: isActive,'exact-active': isExactActive}">
+                  <a :href="href" @click="(e) => { navigate(e); autoCloseSidebarOnNav(); }">
+                    <el-icon><i class="fas fa-bell" aria-hidden="true"></i></el-icon>
+                    <span class="text">{{$t('menu.notifications')}}</span>
+                  </a>
+                </li>
+              </router-link>
+
+              <div class="indicator"></div>
+            </ul>
+
+            <div id="version" @click="handleVersionClick">
+              {{$t('version')}}
+              <template v-if="store.state.server.serverInfo.version">
+                @<br /> {{store.state.server.serverInfo.version}}
+              </template>
+            </div>
+          </div>
+
+          <div
+            id="open"
+            :class="{
+              minimized: minimized,
+              bottom: ($route.meta.mobileBottom),
+              mobileExpanded: mobileExpand,
+              shown: ($route.meta.shown),
+              editing: store.state.geofences.mapEditing,
+              allowExpand: $route.meta.allowExpand,
+              expanded: ($route.meta.allowExpand && $route.query.expand==='true')
+            }"
+          >
+            <div style="width: calc(100%);" :style="{display: (store.state.geofences.mapEditing)?'none':'' }">
               <div id="heading">
-                <span @click="onOpenBack" aria-label="Voltar"><i class="fas fa-angle-double-left"
-                    aria-hidden="true"></i></span>
-                {{ KT($route.meta.title || 'page') }}
-                <span @click="onOpenClose" aria-label="Fechar"><i class="fas fa-times-circle"
-                    aria-hidden="true"></i></span>
+                <span @click="onOpenBack" aria-label="Voltar"><i class="fas fa-angle-double-left" aria-hidden="true"></i></span>
+                {{KT($route.meta.title || 'page')}}
+                <span @click="onOpenClose" aria-label="Fechar"><i class="fas fa-times-circle" aria-hidden="true"></i></span>
               </div>
 
-              <div v-if="($route.meta.mobileBottom)" @click="minimized = !minimized" class="showOnMobile"
-                style="position: absolute; right: 35px; top: 5px; font-size: 18px;" aria-label="Minimizar painel">
-                <i class="fas fa-window-minimize" aria-hidden="true"></i>
-              </div>
-
-              <div v-if="($route.meta.mobileBottom)" @click="onOpenClose" class="showOnMobile"
-                style="position: absolute; right: 5px; top: 5px; font-size: 18px;" aria-label="Fechar painel">
+              <div v-if="($route.meta.mobileBottom)" @click="minimized = !minimized" class="showOnMobile" style="position: absolute;right: 35px;top: 5px;font-size: 18px;" aria-label="Minimizar painel"><i class="fas fa-window-minimize" aria-hidden="true"></i></div>
+              <div v-if="($route.meta.mobileBottom)" @click="onOpenClose" class="showOnMobile" style="position: absolute;right: 5px;top: 5px;font-size: 18px;" aria-label="Fechar painel">
                 <i class="fas fa-times-circle" aria-hidden="true"></i>
               </div>
 
-              <div v-if="($route.meta.mobileBottom)" id="expander" @click="mobileExpand = !mobileExpand"
-                aria-label="Alternar expansão do painel">
+              <div v-if="($route.meta.mobileBottom)" id="expander" @click="mobileExpand = !mobileExpand" aria-label="Alternar expansão do painel">
                 <span v-if="!mobileExpand"><i class="fas fa-angle-double-up" aria-hidden="true"></i></span>
                 <span v-else><i class="fas fa-angle-double-down" aria-hidden="true"></i></span>
               </div>
@@ -267,71 +672,114 @@
             </div>
 
             <div v-if="store.state.geofences.mapEditing">
-              <div style="padding: 10px;"><el-button @click="store.dispatch('geofences/disableEditing')"
-                  type="primary">Concluir</el-button></div>
-              <div style="padding: 10px;"><el-button @click="store.dispatch('geofences/disableEditing')" type="danger"
-                  plain>{{
-                  KT('Cancel') }}</el-button></div>
+              <div style="padding: 10px;"><el-button @click="store.dispatch('geofences/disableEditing')" type="primary">Concluir</el-button></div>
+              <!-- <div style="padding: 10px;"><el-button type="warning" plain>{{KT('Reset')}}</el-button></div> -->
+              <div style="padding: 10px;"><el-button @click="store.dispatch('geofences/disableEditing')" type="danger" plain>{{KT('Cancel')}}</el-button></div>
             </div>
 
-            <div v-if="$route.meta.allowExpand" class="expandBtn"
-              @click="$router.push({ query: { ...$route.query, expand: ($route.query.expand === 'true' ? 'false' : 'true') } })"
-              aria-label="Expandir painel">
+            <div
+              v-if="$route.meta.allowExpand"
+              class="expandBtn"
+              @click="$router.push({ query: { ...$route.query, expand: ($route.query.expand==='true' ? 'false' : 'true') } })"
+              aria-label="Expandir painel"
+            >
               <i class="fas fa-angle-double-right" aria-hidden="true"></i>
             </div>
           </div>
 
-          <!-- SCRIM: fecha menu ao clicar fora (mesmo com iframe) -->
-          <div v-if="isMenuOverlayOpen" class="menu-scrim" @click="closeMobileMenu()" aria-hidden="true" />
+          <!-- PROTEÇÃO DE CLIQUE NO MAPA: handler no container do mapa -->
+          <div
+            id="main"
+            @click="handleMainClick"
+            :class="{'sidebar-closed': sidebarClosed,menuShown: menuShown,editing: store.state.geofences.mapEditing,minimized: minimized,bottom: ($route.meta.mobileBottom),shown: ($route.meta.shown)}"
+            :style="{width: (store.state.auth.attributes['isShared'])?'100vw':''}"
+          >
+            <!-- Street View CONDICIONAL: só renderiza quando ativo no store -->
+            <street-view v-if="streetViewEnabled"></street-view>
 
-          <!-- MAPA -->
-          <div id="main" @click="handleMainClick" :class="{
-            'sidebar-closed': sidebarClosed,
-            menuShown: effectiveMenuOpen,
-            editing: store.state.geofences.mapEditing,
-            minimized: minimized,
-            bottom: $route.meta.mobileBottom,
-            shown: $route.meta.shown
-          }" :style="mainDynamicStyle">
-            <StreetView v-if="store.state.devices.streetview" />
+            <!-- Seus iframes continuam condicionais como já estão -->
+            <iframe-calor v-if="store.state.devices.toggleCalor"></iframe-calor>
+            <iframe-percurso v-if="store.state.devices.showPercurso"></iframe-percurso>
+            <iframe-pontos v-if="store.state.devices.showPontos"></iframe-pontos>
 
-            <!-- REMOVIDO: IframeCalor, IframePercurso, IframePontos -->
-            <!-- Heatmap agora é via toggleHeatmap() direto no Leaflet do KoreMap -->
+            <!-- Mapa principal -->
+            <kore-map></kore-map>
+          </div>
+        </template>
+      </div>
+    </div>
+    <!-- ===== FIM do wrapper inert ===== -->
+  </div>
 
-            <KoreMap />
+  <div v-else>
+    <router-view></router-view>
+  </div>
+
+  <!-- Diálogo: Histórico de Versões -->
+  <el-dialog
+    v-model="showVersionHistory"
+    title="Cronologia de Atualizações"
+    width="750px"
+    :close-on-click-modal="true"
+    :z-index="999999999"
+    append-to-body
+    center
+  >
+    <!-- Wrapper interno para evitar aviso de "Extraneous non-props attributes (class)" -->
+    <div class="version-history-dialog">
+      <div class="version-timeline">
+        <div
+          v-for="(version, index) in versionHistory"
+          :key="index"
+          class="version-item"
+        >
+          <div class="version-header">
+            <div class="version-number">{{ version.version }}</div>
+            <div class="version-date">{{ version.date }}</div>
+            <div class="version-type" :class="version.type">
+              {{ version.typeLabel }}
+            </div>
+          </div>
+
+          <div class="version-content">
+            <h4>{{ version.title }}</h4>
+            <ul class="changes-list">
+              <li
+                v-for="(change, changeIndex) in version.changes"
+                :key="changeIndex"
+                :class="change.type"
+              >
+                <i :class="getChangeIcon(change.type)" aria-hidden="true"></i>
+                {{ change.description }}
+              </li>
+            </ul>
           </div>
         </div>
-        <!-- ===== FIM wrapper inert (só painel + mapa) ===== -->
-      </template>
+      </div>
     </div>
-  </template>
 
-  <!-- Se não estiver autenticado, mantém o fluxo padrão -->
-  <template v-else>
-    <router-view></router-view>
-  </template>
+    <template #footer>
+      <div class="dialog-footer">
+        <el-button @click="showVersionHistory = false">Fechar</el-button>
+      </div>
+    </template>
+  </el-dialog>
 
   <!-- Assistente IA Global -->
   <AIAssistantWrapper />
+  
+  <!-- Indicador de conexão -->
+  <div v-if="!isOnline" class="connection-status offline">
+    <i class="fas fa-wifi-slash"></i>
+    <span>Sem conexão</span>
+  </div>
 </template>
-
-
 
 <script setup>
 /* ===========================
  *  IMPORTS
  * =========================== */
-import {
-  defineAsyncComponent,
-  ref,
-  onMounted,
-  onBeforeUnmount,
-  provide,
-  computed,
-  watch,
-  nextTick,
-  inject,
-} from 'vue'
+import { defineAsyncComponent, ref, onMounted, onBeforeUnmount, provide, nextTick, computed, watch } from 'vue'
 import { useStore } from 'vuex'
 
 import 'element-plus/es/components/button/style/css'
@@ -346,14 +794,15 @@ import { ElProgress } from 'element-plus/es/components/progress'
 import { ElButton } from 'element-plus/es/components/button'
 import { ElIcon } from 'element-plus/es/components/icon'
 import { ElTooltip } from 'element-plus/es/components/tooltip'
-
-import { useModalA11yLock } from '@/composables/useModalA11yLock'
+import { ElDialog } from 'element-plus/es/components/dialog'
 
 import router from './routes'
 
-/* ===========================
- *  LAZY LOADER HELPER
- * =========================== */
+// Branding & Asset helpers (MIT.app)
+import { assetUrl, deviceImageUrl, categoryImageUrl } from '@/branding/index.js'
+import { ensureAsyncRefReady } from '@/utils/asyncComponent.js'
+
+/* Async components */
 const lazy = (name, loader) =>
   defineAsyncComponent({
     loader,
@@ -364,35 +813,20 @@ const lazy = (name, loader) =>
     },
   })
 
-/* ===========================
- *  ASYNC COMPONENTS
- * =========================== */
+/* Components */
 const StreetView = lazy('StreetView', () => import('./tarkan/components/street-view'))
-// REMOVIDO: IframePercurso, IframePontos, IframeCalor (legado PHP)
-// Heatmap agora via L.heatLayer no kore-map.vue
-const KoreMap = lazy('KoreMap', () => {
-  // console.log('[App.vue] 🔵 Lazy loading KoreMap...');
-  return import('./tarkan/components/kore-map').then(module => {
-    // console.log('[App.vue] ✅ KoreMap loaded successfully');
-    return module;
-  }).catch(error => {
-    console.error('[App.vue] ❌ ERRO ao carregar KoreMap:', error);
-    throw error;
-  });
-})
+const IframePercurso = lazy('IframePercurso', () => import('./tarkan/components/iframe-percurso'))
+const IframePontos = lazy('IframePontos', () => import('./tarkan/components/iframe-pontos'))
+const IframeCalor = lazy('IframeCalor', () => import('./tarkan/components/iframe-calor'))
+const KoreMap = lazy('KoreMap', () => import('./tarkan/components/kore-map'))
 
 import KT from './tarkan/func/kt'
 import actAnchor from './tarkan/func/actAnchor'
-
-// Componente unificado de modal com slider
-import ConfirmSliderModal from './components/ConfirmSliderModal.vue'
 
 import 'leaflet/dist/leaflet.css'
 
 const ContextMenu = lazy('ContextMenu', () => import('./tarkan/components/context-menu'))
 const EditUser = lazy('EditUser', () => import('./tarkan/components/views/edit-user'))
-const UserNoticeModal = lazy('UserNoticeModal', () => import('./tarkan/components/UserNoticeModal'))
-
 const EditShare = lazy('EditShare', () => import('./tarkan/components/views/edit-share'))
 const EditShares = lazy('EditShares', () => import('./tarkan/components/views/edit-shares'))
 const EditGroup = lazy('EditGroup', () => import('./tarkan/components/views/edit-group'))
@@ -404,84 +838,39 @@ const LogObjects = lazy('LogObjects', () => import('./tarkan/components/views/lo
 const EditCalendars = lazy('EditCalendars', () => import('./tarkan/components/views/edit-calendars'))
 const EditMaintenances = lazy('EditMaintenances', () => import('./tarkan/components/views/edit-maintenances'))
 const EditTheme = lazy('EditTheme', () => import('./tarkan/components/views/edit-theme'))
-
+const ShowInvoices = lazy('ShowInvoices', () => import('./tarkan/components/views/show-invoices'))
+const ShowInvoicesManager = lazy('ShowInvoicesManager', () => import('./tarkan/components/views/show-invoices-manager'))
+const EditIntegrations = lazy('EditIntegrations', () => import('./tarkan/components/views/edit-integrations'))
+const EditEvents = lazy('EditEvents', () => import('./tarkan/components/views/edit-events'))
 const EditNotifications = lazy('EditNotifications', () => import('./tarkan/components/views/edit-notifications'))
 const EditDevice = lazy('EditDevice', () => import('./tarkan/components/views/edit-device'))
 const QrDevice = lazy('QrDevice', () => import('./tarkan/components/views/qr-device'))
 const Showtip = lazy('Showtip', () => import('./tarkan/components/showtip'))
 const ShowGraphic = lazy('ShowGraphic', () => import('./tarkan/components/views/show-graphic'))
 const PushNotificationBtn = lazy('PushNotificationBtn', () => import('./tarkan/components/push-notification-btn'))
-const ShowInvoices = lazy('ShowInvoices', () => import('./tarkan/components/views/show-invoices'))
-const ShowInvoicesManager = lazy('ShowInvoicesManager', () => import('./tarkan/components/views/show-invoices-manager'))
-const EditIntegrations = lazy('EditIntegrations', () => import('./tarkan/components/views/edit-integrations'))
-const EditEvents = lazy('EditEvents', () => import('./tarkan/components/views/edit-events'))
 const AIAssistantWrapper = lazy('AIAssistantWrapper', () => import('./components/AIAssistantWrapper.vue'))
 
 /* ===========================
  *  SETUP
  * =========================== */
 const store = useStore()
-const runtimeApi = inject('runtimeApi', null)
 
-/** CSS Vars (SSR-safe) */
-const primaryColor = ref('#409EFF')
+// CSS Variables
+const css = getComputedStyle(document.documentElement)
+const primaryColor = css.getPropertyValue('--el-color-primary')?.trim() || '#409EFF'
 
-/** Runtime config (window.CONFIG) + fallback no store */
-const runtimeConfig = ref(typeof window !== 'undefined' ? (window.CONFIG || {}) : {})
+// Branding computed
+const logoSrc = computed(() => assetUrl('custom/logo.png'))
 
-const refreshRuntimeConfig = () => {
-  runtimeConfig.value = (typeof window !== 'undefined' && window.CONFIG)
-    ? { ...window.CONFIG }
-    : {}
-}
+// Street View computed (from store)
+const streetViewEnabled = computed(() => store.state.ui?.streetViewEnabled ?? false)
 
-const syncPrimaryColor = () => {
-  try {
-    const css = getComputedStyle(document.documentElement)
-    primaryColor.value = css.getPropertyValue('--el-color-primary')?.trim() || '#409EFF'
-  } catch {
-    /* fallback */
-  }
-}
+// ===== DARK MODE GLOBAL (ativa tokens CSS em modais) =====
+// App-dark.vue sempre está em dark mode
+document.body.classList.add('dark-mode')
 
-let themeRaf = null
-const onThemeUpdated = () => {
-  if (themeRaf) cancelAnimationFrame(themeRaf)
-  themeRaf = requestAnimationFrame(() => {
-    refreshRuntimeConfig()
-    syncPrimaryColor()
-    themeRaf = null
-  })
-}
-
-/** labelConf: prioriza runtimeConfig sobre store */
-const labelConf = computed(() => {
-  const fromRuntime = runtimeConfig.value
-  const fromStore = store.state.server?.labelConf
-  return (fromRuntime && typeof fromRuntime === 'object' && Object.keys(fromRuntime).length > 0) 
-    ? fromRuntime 
-    : (fromStore || {})
-})
-
-const headLogo = computed(() => labelConf.value?.headLogo || {})
-
-/** WhatsApp: sanitiza número e adiciona DDI 55 se necessário */
-const whatsappNumber = computed(() => {
-  const raw = String(labelConf.value?.whatsapp || '')
-  let digits = raw.replace(/\D/g, '')
-
-  // BR: se veio sem DDI e parece número nacional (10/11 dígitos), prefixa 55
-  if (digits && (digits.length === 10 || digits.length === 11)) {
-    digits = '55' + digits
-  }
-  return digits
-})
-
-/* ===========================
- *  COMPONENT REFS
- * =========================== */
+// Component Refs
 const contextMenuRef = ref(null)
-// radialMenuRef: reservado para futuro componente radial-menu (legado ou planejado)
 const radialMenuRef = ref(null)
 const editDeviceRef = ref(null)
 const qrDeviceRef = ref(null)
@@ -498,439 +887,139 @@ const logObjectsRef = ref(null)
 const editCalendarsRef = ref(null)
 const editMaintenancesRef = ref(null)
 const editThemeRef = ref(null)
-const userNoticeModalRef = ref(null) // ✅ NOVO: ref para UserNoticeModal
 const showGraphicsRef = ref(null)
-const userNoticeModalRef = ref(null)
 const invoicesRef = ref(null)
 const invoicesManagerRef = ref(null)
 const integrationsRef = ref(null)
 const editEventsRef = ref(null)
 
-/* ===========================
- *  UI STATE
- * =========================== */
+// UI State
 const mobileExpand = ref(false)
-
-// menuShown: controla overlay do menu no mobile (portrait)
-// sidebarClosed: controla colapso da sidebar no desktop (landscape)
 const menuShown = ref(false)
 const minimized = ref(false)
 const sidebarClosed = ref(false)
 
-/* Desktop x Mobile - REATIVO para detectar orientação */
-const portrait = ref(false)
-const computePortrait = () => {
-  // Fallback baseado em dimensão para devices frágeis (Android split-screen, tablets)
-  const vv = window.visualViewport
-  const w = vv?.width ?? window.innerWidth
-  const h = vv?.height ?? window.innerHeight
-  
-  // Tablet em janela estreita (<900px) é tratado como mobile
-  const isNarrow = w < 900
-  
-  // Priorizar matchMedia quando disponível, fallback para dimensão
-  if (window.matchMedia) {
-    try {
-      const isOrientationPortrait = window.matchMedia('(orientation: portrait)').matches
-      return isOrientationPortrait || isNarrow
-    } catch {
-      return h >= w || isNarrow
-    }
-  }
-  return h >= w || isNarrow
-}
+// Slider refs
+const blockSlider = ref(null)
+const unlockSlider = ref(null)
+const anchorSlider = ref(null)
+const deleteSlider = ref(null)
+const blockThumb = ref(null)
+const unlockThumb = ref(null)
+const anchorThumb = ref(null)
+const deleteThumb = ref(null)
 
-const updatePortrait = () => {
-  const newValue = computePortrait()
-  if (portrait.value !== newValue) {
-    portrait.value = newValue
-    // Invalidar mapa após mudança de orientação (layout mudou)
-    nextTick(() => emitMapInvalidate({ source: 'orientation-change' }))
-  }
-}
-
-/**
- * restoreSidebar - ALTERADO conforme referência
- * Em portrait (mobile): fecha o menu.
- * Em desktop: não faz nada (sidebar fica controlada por sidebarClosed).
- */
-const restoreSidebar = () => {
-  if (portrait.value) {
-    menuShown.value = false
-  }
-}
-
-/**
- * toggleSidebar - ALTERADO conforme referência
- * Em portrait (mobile): toggla menuShown.
- * Em desktop: toggla sidebarClosed para colapsar/expandir.
- */
-const toggleSidebar = (e) => {
-  e?.stopPropagation?.()
-  if (portrait.value) {
-    menuShown.value = !menuShown.value
-  } else {
-    sidebarClosed.value = !sidebarClosed.value
-  }
-}
-
-// Alias para manter compatibilidade com template existente
-const toggleMenu = toggleSidebar
-
-/**
- * onMenuItemClick - ALTERADO conforme referência
- * Fecha menu automaticamente após navegação somente em mobile (portrait).
- */
-const onMenuItemClick = (navigate) => {
-  navigate?.()
-  // autoCloseSidebarOnNav: só fecha em mobile
-  if (portrait.value) {
-    menuShown.value = false
-  }
-}
-
-/**
- * shouldRenderMenu - O menu só existe quando:
- * - Autenticado
- * - Não é driver
- * - No mobile: sempre renderiza (precisa existir para abrir overlay)
- * - No desktop: não renderiza quando meta.shown
- */
-const shouldRenderMenu = computed(() => {
-  if (!store.state.auth) return false
-  if (store.getters['isDriver']) return false
-
-  // 🔥 FIX: no mobile, o menu precisa existir mesmo com meta.shown
-  if (portrait.value) return true
-
-  if (router.currentRoute.value?.meta?.shown) return false
-  return true
-})
-
-/**
- * effectiveMenuOpen - Estado real de abertura do menu:
- * - Mobile: só "abre" se o menu existir E menuShown=true
- * - Desktop: se renderiza e não está "sidebarClosed", consideramos "aberto"
- */
-const effectiveMenuOpen = computed(() => {
-  // Mobile: só "abre" se o menu existir
-  if (portrait.value) return shouldRenderMenu.value && menuShown.value
-
-  // Desktop: se renderiza e não está "sidebarClosed", consideramos "aberto"
-  return shouldRenderMenu.value && !sidebarClosed.value
-})
-
-/** Computed para detectar menu overlay aberto (mobile only) */
-const isMenuOverlayOpen = computed(() => portrait.value && effectiveMenuOpen.value)
-
-/**
- * shouldShowHamburger - Garante que o hamburger sempre apareça no mobile
- * Mobile: sempre visível (usuário precisa conseguir abrir o menu)
- * Desktop: respeita regra atual (esconde quando meta.shown)
- */
-const shouldShowHamburger = computed(() => {
-  // Mobile: sempre mostrar
-  if (portrait.value) return true
-
-  // Desktop: respeita regra atual (esconde quando meta.shown)
-  return !router.currentRoute.value?.meta?.shown
-})
-
-/** Ajuste principal (shared / safe-area) */
-const mainDynamicStyle = computed(() => {
-  const style = {}
-  if (store.state?.auth?.attributes?.['isShared']) {
-    style.width = '100vw'
-  }
-  // Quando menu overlay aberto em mobile, não aplicar padding extra (evita faixa branca)
-  style.paddingInlineEnd = isMenuOverlayOpen.value ? '0px' : 'var(--sar, 0px)'
-  return style
-})
-
-/* ===========================
- *  MODAL UNIFICADO - ESTADOS
- * =========================== */
-const showConfirmModal = ref(false)
-const currentModalMode = ref('block') // 'block' | 'unlock' | 'anchor_enable' | 'anchor_disable' | 'delete'
+// Modal States
+const showBlockModal = ref(false)
+const showUnlockModal = ref(false)
+const showAnchorModal = ref(false)
+const showDeleteModal = ref(false)
 const currentDevice = ref(null)
 const currentCommand = ref(null)
 const commandLoading = ref(false)
 
-/** Configuração dinâmica do modal baseada no modo */
-const modalConfig = computed(() => {
-  const isOnlineDevice = currentDevice.value?.status === 'online'
-  const offlineWarning = 'O veículo está offline. O comando será enviado quando reconectar.'
-  const noInternetWarning = 'Sem conexão com a internet. Conecte-se para executar este comando.'
-  
-  // Helper para aplicar mensagem offline consistentemente
-  // Prioriza mensagem de internet quando navegador está offline
-  const needOnlineMsg = (fallback) => {
-    if (!isOnline.value) return noInternetWarning
-    return isOnlineDevice ? fallback : offlineWarning
-  }
+// Slider States
+const SLIDER_PADDING = 2
+const DEFAULT_THUMB_WIDTH = 46
 
-  const configs = {
-    block: {
-      title: currentDevice.value?.name || 'Veículo',
-      titleIcon: '',
-      warningTitle: 'ATENÇÃO - USO APENAS EM EMERGÊNCIA',
-      warningText: needOnlineMsg('Este comando deve ser usado somente em casos de emergência como roubo ou furto.'),
-      confirmLabel: 'Deslize para Bloquear',
-      sliderLabel: 'Deslize para confirmar bloqueio',
-      iconClass: 'fas fa-lock',
-      colorVariant: 'danger',
-      rtl: false,
-    },
-    unlock: {
-      title: currentDevice.value?.name || 'Veículo',
-      titleIcon: '',
-      warningTitle: 'CONFIRMAÇÃO NECESSÁRIA',
-      warningText: needOnlineMsg('Confirme que deseja executar este comando no veículo.'),
-      confirmLabel: 'Deslize para Desbloquear',
-      sliderLabel: 'Deslize para confirmar desbloqueio',
-      iconClass: 'fas fa-unlock',
-      colorVariant: 'success',
-      rtl: false,
-    },
-    anchor_enable: {
-      title: currentDevice.value?.name || 'Veículo',
-      titleIcon: 'fas fa-anchor',
-      warningTitle: 'ATIVAR ÂNCORA',
-      warningText: needOnlineMsg('A âncora irá alertar se o veículo sair do local atual.'),
-      confirmLabel: 'Ativar Âncora',
-      sliderLabel: 'Deslize para confirmar',
-      iconClass: 'fas fa-anchor',
-      colorVariant: 'warning',
-      rtl: false,
-    },
-    anchor_disable: {
-      title: currentDevice.value?.name || 'Veículo',
-      titleIcon: 'fas fa-anchor',
-      warningTitle: 'DESATIVAR ÂNCORA',
-      warningText: needOnlineMsg('A âncora será desativada e alertas de movimento serão suspensos.'),
-      confirmLabel: 'Desativar Âncora',
-      sliderLabel: 'Deslize para a ESQUERDA para confirmar',
-      iconClass: 'fas fa-anchor',
-      colorVariant: 'warning',
-      rtl: true, // ← RTL REAL: confirma deslizando para ESQUERDA
-    },
-    delete: {
-      title: '⚠️ Excluir Dispositivo',
-      titleIcon: '',
-      warningTitle: 'AÇÃO IRREVERSÍVEL',
-      warningText: 'Tem certeza que deseja excluir este dispositivo? Esta ação não pode ser desfeita.',
-      confirmLabel: 'Deslize para Excluir',
-      sliderLabel: 'Deslize para confirmar exclusão',
-      iconClass: 'fas fa-trash',
-      colorVariant: 'danger',
-      rtl: false,
-    },
-  }
+const blockProgress = ref(0)
+const blockThumbPosition = ref(SLIDER_PADDING)
+const blockConfirmed = ref(false)
+const blockDragging = ref(false)
 
-  return configs[currentModalMode.value] || configs.block
-})
+const unlockProgress = ref(0)
+const unlockThumbPosition = ref(SLIDER_PADDING)
+const unlockConfirmed = ref(false)
+const unlockDragging = ref(false)
 
-/* ===========================
- *  CONNECTION STATUS
- * =========================== */
+const anchorProgress = ref(0)
+const anchorThumbPosition = ref(SLIDER_PADDING)
+const anchorConfirmed = ref(false)
+const anchorDragging = ref(false)
+const anchorRTL = ref(false)
+
+const deleteProgress = ref(0)
+const deleteThumbPosition = ref(SLIDER_PADDING)
+const deleteConfirmed = ref(false)
+const deleteDragging = ref(false)
+
+// Version History
+const versionClickCount = ref(0)
+const showVersionHistory = ref(false)
+const clickTimeout = ref(null)
+
+// Connection Status
 const isOnline = ref(navigator.onLine)
 const connectionSpeed = ref('good')
 
-const updateConnectionStatus = () => {
-  isOnline.value = navigator.onLine
+// Handlers
+const currentHandlers = ref({ move: null, end: null, rafId: null })
+const previouslyFocusedEl = ref(null)
 
-  if ('connection' in navigator) {
-    const connection = navigator.connection
-    if (connection?.effectiveType === '4g') connectionSpeed.value = 'excellent'
-    else if (connection?.effectiveType === '3g') connectionSpeed.value = 'good'
-    else connectionSpeed.value = 'slow'
+/* ===========================
+ *  SIDEBAR FUNCTIONS
+ * =========================== */
+const isPortrait = () => window.matchMedia && window.matchMedia('(orientation: portrait)').matches
+
+const toggleSidebar = () => {
+  if (isPortrait()) {
+    menuShown.value = !menuShown.value
+  } else {
+    // Em desktop, não fecha automaticamente
+    sidebarClosed.value = !sidebarClosed.value
+  }
+}
+
+const restoreSidebar = () => {
+  if (isPortrait()) {
+    menuShown.value = false
+  }
+  // Mantém estado do sidebar em desktop
+}
+
+const autoCloseSidebarOnNav = () => {
+  // Só fecha em mobile
+  if (isPortrait()) {
+    setTimeout(() => {
+      menuShown.value = false
+    }, 150)
   }
 }
 
 /* ===========================
- *  HELPERS
+ *  HELPER FUNCTIONS
  * =========================== */
-function generateRandomToken(length = 20) {
-  const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
-  
-  // Usa crypto.getRandomValues se disponível (mais seguro)
-  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
-    const array = new Uint32Array(length)
-    crypto.getRandomValues(array)
-    return Array.from(array, (n) => charset[n % charset.length]).join('')
+function generateRandomToken() {
+  const letters = 'TKZYxLSOPERT123965U'.split('')
+  const tmp = []
+  let i = 0
+  while (i < 20) {
+    const rand = Math.round(Math.random() * (letters.length - 1))
+    tmp.push(letters[rand])
+    i++
   }
-  
-  // Fallback para Math.random (ambientes sem crypto)
-  return Array.from({ length }, () => charset[Math.floor(Math.random() * charset.length)]).join('')
+  return tmp.join('')
 }
-
-// ============================================================================
-// MAP INVALIDATE - Rate-limited dispatcher
-// ============================================================================
-
-/**
- * Sistema de rate-limit inteligente para map:invalidate
- * 
- * PROBLEMA: viewport scroll pode disparar 60fps → storm de invalidateSize()
- * SOLUÇÃO: throttle por source sem perder responsividade em UX crítica
- * 
- * CONFIGURAÇÃO:
- * - viewport scroll: max 150ms (6-7fps, imperceptível mas economiza 90% dos events)
- * - menu/sidebar/mount/orientation: imediato (UX crítica)
- * - modal-close: imediato (já tem nextTick no composable)
- * 
- * INVARIANTES:
- * - Cada source tem throttle isolado (Map por source = sem starvation)
- * - RAF global = múltiplos invalidates no mesmo frame colapsam em 1 (último detail vence)
- * 
- * KILL SWITCH (ops/debug):
- * localStorage.DISABLE_VIEWPORT_THROTTLE='1' → desliga throttle sem redeploy (lido dinamicamente)
- */
-
-// Sources que devem ter throttle (ms)
-const THROTTLE_CONFIG = {
-  viewport: 150, // scroll suave mobile = storm, throttle pesado OK
-}
-
-// Sources imediatas (whitelist defensiva): menu-overlay, sidebar-toggle, mount, orientation-change, modal-close
-// IMMEDIATE_SOURCES garante que estes sources NUNCA recebam throttle.
-// Hoje só throttlamos viewport, mas se algum source for adicionado ao THROTTLE_CONFIG no futuro,
-// esta whitelist protege UX crítica (menu/sidebar instant, orientation sem delay).
-const IMMEDIATE_SOURCES = new Set([
-  'menu-overlay',
-  'sidebar-toggle', 
-  'mount',
-  'orientation-change',
-  'modal-close',
-])
-
-// State para throttling por source (isolado por source = sem starvation)
-const throttleTimers = new Map()
-const lastEmitTime = new Map()
-
-// Logging DEV-only (ativar com localStorage.DEBUG_PERF=1)
-const DEBUG_PERF = typeof localStorage !== 'undefined' && localStorage.DEBUG_PERF === '1'
-const perfCounters = DEBUG_PERF ? new Map() : null
-
-// Kill switch (ops): desliga throttle sem redeploy (lido dinamicamente)
-const isThrottleDisabled = () =>
-  typeof localStorage !== 'undefined' &&
-  localStorage.DISABLE_VIEWPORT_THROTTLE === '1'
-
-let invalidateRaf = null
-let warnedThrottleOff = false // Guard: warn throttle desabilitado só 1x
-const emitMapInvalidate = (detail = {}) => {
-  const source = detail.source || 'unknown'
-
-  // Logging DEV
-  if (DEBUG_PERF) {
-    perfCounters.set(source, (perfCounters.get(source) || 0) + 1)
-  }
-
-  // Kill switch: bypass throttle completamente (lido dinamicamente, sem reload)
-  if (isThrottleDisabled()) {
-    if (!warnedThrottleOff) {
-      console.warn('[PERF] ⚠️  Throttle desabilitado via localStorage.DISABLE_VIEWPORT_THROTTLE')
-      warnedThrottleOff = true
-    }
-    if (invalidateRaf) cancelAnimationFrame(invalidateRaf)
-    invalidateRaf = requestAnimationFrame(() => {
-      window.dispatchEvent(new CustomEvent('map:invalidate', { detail }))
-      invalidateRaf = null
-    })
-    return
-  }
-
-  // Throttle por source (se configurado)
-  const throttleMs = THROTTLE_CONFIG[source]
-  if (throttleMs && !IMMEDIATE_SOURCES.has(source)) {
-    const now = Date.now()
-    const lastEmit = lastEmitTime.get(source) || 0
-    const elapsed = now - lastEmit
-
-    if (elapsed < throttleMs) {
-      // Já existe timer? cancela e reagenda
-      if (throttleTimers.has(source)) {
-        clearTimeout(throttleTimers.get(source))
-      }
-
-      // Agenda disparo no final do throttle
-      const timer = setTimeout(() => {
-        throttleTimers.delete(source)
-        lastEmitTime.set(source, Date.now())
-        
-        if (invalidateRaf) cancelAnimationFrame(invalidateRaf)
-        invalidateRaf = requestAnimationFrame(() => {
-          window.dispatchEvent(new CustomEvent('map:invalidate', { detail }))
-          invalidateRaf = null
-        })
-      }, throttleMs - elapsed)
-
-      throttleTimers.set(source, timer)
-      return
-    }
-
-    lastEmitTime.set(source, now)
-  }
-
-  // Disparo imediato (sources imediatas ou fora do throttle)
-  if (invalidateRaf) cancelAnimationFrame(invalidateRaf)
-  invalidateRaf = requestAnimationFrame(() => {
-    window.dispatchEvent(new CustomEvent('map:invalidate', { detail }))
-    invalidateRaf = null
-  })
-}
-
-// Logging periódico DEV (a cada 10s)
-if (DEBUG_PERF) {
-  setInterval(() => {
-    if (perfCounters.size > 0) {
-      console.log('[PERF] map:invalidate (últimos 10s):', Object.fromEntries(perfCounters))
-      perfCounters.clear()
-    }
-  }, 10000)
-}
-
-/** viewport vars robusto (visualViewport) */
-const viewportCleanupFns = []
 
 const applyViewportVars = () => {
   const root = document.documentElement
-  const vv = window.visualViewport
-  const height = vv?.height ?? window.innerHeight
-  const width = vv?.width ?? window.innerWidth
-
-  root.style.setProperty('--vh', `${height}px`)
-  root.style.setProperty('--vw', `${width}px`)
-  // Nota: --sat/--sab/--sar/--sal já definidos no :root via env()
+  root.style.setProperty('--vh', `${window.innerHeight}px`)
+  root.style.setProperty('--vw', `${window.innerWidth}px`)
 }
 
-const registerViewportListeners = () => {
-  const handler = () => {
-    applyViewportVars()
-    emitMapInvalidate({ source: 'viewport' })
-  }
-
-  window.addEventListener('resize', handler)
-  viewportCleanupFns.push(() => window.removeEventListener('resize', handler))
-
-  if (window.visualViewport) {
-    window.visualViewport.addEventListener('resize', handler)
-    window.visualViewport.addEventListener('scroll', handler)
-    viewportCleanupFns.push(() => window.visualViewport.removeEventListener('resize', handler))
-    viewportCleanupFns.push(() => window.visualViewport.removeEventListener('scroll', handler))
-  }
+const getVehicleImage = (device) => {
+  if (!device) return categoryImageUrl('default')
+  return deviceImageUrl(device.id, {
+    timestamp: Date.now(),
+    imageVersion: device?.attributes?.imageVersion || 0,
+    driverUniqueId: device?.attributes?.driverUniqueId || '',
+  })
 }
 
-const cleanupViewportListeners = () => {
-  while (viewportCleanupFns.length) {
-    const fn = viewportCleanupFns.pop()
-    try {
-      fn?.()
-    } catch {
-      /* noop */
-    }
-  }
+const onVehicleImgError = (e) => {
+  const cat = currentDevice.value?.category || 'default'
+  e.target.onerror = null
+  e.target.src = categoryImageUrl(cat)
 }
 
 /* ===========================
@@ -949,458 +1038,676 @@ const onOpenClose = () => {
 }
 
 const handleMainClick = (e) => {
-  // Impede interação quando modal está aberto
-  if (modalOpen.value || showConfirmModal.value) {
+  // Não fecha menu ao clicar no mapa
+  if (modalOpen.value || 
+      blockDragging.value || unlockDragging.value ||
+      anchorDragging.value || deleteDragging.value) {
     e?.stopPropagation?.()
     e?.preventDefault?.()
     return
   }
+}
 
-  // Fecha menu no mobile ao tocar no mapa
-  if (portrait.value && menuShown.value) {
-    menuShown.value = false
+/* ===========================
+ *  VERSION HISTORY
+ * =========================== */
+const handleVersionClick = () => {
+  if (!store.state?.auth?.administrator) return
+  versionClickCount.value++
+  if (clickTimeout.value) clearTimeout(clickTimeout.value)
+  if (versionClickCount.value >= 10) {
+    showVersionHistory.value = true
+    versionClickCount.value = 0
+    return
+  }
+  clickTimeout.value = setTimeout(() => { versionClickCount.value = 0 }, 2000)
+}
+
+const getChangeIcon = (type) =>
+  type === 'feature' ? 'fas fa-plus-circle' :
+  type === 'improvement' ? 'fas fa-arrow-up' :
+  type === 'fix' ? 'fas fa-bug' :
+  type === 'security' ? 'fas fa-shield-alt' :
+  type === 'breaking' ? 'fas fa-exclamation-triangle' :
+  'fas fa-circle'
+
+const versionHistory = ref([
+  {
+    version: 'v3.2.1',
+    date: '08/06/2025',
+    type: 'patch',
+    typeLabel: 'Correções',
+    title: 'Correções e melhorias de estabilidade',
+    changes: [
+      { type: 'fix', description: 'Correção de sincronização de dispositivos offline' },
+      { type: 'improvement', description: 'Mapa mais leve com muitos dispositivos' },
+      { type: 'fix', description: 'Erro ao exportar PDF resolvido' }
+    ]
+  },
+  {
+    version: 'v3.2.0',
+    date: '01/06/2025',
+    type: 'minor',
+    typeLabel: 'Funcionalidade',
+    title: 'Nova UI e funcionalidades',
+    changes: [
+      { type: 'feature', description: 'Notificações push aprimoradas' },
+      { type: 'feature', description: 'UI redesenhada' },
+      { type: 'improvement', description: 'Controles de zoom reposicionados' },
+      { type: 'feature', description: 'Filtros com estado online/offline' }
+    ]
+  }
+])
+
+/* ===========================
+ *  CONNECTION STATUS
+ * =========================== */
+const updateConnectionStatus = () => {
+  isOnline.value = navigator.onLine
+  
+  if ('connection' in navigator) {
+    const connection = navigator.connection
+    if (connection.effectiveType === '4g') {
+      connectionSpeed.value = 'excellent'
+    } else if (connection.effectiveType === '3g') {
+      connectionSpeed.value = 'good'
+    } else {
+      connectionSpeed.value = 'slow'
+    }
   }
 }
 
 /* ===========================
- *  MODAL HANDLERS UNIFICADOS
+ *  SLIDER GEOMETRY
  * =========================== */
+const calculateSliderGeometry = (sliderRef, thumbRef = null) => {
+  const sliderEl = sliderRef?.value || sliderRef
+  const thumbEl = thumbRef?.value || thumbRef
+  const sliderRect = sliderEl?.getBoundingClientRect?.()
+  if (!sliderRect) return null
 
-/** Handler unificado de confirmação do modal */
-const handleModalConfirm = async () => {
-  const mode = currentModalMode.value
-  
-  switch (mode) {
-    case 'block':
-      await handleBlockCommand()
-      break
-    case 'unlock':
-      await handleUnlockCommand()
-      break
-    case 'anchor_enable':
-    case 'anchor_disable':
-      await handleAnchorCommand()
-      break
-    case 'delete':
-      await handleDeleteCommand()
-      break
+  const thumbWidth = thumbEl?.offsetWidth ?? DEFAULT_THUMB_WIDTH
+  const maxLeftRaw = sliderRect.width - thumbWidth - SLIDER_PADDING
+  const maxLeft = Math.max(SLIDER_PADDING, maxLeftRaw)
+
+  return { rect: sliderRect, thumbWidth, maxLeft, padding: SLIDER_PADDING }
+}
+
+const cleanupCurrentHandlers = () => {
+  if (currentHandlers.value.rafId) {
+    cancelAnimationFrame(currentHandlers.value.rafId)
+    currentHandlers.value.rafId = null
+  }
+  if (currentHandlers.value.move) {
+    document.removeEventListener('mousemove', currentHandlers.value.move)
+    document.removeEventListener('touchmove', currentHandlers.value.move)
+    currentHandlers.value.move = null
+  }
+  if (currentHandlers.value.end) {
+    document.removeEventListener('mouseup', currentHandlers.value.end)
+    document.removeEventListener('touchend', currentHandlers.value.end)
+    currentHandlers.value.end = null
   }
 }
 
-/** Handler de cancelamento do modal */
-const handleModalCancel = () => {
-  currentDevice.value = null
-  currentCommand.value = null
-  commandLoading.value = false
+/* ===========================
+ *  DRAG HANDLERS
+ * =========================== */
+const startBlockDrag = (event) => {
+  if (blockConfirmed.value || commandLoading.value) return
+  cleanupCurrentHandlers()
+  blockDragging.value = true
+  event.preventDefault()
+
+  const geometry = calculateSliderGeometry(blockSlider.value, blockThumb.value)
+  if (!geometry) return
+
+  const handleMove = (e) => {
+    if (!blockDragging.value) return
+    e.preventDefault()
+    const clientX = e.type.includes('touch') ? e.touches[0]?.clientX : e.clientX
+    if (clientX == null || !Number.isFinite(clientX)) return
+
+    if (currentHandlers.value.rafId) cancelAnimationFrame(currentHandlers.value.rafId)
+    currentHandlers.value.rafId = requestAnimationFrame(() => {
+      const newLeft = Math.max(geometry.padding, Math.min(clientX - geometry.rect.left - geometry.thumbWidth/2, geometry.maxLeft))
+      blockThumbPosition.value = newLeft
+      blockProgress.value = ((newLeft - geometry.padding) / (geometry.maxLeft - geometry.padding)) * 100
+
+      if (newLeft >= geometry.maxLeft - 5) {
+        blockConfirmed.value = true
+        blockDragging.value = false
+        setTimeout(() => { handleBlockConfirmed() }, 500)
+      }
+    })
+  }
+
+  const handleEnd = () => {
+    if (!blockConfirmed.value) {
+      blockThumbPosition.value = SLIDER_PADDING
+      blockProgress.value = 0
+    }
+    blockDragging.value = false
+    cleanupCurrentHandlers()
+  }
+
+  currentHandlers.value.move = handleMove
+  currentHandlers.value.end = handleEnd
+  document.addEventListener('mousemove', handleMove)
+  document.addEventListener('mouseup', handleEnd)
+  document.addEventListener('touchmove', handleMove, { passive: false })
+  document.addEventListener('touchend', handleEnd, { passive: false })
 }
 
-/** Comando de bloqueio */
-const handleBlockCommand = async () => {
+const startUnlockDrag = (event) => {
+  if (unlockConfirmed.value || commandLoading.value) return
+  cleanupCurrentHandlers()
+  unlockDragging.value = true
+  event.preventDefault()
+
+  const geometry = calculateSliderGeometry(unlockSlider.value, unlockThumb.value)
+  if (!geometry) return
+
+  const handleMove = (e) => {
+    if (!unlockDragging.value) return
+    e.preventDefault()
+    const clientX = e.type.includes('touch') ? e.touches[0]?.clientX : e.clientX
+    if (clientX == null || !Number.isFinite(clientX)) return
+
+    if (currentHandlers.value.rafId) cancelAnimationFrame(currentHandlers.value.rafId)
+    currentHandlers.value.rafId = requestAnimationFrame(() => {
+      const newLeft = Math.max(geometry.padding, Math.min(clientX - geometry.rect.left - geometry.thumbWidth/2, geometry.maxLeft))
+      unlockThumbPosition.value = newLeft
+      unlockProgress.value = ((newLeft - geometry.padding) / (geometry.maxLeft - geometry.padding)) * 100
+
+      if (newLeft >= geometry.maxLeft - 5) {
+        unlockConfirmed.value = true
+        unlockDragging.value = false
+        setTimeout(() => { handleUnlockConfirmed() }, 500)
+      }
+    })
+  }
+
+  const handleEnd = () => {
+    if (!unlockConfirmed.value) {
+      unlockThumbPosition.value = SLIDER_PADDING
+      unlockProgress.value = 0
+    }
+    unlockDragging.value = false
+    cleanupCurrentHandlers()
+  }
+
+  currentHandlers.value.move = handleMove
+  currentHandlers.value.end = handleEnd
+  document.addEventListener('mousemove', handleMove)
+  document.addEventListener('mouseup', handleEnd)
+  document.addEventListener('touchmove', handleMove, { passive: false })
+  document.addEventListener('touchend', handleEnd, { passive: false })
+}
+
+const startAnchorDrag = (event) => {
+  if (anchorConfirmed.value || commandLoading.value) return
+  cleanupCurrentHandlers()
+  anchorDragging.value = true
+  event.preventDefault()
+
+  const geometry = calculateSliderGeometry(anchorSlider.value, anchorThumb.value)
+  if (!geometry) return
+
+  const handleMove = (e) => {
+    if (!anchorDragging.value) return
+    e.preventDefault()
+    const clientX = e.type.includes('touch') ? e.touches[0]?.clientX : e.clientX
+    if (clientX == null || !Number.isFinite(clientX)) return
+
+    if (currentHandlers.value.rafId) cancelAnimationFrame(currentHandlers.value.rafId)
+    currentHandlers.value.rafId = requestAnimationFrame(() => {
+      const newLeft = Math.max(geometry.padding, Math.min(clientX - geometry.rect.left - geometry.thumbWidth/2, geometry.maxLeft))
+      anchorThumbPosition.value = newLeft
+      anchorProgress.value = ((newLeft - geometry.padding) / (geometry.maxLeft - geometry.padding)) * 100
+
+      if (newLeft >= geometry.maxLeft - 5) {
+        anchorConfirmed.value = true
+        anchorDragging.value = false
+        setTimeout(() => { handleAnchorConfirmed() }, 500)
+      }
+    })
+  }
+
+  const handleEnd = () => {
+    if (!anchorConfirmed.value) {
+      anchorThumbPosition.value = SLIDER_PADDING
+      anchorProgress.value = 0
+    }
+    anchorDragging.value = false
+    cleanupCurrentHandlers()
+  }
+
+  currentHandlers.value.move = handleMove
+  currentHandlers.value.end = handleEnd
+  document.addEventListener('mousemove', handleMove)
+  document.addEventListener('mouseup', handleEnd)
+  document.addEventListener('touchmove', handleMove, { passive: false })
+  document.addEventListener('touchend', handleEnd, { passive: false })
+}
+
+const startDeleteDrag = (event) => {
+  if (deleteConfirmed.value || commandLoading.value) return
+  cleanupCurrentHandlers()
+  deleteDragging.value = true
+  event.preventDefault()
+
+  const geometry = calculateSliderGeometry(deleteSlider.value, deleteThumb.value)
+  if (!geometry) return
+
+  const handleMove = (e) => {
+    if (!deleteDragging.value) return
+    e.preventDefault()
+    const clientX = e.type.includes('touch') ? e.touches[0]?.clientX : e.clientX
+    if (clientX == null || !Number.isFinite(clientX)) return
+
+    if (currentHandlers.value.rafId) cancelAnimationFrame(currentHandlers.value.rafId)
+    currentHandlers.value.rafId = requestAnimationFrame(() => {
+      const newLeft = Math.max(geometry.padding, Math.min(clientX - geometry.rect.left - geometry.thumbWidth/2, geometry.maxLeft))
+      deleteThumbPosition.value = newLeft
+      deleteProgress.value = ((newLeft - geometry.padding) / (geometry.maxLeft - geometry.padding)) * 100
+
+      if (newLeft >= geometry.maxLeft - 5) {
+        deleteConfirmed.value = true
+        deleteDragging.value = false
+        executeDelete()
+      }
+    })
+  }
+
+  const handleEnd = () => {
+    if (!deleteConfirmed.value) {
+      deleteThumbPosition.value = SLIDER_PADDING
+      deleteProgress.value = 0
+    }
+    deleteDragging.value = false
+    cleanupCurrentHandlers()
+  }
+
+  currentHandlers.value.move = handleMove
+  currentHandlers.value.end = handleEnd
+  document.addEventListener('mousemove', handleMove)
+  document.addEventListener('mouseup', handleEnd)
+  document.addEventListener('touchmove', handleMove, { passive: false })
+  document.addEventListener('touchend', handleEnd, { passive: false })
+}
+
+/* ===========================
+ *  MODAL ACTIONS
+ * =========================== */
+const handleBlockConfirmed = async () => {
   commandLoading.value = true
   try {
-    if (!runtimeApi) {
-      throw new Error('Runtime API não disponível. Recarregue a página.')
-    }
-    
-    if (!isOnline.value) {
-      throw new Error('Sem conexão com a internet.')
-    }
-    
-    const deviceId = currentDevice.value?.id
-    if (!deviceId) throw new Error('Dispositivo não identificado.')
-    
+    const deviceId = currentDevice.value.id
     const command = currentCommand.value
-    await runtimeApi.sendCommand({ ...command, deviceId })
-    
+    await window.$traccar.sendCommand({ ...command, deviceId })
     const { ElNotification } = await import('element-plus')
     ElNotification({ title: 'Sucesso', message: 'Comando de bloqueio enviado', type: 'success' })
-    showConfirmModal.value = false
-  } catch (err) {
+    showBlockModal.value = false
+  } catch (_e) {
     const { ElMessage } = await import('element-plus')
-    const msg = err?.message || 'Erro ao enviar comando'
-    ElMessage.error(msg)
-    console.error('[Block]', err)
+    ElMessage.error('Erro ao enviar comando')
   } finally {
     commandLoading.value = false
   }
 }
 
-/** Comando de desbloqueio */
-const handleUnlockCommand = async () => {
+const handleUnlockConfirmed = async () => {
   commandLoading.value = true
   try {
-    if (!runtimeApi) {
-      throw new Error('Runtime API não disponível. Recarregue a página.')
-    }
-    
-    if (!isOnline.value) {
-      throw new Error('Sem conexão com a internet.')
-    }
-    
-    const deviceId = currentDevice.value?.id
-    if (!deviceId) throw new Error('Dispositivo não identificado.')
-    
+    const deviceId = currentDevice.value.id
     const command = currentCommand.value
-    await runtimeApi.sendCommand({ ...command, deviceId })
-    
+    await window.$traccar.sendCommand({ ...command, deviceId })
     const { ElNotification } = await import('element-plus')
     ElNotification({ title: 'Sucesso', message: 'Comando de desbloqueio enviado', type: 'success' })
-    showConfirmModal.value = false
-  } catch (err) {
+    showUnlockModal.value = false
+  } catch (_e) {
     const { ElMessage } = await import('element-plus')
-    const msg = err?.message || 'Erro ao enviar comando'
-    ElMessage.error(msg)
-    console.error('[Unlock]', err)
+    ElMessage.error('Erro ao enviar comando')
   } finally {
     commandLoading.value = false
   }
 }
 
-/** Comando de âncora */
-const handleAnchorCommand = async () => {
-  const isEnabling = currentModalMode.value === 'anchor_enable'
+const handleAnchorConfirmed = async () => {
+  const isEnabling = currentCommand.value?.type === 'anchor_enable'
   commandLoading.value = true
   try {
-    // PRIORIDADE: validar internet primeiro (evita flip-flop de mensagem)
-    if (!isOnline.value) {
-      throw new Error('Sem conexão com a internet.')
-    }
-    
-    const deviceId = currentDevice.value?.id
-    if (!deviceId) throw new Error('Dispositivo não identificado.')
-    
-    // Validar se device está online (comando âncora requer device conectado)
-    // Esta validação só roda se internet estiver OK
-    const isDeviceOnline = currentDevice.value?.status === 'online'
-    if (!isDeviceOnline) {
-      throw new Error('O veículo está offline. Comando de âncora requer conexão ativa.')
-    }
-    
+    const deviceId = currentDevice.value.id
     await actAnchor(deviceId, isEnabling)
-    
     const { ElNotification } = await import('element-plus')
-    ElNotification({
-      title: 'Sucesso',
-      message: isEnabling ? 'Ancoragem ativada' : 'Ancoragem desativada',
-      type: 'success',
-    })
-    showConfirmModal.value = false
-  } catch (err) {
+    ElNotification({ title: 'Sucesso', message: isEnabling ? 'Ancoragem ativada' : 'Ancoragem desativada', type: 'success' })
+    showAnchorModal.value = false
+  } catch (_e) {
     const { ElMessage } = await import('element-plus')
-    const msg = err?.message || 'Erro ao executar âncora'
-    ElMessage.error(msg)
-    console.error('[Anchor]', err)
+    ElMessage.error('Erro ao executar âncora')
   } finally {
     commandLoading.value = false
   }
 }
 
-/** Comando de exclusão */
-const handleDeleteCommand = async () => {
-  commandLoading.value = true
+const executeDelete = async () => {
   try {
-    // Exclusão só depende de internet (operação de servidor)
-    // NÃO depende de device.status (pode excluir device offline)
-    if (!isOnline.value) {
-      throw new Error('Sem conexão com a internet.')
-    }
-    
-    const deviceId = currentDevice.value?.id
-    if (!deviceId) throw new Error('Dispositivo não identificado.')
-    
-    await store.dispatch('devices/delete', deviceId)
-    
+    commandLoading.value = true
+    await store.dispatch('devices/delete', currentDevice.value.id)
     const { ElNotification } = await import('element-plus')
-    ElNotification({ title: 'Sucesso', message: 'Dispositivo excluído com sucesso', type: 'success' })
-    showConfirmModal.value = false
+    ElNotification({ title: KT('device.info'), message: KT('device.deviceDeleted'), type: 'success' })
+    showDeleteModal.value = false
     router.push('/devices')
-  } catch (err) {
+  } catch (_e) {
     const { ElMessage } = await import('element-plus')
-    const msg = err?.message || 'Erro ao excluir dispositivo'
-    ElMessage.error(msg)
-    console.error('[Delete]', err)
+    ElMessage.error('Erro ao excluir dispositivo')
   } finally {
     commandLoading.value = false
   }
+}
+
+/* Cancel functions */
+const cancelBlock = () => {
+  blockProgress.value = 0
+  blockThumbPosition.value = SLIDER_PADDING
+  blockConfirmed.value = false
+  showBlockModal.value = false
+  currentDevice.value = null
+  currentCommand.value = null
+}
+
+const cancelUnlock = () => {
+  unlockProgress.value = 0
+  unlockThumbPosition.value = SLIDER_PADDING
+  unlockConfirmed.value = false
+  showUnlockModal.value = false
+  currentDevice.value = null
+  currentCommand.value = null
+}
+
+const cancelAnchor = () => {
+  anchorProgress.value = 0
+  anchorThumbPosition.value = SLIDER_PADDING
+  anchorConfirmed.value = false
+  showAnchorModal.value = false
+  currentDevice.value = null
+  currentCommand.value = null
+}
+
+const cancelDelete = () => {
+  deleteProgress.value = 0
+  deleteThumbPosition.value = SLIDER_PADDING
+  deleteConfirmed.value = false
+  showDeleteModal.value = false
+  currentDevice.value = null
+  currentCommand.value = null
 }
 
 /* ===========================
- *  EVENT LISTENERS (OPEN MODALS)
+ *  EVENT LISTENERS
  * =========================== */
 const onOpenBlockModal = (event) => {
   const detail = event?.detail || {}
   currentDevice.value = detail.device || null
   currentCommand.value = detail.command || null
-  currentModalMode.value = 'block'
-  showConfirmModal.value = true
+  blockProgress.value = 0
+  blockThumbPosition.value = SLIDER_PADDING
+  blockConfirmed.value = false
+  blockDragging.value = false
+  showBlockModal.value = true
+  nextTick(() => blockSlider.value?.focus())
 }
 
 const onOpenUnlockModal = (event) => {
   const detail = event?.detail || {}
   currentDevice.value = detail.device || null
   currentCommand.value = detail.command || null
-  currentModalMode.value = 'unlock'
-  showConfirmModal.value = true
+  unlockProgress.value = 0
+  unlockThumbPosition.value = SLIDER_PADDING
+  unlockConfirmed.value = false
+  unlockDragging.value = false
+  showUnlockModal.value = true
+  nextTick(() => unlockSlider.value?.focus())
 }
 
 const onOpenAnchorModal = (event) => {
   const detail = event?.detail || {}
   currentDevice.value = detail.device || null
   currentCommand.value = detail.command || null
-  // Define modo baseado no tipo do comando
-  currentModalMode.value = detail.command?.type === 'anchor_disable' ? 'anchor_disable' : 'anchor_enable'
-  showConfirmModal.value = true
+  anchorRTL.value = detail?.command?.type === 'anchor_disable'
+  anchorProgress.value = 0
+  anchorThumbPosition.value = SLIDER_PADDING
+  anchorConfirmed.value = false
+  anchorDragging.value = false
+  showAnchorModal.value = true
+  nextTick(() => anchorSlider.value?.focus())
 }
 
 const onOpenDeleteModal = (event) => {
   const detail = event?.detail || {}
   currentDevice.value = detail.device || null
   currentCommand.value = detail.command || null
-  currentModalMode.value = 'delete'
-  showConfirmModal.value = true
+  deleteProgress.value = 0
+  deleteThumbPosition.value = SLIDER_PADDING
+  deleteConfirmed.value = false
+  deleteDragging.value = false
+  showDeleteModal.value = true
+  nextTick(() => deleteSlider.value?.focus())
 }
 
 /* ===========================
- *  USER MENU - ALTERADO: Adicionados ícones conforme referência
+ *  USER MENU - COM FIX PARA ASYNC COMPONENTS
  * =========================== */
-const userMenu = (e) => {
+const userMenu = async (e) => {
   const tmp = []
-  const auth = store.state.auth
 
-  if (!auth?.attributes?.['isShared']) {
-    // account: fas fa-user-cog
-    tmp.push({
-      text: KT('usermenu.account'),
-      icon: 'fas fa-user-cog',
-      cb: () => editUserRef.value?.editUser?.()
+  if (!store.state.auth.attributes['isShared']) {
+    tmp.push({ 
+      text: KT('usermenu.account'), 
+      icon: 'fas fa-user-cog', 
+      cb: async () => {
+        await ensureAsyncRefReady(editUserRef, { requiredMethod: 'editUser', timeoutMs: 2000 })
+        editUserRef.value?.editUser()
+      }
     })
 
-    if (auth?.administrator) {
-      // logs: fas fa-history
-      tmp.push({
-        text: KT('usermenu.logs'),
-        icon: 'fas fa-history',
-        cb: () => logObjectsRef.value?.showLogs?.('all')
+    if (store.state.auth.administrator) {
+      tmp.push({ 
+        text: KT('usermenu.logs'), 
+        icon: 'fas fa-history', 
+        cb: async () => {
+          await ensureAsyncRefReady(logObjectsRef, { requiredMethod: 'showLogs', timeoutMs: 2000 })
+          logObjectsRef.value?.showLogs('all')
+        }
       })
-      // theme: fas fa-palette
-      tmp.push({
-        text: KT('usermenu.theme'),
-        icon: 'fas fa-palette',
-        cb: () => editThemeRef.value?.showTheme?.()
-      })
-    }
-
-    if (store.getters.advancedPermissions?.(16)) {
-      // users: fas fa-users
-      tmp.push({
-        text: KT('usermenu.users'),
-        icon: 'fas fa-users',
-        cb: () => editUsersRef.value?.showUsers?.()
+      tmp.push({ 
+        text: KT('usermenu.theme'), 
+        icon: 'fas fa-palette', 
+        cb: async () => {
+          await ensureAsyncRefReady(editThemeRef, { requiredMethod: 'showTheme', timeoutMs: 2000 })
+          editThemeRef.value?.showTheme()
+        }
       })
     }
 
-    if (store.getters.advancedPermissions?.(64)) {
-      // computedAttributes: fas fa-calculator
-      tmp.push({
-        text: KT('usermenu.computedAttributes'),
-        icon: 'fas fa-calculator',
-        cb: () => router.push('/computed')
+    if (store.getters.advancedPermissions(16)) {
+      tmp.push({ 
+        text: KT('usermenu.users'), 
+        icon: 'fas fa-users', 
+        cb: async () => {
+          await ensureAsyncRefReady(editUsersRef, { requiredMethod: 'showUsers', timeoutMs: 2000 })
+          editUsersRef.value?.showUsers()
+        }
       })
+    }
+
+    if (store.getters.advancedPermissions(64)) {
+      tmp.push({ text: KT('usermenu.computedAttributes'), icon: 'fas fa-calculator', cb: () => router.push('/computed') })
     }
 
     if (store.getters.isAdmin) {
-      // server: fas fa-server
-      tmp.push({
-        text: KT('usermenu.server'),
-        icon: 'fas fa-server',
-        cb: () => editServerRef.value?.showServer?.()
+      tmp.push({ 
+        text: KT('usermenu.server'), 
+        icon: 'fas fa-server', 
+        cb: async () => {
+          await ensureAsyncRefReady(editServerRef, { requiredMethod: 'showServer', timeoutMs: 2000 })
+          editServerRef.value?.showServer()
+        }
       })
     }
 
-    if (store.getters.advancedPermissions?.(32)) {
-      // notifications: fas fa-bell
-      tmp.push({
-        text: KT('usermenu.notifications'),
-        icon: 'fas fa-bell',
-        cb: () => editNotificationsRef.value?.showNotifications?.()
+    if (store.getters.advancedPermissions(32)) {
+      tmp.push({ 
+        text: KT('usermenu.notifications'), 
+        icon: 'fas fa-bell', 
+        cb: async () => {
+          await ensureAsyncRefReady(editNotificationsRef, { requiredMethod: 'showNotifications', timeoutMs: 2000 })
+          editNotificationsRef.value?.showNotifications()
+        }
       })
     }
 
-    if (store.getters.advancedPermissions?.(36)) {
-      // events/anuncio: fas fa-bullhorn
-      tmp.push({
-        text: KT('notification.title2', 'Anuncio'),
-        icon: 'fas fa-bullhorn',
-        cb: () => editEventsRef.value?.showEvents?.()
+    if (store.getters.advancedPermissions(80)) {
+      tmp.push({ 
+        text: KT('usermenu.drivers'), 
+        icon: 'fas fa-id-card', 
+        cb: async () => {
+          await ensureAsyncRefReady(editDriversRef, { requiredMethod: 'showDrivers', timeoutMs: 2000 })
+          editDriversRef.value?.showDrivers()
+        }
       })
     }
 
-    if (store.getters.advancedPermissions?.(80)) {
-      // drivers: fas fa-id-card
-      tmp.push({
-        text: KT('usermenu.drivers'),
-        icon: 'fas fa-id-card',
-        cb: () => editDriversRef.value?.showDrivers?.()
+    if (store.getters.advancedPermissions(88)) {
+      tmp.push({ 
+        text: KT('usermenu.calendars'), 
+        icon: 'fas fa-calendar-alt', 
+        cb: async () => {
+          await ensureAsyncRefReady(editCalendarsRef, { requiredMethod: 'showCalendars', timeoutMs: 2000 })
+          editCalendarsRef.value?.showCalendars()
+        }
       })
     }
 
-    if (store.getters.advancedPermissions?.(88)) {
-      // calendars: fas fa-calendar-alt
-      tmp.push({
-        text: KT('usermenu.calendars'),
-        icon: 'fas fa-calendar-alt',
-        cb: () => editCalendarsRef.value?.showCalendars?.()
-      })
-    }
-
-    if (store.getters.advancedPermissions?.(96)) {
-      // maintenance: fas fa-tools
-      tmp.push({
-        text: KT('usermenu.maintenance'),
-        icon: 'fas fa-tools',
-        cb: () => editMaintenancesRef.value?.showMaintenances?.()
+    if (store.getters.advancedPermissions(96)) {
+      tmp.push({ 
+        text: KT('usermenu.maintenance'), 
+        icon: 'fas fa-tools', 
+        cb: async () => {
+          await ensureAsyncRefReady(editMaintenancesRef, { requiredMethod: 'showMaintenances', timeoutMs: 2000 })
+          editMaintenancesRef.value?.showMaintenances()
+        }
       })
     }
   }
 
-  // logout: fas fa-sign-out-alt
   tmp.push({
     text: KT('usermenu.logout'),
     icon: 'fas fa-sign-out-alt',
     cb: () => {
       store.dispatch('logout').then(() => router.push('/login'))
-    },
-  })
-
-  contextMenuRef.value?.openMenu?.({ evt: e, menus: tmp })
-}
-
-/* ===========================
- *  ACCESSIBILITY + BODY SCROLL LOCK
- * =========================== */
-
-// Modal unificado - aplica lockBodyScroll
-const isCustomModalOpen = computed(() => showConfirmModal.value)
-
-// Todos os modais custom - usado para inert/trap
-const modalOpen = computed(() => isCustomModalOpen.value)
-
-// Composable que encapsula toda lógica de modal a11y + body lock + inert
-const { initInertFallback, notifyModalDomChanged, invalidateFocusCache } = useModalA11yLock({
-  modalOpen,
-  isMenuOverlayOpen,
-  menuShown,
-  portrait,
-  emitInvalidate: (detail) => emitMapInvalidate(detail),
-  onEscapeClose: () => {
-    if (showConfirmModal.value) {
-      showConfirmModal.value = false
-      handleModalCancel()
     }
-  },
-})
-
-// Watch commandLoading: invalidar cache quando DOM do modal mudar (botões disabled/spinner)
-watch(commandLoading, () => notifyModalDomChanged())
-
-// Watch currentModalMode: invalidar cache quando tipo de modal mudar (botões diferentes)
-watch(currentModalMode, () => notifyModalDomChanged())
-
-// Watch showConfirmModal: invalidar cache quando modal abrir/fechar diretamente
-watch(showConfirmModal, () => invalidateFocusCache())
-
-// Watch para menu overlay: classe no body + invalidate mapa
-watch(isMenuOverlayOpen, (open) => {
-  if (open) {
-    document.body.classList.add('menu-open')
-  } else {
-    document.body.classList.remove('menu-open')
-  }
-  emitMapInvalidate({ source: 'menu-overlay', open })
-})
-
-/**
- * closeMobileMenu - fecha menu garantindo consistência em Safari/iOS
- * Evita "menu preso" quando orientation muda durante animação
- */
-const closeMobileMenu = () => {
-  menuShown.value = false
-  requestAnimationFrame(() => {
-    document.body.classList.remove('menu-open')
   })
+
+  contextMenuRef.value.openMenu({ evt: e, menus: tmp })
 }
 
-// Watcher para desktop: quando sidebarClosed muda, invalida o mapa
-watch(sidebarClosed, (closed) => {
-  emitMapInvalidate({ source: 'sidebar-toggle', closed })
+/* ===========================
+ *  ACCESSIBILITY
+ * =========================== */
+const modalOpen = computed(() =>
+  showBlockModal.value || showUnlockModal.value || 
+  showAnchorModal.value || showDeleteModal.value
+)
+
+const lockBodyScroll = () => {
+  const y = window.scrollY || document.documentElement.scrollTop
+  document.body.dataset.scrollY = String(y)
+  document.body.style.position = 'fixed'
+  document.body.style.top = `-${y}px`
+  document.body.style.left = '0'
+  document.body.style.right = '0'
+  document.body.style.width = '100%'
+}
+
+const unlockBodyScroll = () => {
+  const y = parseInt(document.body.dataset.scrollY || '0', 10)
+  document.body.style.position = ''
+  document.body.style.top = ''
+  document.body.style.left = ''
+  document.body.style.right = ''
+  document.body.style.width = ''
+  delete document.body.dataset.scrollY
+  window.scrollTo(0, y)
+}
+
+const trapTabKeydown = (e) => {
+  if (!modalOpen.value || e.key !== 'Tab') return
+  const dialog = document.querySelector('[role="dialog"][aria-modal="true"]')
+  if (!dialog) return
+
+  const focusables = dialog.querySelectorAll(
+    'button, [href], input, select, textarea, [role="slider"], [tabindex]:not([tabindex="-1"])'
+  )
+  if (!focusables.length) return
+
+  const first = focusables[0]
+  const last = focusables[focusables.length - 1]
+
+  if (!dialog.contains(document.activeElement)) {
+    e.preventDefault()
+    first.focus()
+    return
+  }
+
+  if (e.shiftKey && document.activeElement === first) {
+    e.preventDefault()
+    last.focus()
+  } else if (!e.shiftKey && document.activeElement === last) {
+    e.preventDefault()
+    first.focus()
+  }
+}
+
+watch(modalOpen, (open) => {
+  if (open) {
+    previouslyFocusedEl.value = document.activeElement
+    lockBodyScroll()
+    document.addEventListener('keydown', trapTabKeydown, true)
+  } else {
+    document.removeEventListener('keydown', trapTabKeydown, true)
+    unlockBodyScroll()
+    const el = previouslyFocusedEl.value
+    previouslyFocusedEl.value = null
+    if (el && typeof el.focus === 'function') {
+      try { el.focus() } catch (error) {/* nada */}
+    }
+  }
 })
 
 /* ===========================
- *  ROUTER HOOKS - Guardados para remoção no unmount (evita acumular)
+ *  ROUTER HOOKS
  * =========================== */
-let removeAfterEach = null
-let removeBeforeEach = null
+router.afterEach(() => {
+  minimized.value = false
+  // Não fecha sidebar automaticamente em desktop
+  if (isPortrait()) {
+    menuShown.value = false
+  }
+})
 
 /* ===========================
  *  LIFECYCLE
  * =========================== */
 onMounted(() => {
-  // Inicializa fallback inert para Safari antigo
-  initInertFallback()
-
-  // Registra router guards (guardar funções de remoção)
-  removeAfterEach = router.afterEach((to) => {
-    minimized.value = false
-    /**
-     * Não fechar menu automaticamente em rotas "shown" no mobile.
-     * Isso evita UX confusa onde menu some sem motivo aparente.
-     * No desktop, continua fechando para manter área útil.
-     */
-    if (!portrait.value && to?.meta?.shown && to.path !== '/home') {
-      menuShown.value = false
-    }
-  })
-
-  removeBeforeEach = router.beforeEach((_to, _from, next) => {
-    // Se navegar com modal aberto, feche o modal (o composable destrava o body)
-    if (showConfirmModal.value) {
-      showConfirmModal.value = false
-      handleModalCancel()
-    }
-    next()
-  })
-  // CSS primary (SSR-safe)
-  try {
-    const css = getComputedStyle(document.documentElement)
-    primaryColor.value = css.getPropertyValue('--el-color-primary')?.trim() || '#409EFF'
-  } catch {
-    /* fallback */
-  }
-
   applyViewportVars()
-  registerViewportListeners()
-  // handleVisibilityChange agora está no composable useModalA11yLock
-  
-  // FIX 1: Atrasar invalidate até DOM/KoreMap/Leaflet estarem prontos
-  // nextTick garante DOM montado + RAF garante Leaflet inicializado
-  nextTick(() => {
-    requestAnimationFrame(() => {
-      emitMapInvalidate({ source: 'mount' })
-    })
-  })
+  window.addEventListener('resize', applyViewportVars)
 
-  // Inicializa portrait reativo e registra listeners
-  portrait.value = computePortrait()
-  window.addEventListener('resize', updatePortrait, { passive: true })
-  window.addEventListener('orientationchange', updatePortrait, { passive: true })
-  
-  // Idempotente: remove antes de adicionar (evita acumular em HMR)
-  if (typeof window !== 'undefined') {
-    window.removeEventListener('theme:updated', onThemeUpdated)
-    window.addEventListener('theme:updated', onThemeUpdated, { passive: true })
+  // Não fechar sidebar em desktop ao iniciar
+  if (!isPortrait()) {
+    sidebarClosed.value = false
   }
-
-  if (!portrait.value) sidebarClosed.value = false
 
   window.localStorage.setItem('query', '')
   if (!window.localStorage.getItem('TKSESSIONTOKEN')) {
@@ -1408,6 +1715,7 @@ onMounted(() => {
     window.localStorage.setItem('TKSESSIONTOKEN', token)
   }
 
+  // Event listeners
   window.addEventListener('openBlockModal', onOpenBlockModal)
   window.addEventListener('openUnlockModal', onOpenUnlockModal)
   window.addEventListener('openAnchorModal', onOpenAnchorModal)
@@ -1418,40 +1726,24 @@ onMounted(() => {
   updateConnectionStatus()
 })
 
-/* ===========================
- *  USER NOTICE: Exibe aviso após auth carregar
- * =========================== */
-watch(
-  () => store.state.auth?.id,
-  (authId) => {
-    if (authId) {
-      // Aguarda 500ms para UI estabilizar completamente
-      setTimeout(() => {
-        userNoticeModalRef.value?.showNotice();
-      }, 500);
-    }
-  },
-  { immediate: true } // Executa imediatamente se auth já estiver carregado
-)
-
 onBeforeUnmount(() => {
-  // Remove router guards (evita acumular em hot reload)
-  removeAfterEach?.()
-  removeBeforeEach?.()
-
-  // O componente ConfirmSliderModal cuida do próprio cleanup
-  // O composable useModalA11yLock cuida de keydown/visibilitychange/bodyScroll/modal-open
-  cleanupViewportListeners()
-
-  // Remove listeners de orientação (evita memory leak em HMR)
-  window.removeEventListener('resize', updatePortrait)
-  window.removeEventListener('orientationchange', updatePortrait)
-  window.removeEventListener('theme:updated', onThemeUpdated)
-
+  cleanupCurrentHandlers()
+  window.removeEventListener('resize', applyViewportVars)
   window.removeEventListener('openBlockModal', onOpenBlockModal)
   window.removeEventListener('openUnlockModal', onOpenUnlockModal)
   window.removeEventListener('openAnchorModal', onOpenAnchorModal)
   window.removeEventListener('openDeleteModal', onOpenDeleteModal)
+  document.removeEventListener('keydown', trapTabKeydown, true)
+
+  blockDragging.value = false
+  unlockDragging.value = false
+  anchorDragging.value = false
+  deleteDragging.value = false
+
+  if (clickTimeout.value) {
+    clearTimeout(clickTimeout.value)
+    clickTimeout.value = null
+  }
 
   window.removeEventListener('online', updateConnectionStatus)
   window.removeEventListener('offline', updateConnectionStatus)
@@ -1460,17 +1752,8 @@ onBeforeUnmount(() => {
 /* ===========================
  *  PROVIDES
  * =========================== */
-const showRouteMarker = ref(false)
-const setShowMarker = (b) => {
-  showRouteMarker.value = b
-}
-
-provide('setRouteMarker', setShowMarker)
-provide('act-anchor', actAnchor)
-
 provide('contextMenu', contextMenuRef)
 provide('radialMenu', radialMenuRef)
-
 provide('edit-device', editDeviceRef)
 provide('qr-device', qrDeviceRef)
 provide('edit-user', editUserRef)
@@ -1481,1477 +1764,710 @@ provide('edit-group', editGroupRef)
 provide('link-objects', linkObjectsRef)
 provide('log-objects', logObjectsRef)
 provide('show-graphics', showGraphicsRef)
-provide('invoices', invoicesRef)
-provide('invoices-manager', invoicesManagerRef)
-provide('integrations', integrationsRef)
-provide('edit-events', editEventsRef)
+provide('act-anchor', actAnchor)
 </script>
 
 <style>
-/* ===========================
- *  DESIGN SYSTEM / TOKENS
- * =========================== */
-:root {
-  /* Layout */
-  --sb-width: 82px;
-  --panel-width: 550px;
-  --header-height: 2rem;
+  /* ===== Base ===== */
 
-  /* Safe area fallbacks */
-  --sat: env(safe-area-inset-top, 0px);
-  --sab: env(safe-area-inset-bottom, 0px);
-  --sal: env(safe-area-inset-left, 0px);
-  --sar: env(safe-area-inset-right, 0px);
-
-  /* Radius */
-  --r-sm: 10px;
-  --r-md: 14px;
-  --r-lg: 16px;
-  --r-xl: 18px;
-
-  /* Shadows */
-  --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.10);
-  --shadow-md: 0 10px 24px rgba(0, 0, 0, 0.14);
-  --shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.28);
-
-  /* Motion */
-  --ease: cubic-bezier(.2, .8, .2, 1);
-  --t-fast: 160ms;
-  --t-med: 240ms;
-
-  /* Header z-index stack (hierarquia consistente)
-   * Ordem visual: panel < menu < head < whatsapp < conn < modal < loading
-   * Modal é sempre prioridade máxima (interação do usuário)
-   */
-  --z-head: 1100;
-  --z-menu: 1060;
-  --z-panel: 1050;
-  --z-whatsapp: 9000;
-  /* WhatsApp float button */
-  --z-conn: 9500;
-  /* indicador de conexão - abaixo de modais */
-  --z-modal: 10000;
-  /* modais sempre acima de tudo */
-  --z-loading: 10500;
-  /* barra de loading global - acima de tudo */
-
-  /* White-label sidebar (clientes podem sobrescrever) */
-  --wl-sidebar-top: var(--el-color-primary, #F4801E);
-  --wl-sidebar-bottom: #0f1219;
-
-  /* Sidebar: mostrar labels (1 = sim, 0 = não) */
-  --sb-show-labels: 1;
-}
-
-/* ===========================
- *  BASE / RESET
- * =========================== */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-html,
-body {
-  height: 100%;
-  min-height: var(--vh, 100vh);
-  margin: 0;
-  padding: 0;
-}
-
-body {
-  /* overflow removido - controlado via lockBodyScroll para evitar conflitos no iOS */
-  width: 100%;
-  max-width: 100vw;
-  position: relative;
-}
-
-/* body.el-popup-parent--hidden removido - conflita com lockBodyScroll paddingRight */
-
-#app {
-  font-family: 'Segoe UI', system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-
-  text-align: left;
-  color: #2c3e50;
-
-  display: flex;
-  flex-direction: column;
-
-  overflow: hidden;
-  position: relative;
-  width: 100%;
-  max-width: 100vw;
-  min-height: var(--vh, 100vh);
-}
-
-.showOnMobile {
-  display: none;
-}
-
-.editing .leaflet-container {
-  cursor: crosshair !important;
-}
-
-/* Scrollbar global */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 4px;
-  background: #f5f5f5;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #c9c9c9;
-  border-radius: 6px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--el-color-info);
-}
-
-* {
-  scrollbar-width: thin;
-  scrollbar-color: #c9c9c9 #f5f5f5;
-}
-
-/* ===========================
- *  HEADER (FIXED)
- * =========================== */
-#head {
-  padding-top: var(--sat);
-  height: calc(var(--header-height) + var(--sat));
-  min-height: calc(var(--header-height) + var(--sat));
-
-  background: var(--el-bg-color);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-
-  z-index: var(--z-head);
-  pointer-events: auto;
-  isolation: isolate;
-}
-
-#head #user {
-  display: flex;
-  align-items: center;
-}
-
-#btnmenu {
-  display: none;
-  padding: 0.5rem;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: transform var(--t-fast) var(--ease);
-}
-
-#btnmenu.menu-active {
-  transform: rotate(90deg);
-}
-
-#btnmenu.menu-active i {
-  color: var(--el-color-primary);
-}
-
-/* ===========================
- *  MODAL OPEN: bloqueia painel e mapa, header parcialmente ativo
- * =========================== */
-.modal-open #head {
-  pointer-events: auto; /* header continua ativo para fechar/voltar */
-}
-
-.modal-open #head #btnmenu,
-.modal-open #head #user,
-.modal-open #head #mute {
-  pointer-events: none;
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.modal-open #open,
-.modal-open #main {
-  pointer-events: none;
-  user-select: none;
-}
-
-/* Menu overlay aberto: trava scroll do body (evita "scroll atrás" no iOS) */
-body.menu-open {
-  overflow: hidden;
-  touch-action: none;
-}
-
-#logo {
-  padding: 0.5rem 0.75rem;
-}
-
-/* ===========================
- *  CONTENT WRAPPER
- * =========================== */
-#content {
-  display: flex;
-
-  margin-top: calc(var(--header-height) + var(--sat));
-  height: calc(var(--vh, 100vh) - (var(--header-height) + var(--sat)));
-  max-height: calc(var(--vh, 100vh) - (var(--header-height) + var(--sat)));
-
-  width: 100%;
-  max-width: 100vw;
-
-  overflow: hidden;
-  position: relative;
-}
-
-/* Wrapper inert - FIX: display:flex para que filhos (#menu, #open, #main) possam usar flex */
-.inert-wrap {
-  display: flex;
-  flex: 1 1 auto;
-  width: 100%;
-  height: 100%;
-  min-width: 0;
-}
-
-/* Só bloqueia quando modal está aberto (simula inert) */
-.inert-wrap.is-inert {
-  pointer-events: none;
-  user-select: none;
-}
-
-/* ===========================
- *  SIDEBAR / MENU (DESKTOP)
- * =========================== */
-#menu {
-  flex: 0 0 var(--sb-width);
-  width: var(--sb-width);
-
-  height: calc(var(--vh, 100vh) - (var(--header-height) + var(--sat)));
-  max-height: calc(var(--vh, 100vh) - (var(--header-height) + var(--sat)));
-
-  /* Sidebar white-label friendly (variáveis definidas no :root) */
-  background: linear-gradient(
-    180deg,
-    var(--wl-sidebar-top) 0%,
-    var(--wl-sidebar-bottom) 100%
-  );
-
-  position: relative;
-  z-index: var(--z-menu);
-
-  overflow-y: auto;
-  overflow-x: hidden;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
-
-  box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.10);
-  transition: width var(--t-med) var(--ease), opacity var(--t-med) var(--ease), flex-basis var(--t-med) var(--ease);
-}
-
-#menu.sidebar-closed {
-  flex-basis: 0 !important;
-  width: 0 !important;
-  overflow: hidden;
-}
-
-#menu.sidebar-closed #version {
-  display: none;
-}
-
-#menu .indicator {
-  display: none !important;
-}
-
-/* Menu list */
-#menu ul {
-  list-style: none;
-  margin-top: 0.8rem;
-  padding: 0 4px;
-  /* Respiro lateral */
-}
-
-#menu ul li {
-  position: relative;
-  width: calc(var(--sb-width) - 6px);
-  /* Ajusta para o padding */
-  margin: 0 auto;
-  padding: 8px 0 10px;
-  /* Respiro vertical otimizado */
-}
-
-#menu ul li a {
-  color: #fff;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  /* Mais espaço entre ícone e texto */
-
-  width: 100%;
-  text-decoration: none !important;
-  padding: 4px 0;
-  /* Área de clique maior */
-  border-radius: 12px;
-  transition: background var(--t-fast) var(--ease);
-}
-
-#menu ul li a:hover {
-  background: rgba(255, 255, 255, 0.08);
-}
-
-#menu ul li a:active {
-  background: rgba(255, 255, 255, 0.12);
-}
-
-/* Pílula do ícone */
-#menu ul li a .el-icon {
-  width: 46px;
-  /* Ligeiramente maior */
-  height: 46px;
-  border-radius: 14px;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  color: #fff !important;
-  font-size: 1.25rem;
-  /* Ícone ligeiramente maior */
-
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22);
-  transition: transform var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease), filter var(--t-fast) var(--ease);
-  will-change: transform, box-shadow, filter;
-}
-
-#menu ul li a .text {
-  display: block;
-  width: 100%;
-  max-width: calc(var(--sb-width) - 10px);
-  /* Limita largura do texto */
-
-  color: rgba(255, 255, 255, 0.95);
-  font-weight: 600;
-  /* Reduzido de 800 para melhor legibilidade */
-  font-size: 10px;
-  line-height: 1.25;
-  /* Melhor legibilidade */
-  letter-spacing: 0.2px;
-  text-align: center;
-  text-transform: uppercase;
-
-  padding: 0 2px 2px;
-  white-space: nowrap;
-  /* Evita quebra de linha */
-  overflow: hidden;
-  text-overflow: ellipsis;
-  /* Trunca com ... se necessário */
-}
-
-/* Modo compact (só ícones) - ativado via classe ou variável */
-#menu.is-icons-only .text {
-  display: none !important;
-}
-
-#menu.is-icons-only ul li a {
-  gap: 0;
-  padding-top: 8px;
-  padding-bottom: 8px;
-}
-
-/* Feedback */
-#menu ul li:hover a .el-icon {
-  transform: translateY(-2px) scale(1.03);
-  box-shadow: 0 14px 26px rgba(0, 0, 0, 0.28);
-  filter: brightness(1.03);
-}
-
-#menu ul li.active a .el-icon {
-  transform: translateY(-1px) scale(1.03);
-  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.32);
-}
-
-/* Gradientes por item (mantido) */
-#menu ul li:nth-child(1) a .el-icon {
-  background: linear-gradient(180deg, #60a5fa 0%, #2563eb 100%);
-}
-
-#menu ul li:nth-child(2) a .el-icon {
-  background: linear-gradient(180deg, #a855f7 0%, #7c3aed 100%);
-}
-
-#menu ul li:nth-child(3) a .el-icon {
-  background: linear-gradient(180deg, #fb923c 0%, #f97316 100%);
-}
-
-#menu ul li:nth-child(4) a .el-icon {
-  background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 100%);
-}
-
-#menu ul li:nth-child(5) a .el-icon {
-  background: linear-gradient(180deg, #f472b6 0%, #db2777 100%);
-}
-
-#menu ul li:nth-child(6) a .el-icon {
-  background: linear-gradient(180deg, #34d399 0%, #10b981 100%);
-}
-
-/* Badge versão */
-#version {
-  position: absolute;
-  bottom: 0.65rem;
-  left: 0.2rem;
-  width: calc(var(--sb-width) - 0.4rem);
-
-  background: rgba(255, 255, 255, 0.16);
-  color: rgba(255, 255, 255, 0.95);
-
-  padding: 0.35rem 0.45rem;
-  font-size: 0.56rem;
-
-  border-radius: 10px;
-  text-align: center;
-  font-weight: 700;
-
-  cursor: default;
-  user-select: text;
-}
-
-/* ===========================
- *  PANEL (#open)
- * =========================== */
-#open {
-  height: calc(var(--vh, 100vh) - (var(--header-height) + var(--sat)));
-  background: var(--el-bg-color);
-  color: var(--el-text-color-primary);
-
-  display: flex;
-  justify-content: space-between;
-  align-content: center;
-
-  transition: opacity var(--t-med) var(--ease), width var(--t-med) var(--ease);
-  opacity: 0;
-  width: 0;
-
-  overflow: hidden;
-  position: relative;
-  z-index: var(--z-panel);
-}
-
-#open.shown {
-  opacity: 1;
-  width: var(--panel-width);
-}
-
-#open.allowExpand.expanded {
-  width: calc(var(--panel-width) * 2) !important;
-}
-
-#open.shown.editing {
-  width: 130px !important;
-}
-
-#open.shown.editing div {
-  display: flex;
-  flex-direction: column-reverse;
-  justify-content: space-between;
-}
-
-#open #rv {
-  overflow-y: auto;
-  overflow-x: hidden;
-  height: calc(var(--vh, 100vh) - (var(--header-height) + var(--sat)) - 80px);
-  padding: 10px 8px;
-  /* Scrollbar styling */
-  scrollbar-width: thin;
-  scrollbar-color: #c9c9c9 transparent;
-}
-
-#open #rv::-webkit-scrollbar {
-  width: 6px;
-}
-
-#open #rv::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-#open #rv::-webkit-scrollbar-thumb {
-  background: #d0d0d0;
-  border-radius: 6px;
-}
-
-#open #rv::-webkit-scrollbar-thumb:hover {
-  background: #b0b0b0;
-}
-
-/* Expand button */
-#open.allowExpand .expandBtn {
-  position: absolute;
-  left: calc(var(--panel-width) - 145px);
-  top: 50%;
-  z-index: calc(var(--z-panel) + 5);
-
-  border: 1px solid rgba(255, 255, 255, 0.8);
-  background: var(--el-color-primary);
-
-  padding: 22px 6px;
-  color: #fff;
-
-  transform: translate(0, -50%);
-  border-radius: 0 10px 10px 0;
-  cursor: pointer;
-
-  transition: transform var(--t-fast) var(--ease), padding var(--t-fast) var(--ease), filter var(--t-fast) var(--ease);
-}
-
-#open.allowExpand .expandBtn:hover {
-  filter: brightness(1.08);
-  padding: 22px 10px;
-}
-
-#open.allowExpand.expanded .expandBtn {
-  left: calc(var(--panel-width) * 2 - 155px);
-}
-
-#open.allowExpand.expanded .expandBtn i {
-  transform: rotate(180deg);
-}
-
-/* Heading do painel */
-#heading {
-  text-align: center;
-  font-weight: 800;
-  letter-spacing: 0.2px;
-
-  /* White-label-friendly: usa primary + escurecimento neutro */
-  background: linear-gradient(135deg, var(--el-color-primary) 0%, rgba(0, 0, 0, 0.30) 140%);
-  border-radius: var(--r-xl);
-
-  padding: 12px 42px;
-  color: var(--el-color-white);
-
-  position: relative;
-  margin: 10px;
-
-  box-shadow: var(--shadow-sm);
-}
-
-#heading span:first-child,
-#heading span:last-child {
-  position: absolute;
-  top: 0;
-  padding: 8px;
-  font-size: 22px;
-  cursor: pointer;
-  transition: transform var(--t-fast) var(--ease), filter var(--t-fast) var(--ease);
-}
-
-#heading span:first-child {
-  left: 8px;
-}
-
-#heading span:last-child {
-  right: 8px;
-}
-
-#heading span:hover {
-  transform: scale(1.08);
-  filter: brightness(1.05);
-}
-
-/* RTL */
-body.rtl #app div #content {
-  flex-direction: row-reverse !important;
-}
-
-/* ===========================
- *  MAIN (MAPA)
- * =========================== */
-#main {
-  flex: 1 1 auto;
-  width: auto !important;
-
-  height: calc(var(--vh, 100vh) - (var(--header-height) + var(--sat)));
-  position: relative;
-  z-index: 1;
-
-  transition: width var(--t-med) var(--ease), padding-inline-end var(--t-med) var(--ease), margin-left var(--t-med) var(--ease), filter var(--t-med) var(--ease);
-}
-
-#main.sidebar-closed {
-  width: auto !important;
-}
-
-#main.minimized {
-  height: calc(var(--vh, 100vh) - (var(--header-height) + var(--sat)) - 15px) !important;
-}
-
-/* ===========================
- *  FORM ITEMS (Element Plus)
- * =========================== */
-.el-form-item {
-  margin-bottom: 6px !important;
-  padding: 0 !important;
-}
-
-.el-form-item__label {
-  height: 20px !important;
-  padding: 2px 0 0 0 !important;
-  line-height: 20px !important;
-}
-
-/* ===========================
- *  NOTIFICATIONS (classes utilitárias)
- * =========================== */
-.notification-soft-red {
-  --el-color-white: #ffdddd !important;
-  --el-notification-icon-color: #181818 !important;
-  --el-notification-content-color: #181818 !important;
-}
-
-.notification-soft-red .el-icon {
-  color: #181818 !important;
-}
-
-.notification-red {
-  --el-color-white: #f44336 !important;
-  --el-notification-icon-color: #fff !important;
-  --el-notification-title-color: #fff !important;
-}
-
-.notification-red .el-icon {
-  color: #fff !important;
-}
-
-.notification-soft-yellow {
-  --el-color-white: #ffffcc !important;
-  --el-notification-icon-color: #181818 !important;
-  --el-notification-title-color: #181818 !important;
-}
-
-.notification-soft-yellow .el-icon {
-  color: #181818 !important;
-}
-
-.notification-yellow {
-  --el-color-white: #ffeb3b !important;
-  --el-notification-icon-color: #181818 !important;
-  --el-notification-title-color: #181818 !important;
-}
-
-.notification-yellow .el-icon {
-  color: #181818 !important;
-}
-
-.notification-soft-green {
-  --el-color-white: #ddffdd !important;
-  --el-notification-icon-color: #181818 !important;
-  --el-notification-title-color: #181818 !important;
-}
-
-.notification-soft-green .el-icon {
-  color: #181818 !important;
-}
-
-.notification-green {
-  --el-color-white: #4CAF50 !important;
-  --el-notification-icon-color: #fff !important;
-  --el-notification-title-color: #fff !important;
-}
-
-.notification-green .el-icon {
-  color: #fff !important;
-}
-
-.notification-soft-info {
-  --el-color-white: #ddffff !important;
-  --el-notification-icon-color: #181818 !important;
-  --el-notification-title-color: #181818 !important;
-}
-
-.notification-soft-info .el-icon {
-  color: #181818 !important;
-}
-
-.notification-info {
-  --el-color-white: #2196F3 !important;
-  --el-notification-icon-color: #fff !important;
-  --el-notification-title-color: #fff !important;
-}
-
-.notification-info .el-icon {
-  color: #fff !important;
-}
-
-.el-notification__content {
-  background: #fff !important;
-  color: #111 !important;
-  padding: 6px;
-  border-radius: 8px;
-  min-width: 255px;
-}
-
-/* ===========================
- *  CUSTOM FILTERS
- * =========================== */
-.customFilter {
-  margin-left: 1px;
-  padding: 10px;
-  background: white;
-  text-align: center;
-  margin-bottom: 6px;
-  border-radius: 10px;
-  color: white;
-  box-shadow: 0 2px 10px rgba(45, 45, 45, 0.14);
-  cursor: pointer;
-  transition: transform var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
-}
-
-.customFilter:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 8px 18px rgba(45, 45, 45, 0.18);
-}
-
-.all {
-  background: var(--el-color-info);
-}
-
-.online {
-  background: var(--el-color-success);
-}
-
-.offline {
-  background: var(--el-color-danger);
-}
-
-.unknown {
-  background: var(--el-color-warning);
-}
-
-.motion {
-  background: var(--el-color-primary);
-}
-
-.customFilter.active {
-  border: 2px solid rgba(255, 255, 255, 0.95);
-  box-shadow: 0 10px 22px rgba(45, 45, 45, 0.22);
-}
-
-/* ===========================
- *  MODALS (Overlay + Slide-to-confirm)
- * =========================== */
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-
-  background: rgba(0, 0, 0, 0.52);
-  backdrop-filter: blur(6px);
-
-  z-index: var(--z-modal);
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 14px;
-}
-
-.modal-content {
-  width: 420px;
-  max-width: 96vw;
-
-  background: rgba(255, 255, 255, 0.96);
-  backdrop-filter: blur(12px);
-
-  color: #222;
-  border-radius: var(--r-lg);
-  padding: 18px;
-
-  box-shadow: var(--shadow-lg);
-  animation: modalSlideIn 240ms var(--ease);
-}
-
-@keyframes modalSlideIn {
-  from {
-    opacity: 0;
-    transform: translateY(-14px) scale(0.98);
+  .showOnMobile {
+    display: none;
   }
 
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-/* Vehicle info */
-.modal-vehicle-info {
-  display: flex;
-  gap: 14px;
-  margin-bottom: 16px;
-}
-
-.modal-vehicle-img {
-  width: 120px;
-  height: 90px;
-  object-fit: cover;
-  border-radius: 12px;
-  box-shadow: var(--shadow-sm);
-}
-
-.modal-vehicle-details {
-  flex: 1;
-}
-
-.modal-vehicle-details h3 {
-  margin: 0 0 6px;
-  color: #1f2937;
-  font-size: 18px;
-  font-weight: 800;
-}
-
-.modal-vehicle-details p {
-  margin: 4px 0;
-  color: #4b5563;
-  font-size: 13.5px;
-}
-
-.status-online {
-  color: #16a34a;
-  font-weight: 700;
-}
-
-.status-offline {
-  color: #dc2626;
-  font-weight: 700;
-}
-
-/* Warning boxes */
-.modal-warning {
-  border-radius: 12px;
-  padding: 14px;
-  margin-bottom: 16px;
-  text-align: center;
-  border: 1px solid rgba(0, 0, 0, 0.06);
-}
-
-.modal-warning h4 {
-  margin: 8px 0 6px;
-  font-weight: 900;
-  letter-spacing: 0.2px;
-}
-
-.modal-warning p {
-  color: #374151;
-  margin: 0;
-  font-size: 13.5px;
-}
-
-.modal-warning.danger {
-  background: linear-gradient(135deg, #fff7ed 0%, #ffe4e6 100%);
-  border-color: rgba(220, 38, 38, 0.25);
-}
-
-.modal-warning.danger i {
-  color: #dc2626;
-  font-size: 22px;
-  margin-bottom: 6px;
-}
-
-.modal-warning.danger h4 {
-  color: #b91c1c;
-}
-
-.modal-warning.success {
-  background: linear-gradient(135deg, #ecfdf5 0%, #e7f8ee 100%);
-  border-color: rgba(22, 163, 74, 0.25);
-}
-
-.modal-warning.success i {
-  color: #16a34a;
-  font-size: 22px;
-  margin-bottom: 6px;
-}
-
-.modal-warning.success h4 {
-  color: #16a34a;
-}
-
-.modal-warning.warning {
-  background: linear-gradient(135deg, #fffbeb 0%, #fff7ed 100%);
-  border-color: rgba(245, 158, 11, 0.25);
-}
-
-.modal-warning.warning i {
-  color: #f59e0b;
-  font-size: 22px;
-  margin-bottom: 6px;
-}
-
-.modal-warning.warning h4 {
-  color: #d97706;
-}
-
-/* Slider */
-.slider-container {
-  margin: 16px 0;
-}
-
-.slider-label {
-  text-align: center;
-  margin-bottom: 12px;
-  font-weight: 800;
-  color: #111827;
-  font-size: 13.5px;
-}
-
-.slider-track {
-  position: relative;
-  width: 100%;
-  height: 50px;
-
-  background: var(--el-fill-color-light, #e9ecef);
-  border-radius: 25px;
-  overflow: hidden;
-
-  touch-action: none;
-  overscroll-behavior: contain;
-  -webkit-user-select: none;
-  user-select: none;
-  -webkit-touch-callout: none;
-
-  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.10);
-  outline: none;
-}
-
-.slider-track:focus {
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25), inset 0 2px 5px rgba(0, 0, 0, 0.10);
-}
-
-/* Slider disabled state (commandLoading) */
-.slider-track[aria-disabled="true"] {
-  opacity: 0.75;
-  cursor: not-allowed;
-}
-
-.slider-track[aria-disabled="true"] .slider-thumb {
-  cursor: not-allowed;
-}
-
-/* Garante cursor not-allowed em todos os filhos (evita piscar) */
-.slider-track[aria-disabled="true"] * {
-  cursor: not-allowed !important;
-}
-
-.slider-fill {
-  position: absolute;
-  inset: 0 auto 0 0;
-  height: 100%;
-  border-radius: 25px;
-  transition: width 100ms var(--ease);
-}
-
-.slider-fill.danger {
-  background: linear-gradient(90deg, #ef4444, #b91c1c);
-}
-
-.slider-fill.success {
-  background: linear-gradient(90deg, #22c55e, #15803d);
-}
-
-.slider-fill.warning {
-  background: linear-gradient(90deg, #f59e0b, #b45309);
-}
-
-.slider-thumb {
-  position: absolute;
-  top: 2px;
-
-  width: 46px;
-  height: 46px;
-  border-radius: 999px;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  cursor: grab;
-  z-index: 10;
-
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.20);
-  transition: background var(--t-fast) var(--ease), transform var(--t-fast) var(--ease);
-  touch-action: none;
-}
-
-.slider-thumb:active {
-  cursor: grabbing;
-  transform: scale(1.05);
-}
-
-.slider-thumb.confirmed {
-  color: #fff;
-}
-
-.slider-text,
-.slider-confirmed {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-
-  z-index: 5;
-  font-size: 14px;
-  font-weight: 800;
-  white-space: nowrap;
-  pointer-events: none;
-}
-
-.slider-text {
-  color: #6b7280;
-  transition: opacity var(--t-fast) var(--ease);
-}
-
-.slider-confirmed {
-  color: #fff;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.30);
-}
-
-/* Actions */
-.modal-actions {
-  text-align: center;
-  margin-top: 16px;
-}
-
-.btn-cancel {
-  padding: 12px 24px;
-  /* White-label-friendly */
-  background: linear-gradient(135deg, var(--el-color-primary) 0%, rgba(0, 0, 0, 0.30) 140%);
-  color: white;
-
-  border: none;
-  border-radius: 10px;
-
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 800;
-
-  transition: transform var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease), filter var(--t-fast) var(--ease);
-}
-
-.btn-cancel:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
-  filter: brightness(1.03);
-}
-
-.btn-cancel:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-/* ===========================
- *  CONNECTION STATUS
- * =========================== */
-.connection-status {
-  position: fixed;
-  bottom: 20px;
-  left: 20px;
-
-  padding: 10px 14px;
-  border-radius: 10px;
-
-  display: flex;
-  align-items: center;
-  gap: 8px;
-
-  font-size: 13px;
-  font-weight: 800;
-
-  z-index: var(--z-conn);
-  box-shadow: var(--shadow-sm);
-
-  animation: connIn 240ms var(--ease);
-}
-
-.connection-status.offline {
-  background: linear-gradient(135deg, #fee2e2, #ffd7d7);
-  color: #b91c1c;
-  border: 1px solid #fecaca;
-}
-
-@keyframes connIn {
-  from {
-    transform: translateY(10px);
-    opacity: 0;
+  .editing .leaflet-container {
+    cursor: crosshair !important;
   }
 
-  to {
-    transform: translateY(0);
-    opacity: 1;
+  body.el-popup-parent--hidden {
+    padding-right: 0 !important;
   }
-}
 
-/* ===========================
- *  WHATSAPP FLOAT BUTTON
- * =========================== */
-.whatsapp-float {
-  position: fixed;
-  right: calc(12px + var(--sar, 0px));
-  bottom: calc(12px + var(--sab, 0px));
-  z-index: var(--z-whatsapp);
+  /* Deixe o body livre; o lock/deslock é feito via script quando um modal abre */
+  html,
+  body {
+    height: 100%;
+  }
+  body {
+    overflow: auto; /* liberado; script faz o lock quando preciso */
+    left: 0;
+    top: 0;
+    bottom: 0;
+    right: 0;
+  }
 
-  text-decoration: none;
-  display: block;
+  * {
+    margin: 0;
+    padding: 0;
+  }
 
-  isolation: isolate; /* evita "furar" stacking context em Safari */
-  transition: transform var(--t-fast) var(--ease), filter var(--t-fast) var(--ease), opacity var(--t-fast) var(--ease);
-}
-
-/* Esconde WhatsApp quando modal está aberto (evita conflito de clique) */
-.modal-open .whatsapp-float {
-  pointer-events: none;
-  opacity: 0.4;
-}
-
-.whatsapp-float:hover {
-  transform: scale(1.08);
-  filter: drop-shadow(0 4px 12px rgba(37, 211, 102, 0.35));
-}
-
-.whatsapp-float:active {
-  transform: scale(0.96);
-}
-
-.whatsapp-float img {
-  display: block;
-  width: 56px;
-  height: 56px;
-  object-fit: contain;
-}
-
-/* ===========================
- *  GLOBAL LOADING BAR
- * =========================== */
-.global-loading-bar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 4px;
-  z-index: var(--z-loading);
-  pointer-events: none;
-}
-
-.global-loading-bar .el-progress {
-  --el-progress-text-color: transparent;
-}
-
-.global-loading-bar .el-progress__bar {
-  height: 4px !important;
-}
-
-/* ===========================
- *  ELEMENT PLUS DIALOG (ONE SOURCE OF TRUTH)
- * =========================== */
-.el-dialog {
-  border-radius: var(--r-lg) !important;
-  overflow: hidden;
-}
-
-.el-dialog__header {
-  padding: 18px 18px 14px !important;
-  /* White-label: segue o tema do cliente */
-  background: linear-gradient(
-    135deg,
-    var(--el-color-primary) 0%,
-    rgba(0, 0, 0, 0.35) 140%
-  );
-  color: white;
-  position: relative;
-}
-
-.el-dialog__title {
-  color: white !important;
-  font-size: 18px !important;
-  font-weight: 800 !important;
-}
-
-.el-dialog__headerbtn {
-  top: 18px !important;
-  right: 18px !important;
-
-  width: 34px !important;
-  height: 34px !important;
-
-  background: rgba(255, 255, 255, 0.18) !important;
-  border-radius: 999px !important;
-
-  transition: transform var(--t-med) var(--ease), background var(--t-med) var(--ease) !important;
-  z-index: 10 !important;
-}
-
-.el-dialog__headerbtn:hover {
-  background: rgba(255, 255, 255, 0.28) !important;
-  transform: rotate(90deg) !important;
-}
-
-.el-dialog__headerbtn .el-dialog__close {
-  color: white !important;
-  font-size: 18px !important;
-  font-weight: 900 !important;
-}
-
-.el-dialog__body {
-  padding: 22px 22px 18px !important;
-  max-height: calc(100vh - 200px);
-  overflow-y: auto;
-}
-
-.el-dialog__footer {
-  padding: 14px 22px 18px !important;
-  background: #f8fafc;
-  border-top: 1px solid rgba(0, 0, 0, 0.06);
-}
-
-.el-dialog__footer .el-button {
-  min-width: 100px !important;
-  height: 40px !important;
-  border-radius: 10px !important;
-  font-weight: 700 !important;
-}
-
-.el-dialog__footer .el-button--primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-  border: none !important;
-}
-
-.el-dialog__footer .el-button--default {
-  background: white !important;
-  border: 1px solid #dcdfe6 !important;
-}
-
-/* Dialog scrollbar */
-.el-dialog__body::-webkit-scrollbar {
-  width: 8px;
-}
-
-.el-dialog__body::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 10px;
-}
-
-.el-dialog__body::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 10px;
-}
-
-.el-dialog__body::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8;
-}
-
-/* ===========================
- *  MOBILE (PORTRAIT)
- * =========================== */
-#expander {
-  display: none;
-  text-align: center;
-  padding: 5px;
-  background: #f3f3f3;
-}
-
-@media (orientation: portrait) {
-
-  /* Menu vira overlay */
-  #menu {
-    flex: 0 0 0;
-    width: 0;
+  #app {
+    font-family: trebuchet ms, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji",
+      "Segoe UI Emoji";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-align: left;
+    color: #2c3e50;
+    display: flex;
+    flex-direction: column;
     overflow: hidden;
-
     position: fixed;
     left: 0;
-    top: calc(var(--header-height) + var(--sat));
-
-    z-index: var(--z-menu);
-
-    height: calc(var(--vh, 100vh) - (var(--header-height) + var(--sat)) - var(--sab));
-    max-height: calc(var(--vh, 100vh) - (var(--header-height) + var(--sat)) - var(--sab));
-    padding-bottom: var(--sab);
-  }
-
-  #menu.isopen {
-    flex: 0 0 var(--sb-width);
-    width: var(--sb-width) !important;
-    overflow-y: auto;
-    overflow-x: hidden;
-    box-shadow: 10px 0 24px rgba(0, 0, 0, 0.16);
-    padding-bottom: calc(var(--sab) + 70px); /* espaço para o badge de versão */
-  }
-
-  /* Badge versão: sticky no mobile para não sumir no scroll */
-  #menu.isopen #version {
-    position: sticky;
-    bottom: calc(10px + var(--sab));
-    left: 0.2rem;
-    margin-top: 12px;
-    z-index: 2;
-  }
-
-  /* Mobile: só ícones (sem texto) para economia de espaço */
-  #menu .text {
-    display: none !important;
-  }
-
-  #menu ul li a {
-    gap: 0;
-    padding-top: 10px;
-    padding-bottom: 10px;
-  }
-
-  #menu ul li {
-    padding: 6px 0;
-  }
-
-  #btnmenu {
-    display: block;
-  }
-
-  .uname {
-    display: none !important;
-  }
-
-  #main {
-    flex: 1 1 auto;
-    width: 100vw !important;
-    max-width: 100vw !important;
-    height: calc(var(--vh, 100vh) - (var(--header-height) + var(--sat)));
-    max-height: calc(var(--vh, 100vh) - (var(--header-height) + var(--sat)));
-  }
-
-  /* Scrim: camada escura clicável quando menu está aberto (fecha menu) */
-  .menu-scrim {
-    position: fixed;
-    left: var(--sb-width);
-    top: calc(var(--header-height) + var(--sat));
-    right: 0;
+    top: 0;
     bottom: 0;
-    z-index: calc(var(--z-menu) - 1);
-    background: rgba(0, 0, 0, 0.25);
-    cursor: pointer;
+    right: 0;
   }
 
-  /* Menu overlay: mapa fica por baixo do scrim */
-  #main.menuShown {
-    width: 100vw !important;
-    max-width: 100vw !important;
-    margin-left: 0 !important;
+  #head {
+    height: 2rem;
     overflow: hidden;
+    border-bottom: var(--el-text-color-primary) 1px solid;
+    background: var(--el-bg-color);
+    display: flex;
+    align-content: space-between;
+    justify-content: space-between;
+  }
+
+  #head #user {
+    display: flex;
+  }
+
+  #logo {
+    padding: 0.5rem;
   }
 
   #content {
+    display: flex;
+    height: calc(var(--vh, 100vh) - 2rem);
+  }
+
+  /* ===== Sidebar / Versões ===== */
+
+  :root {
+    --sb-width: 78px;
+  } /* largura padrão do menu */
+
+  #menu {
+    width: var(--sb-width);
+    height: calc(var(--vh, 100vh) - 2rem);
+    background: linear-gradient(180deg, var(--el-color-primary) 0%, #0a62c2 100%);
+    position: relative;
+    transition: all 0.3s;
+    box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.08);
+  }
+
+  /* desktop: quando o app seta 'sidebarClosed' */
+  #menu.sidebar-closed {
+    width: 0 !important;
+    overflow: hidden;
+  }
+  #menu.sidebar-closed #version {
+    display: none;
+  }
+
+  /* badge de versão */
+  #version {
+    position: absolute;
+    bottom: 0.6rem;
+    left: 0.2rem;
+    width: calc(var(--sb-width) - 0.4rem);
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+    padding: 0.3rem 0.4rem;
+    font-size: 0.55rem;
+    border-radius: 10px;
+    box-sizing: border-box;
+    text-align: center;
+    font-weight: 600;
+  }
+
+  /* ===== Painel #open ===== */
+
+  #open {
+    height: calc(var(--vh, 100vh) - 2rem);
+    background: var(--el-bg-color);
+    color: var(--el-text-color-primary);
+    display: flex;
+    align-content: center;
+    justify-content: space-between;
+    transition: 0.2s;
+    opacity: 0;
+    width: 0;
     overflow: hidden;
   }
 
-  /* Painel bottom */
-  #open.shown.bottom {
-    position: fixed;
-    width: 100%;
-    height: 40vh;
-
-    left: 0;
-    right: 0;
-    bottom: 0;
-    top: auto;
-
-    z-index: var(--z-panel);
-    padding-bottom: var(--sab);
+  #open.allowExpand .expandBtn {
+    position: absolute;
+    left: 555px;
+    top: 50%;
+    z-index: 9999999999;
+    border: #fff 1px solid;
+    background: #05a7e3;
+    padding: 25px 5px;
+    color: #fff;
+    transform: translate(0, -50%);
+    border-radius: 0 5px 5px 0;
+    cursor: pointer;
+  }
+  #open.allowExpand .expandBtn:hover {
+    filter: brightness(1.05);
   }
 
-  #open.bottom {
-    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.16);
-    border-radius: 16px 16px 0 0 !important;
-    overflow: hidden;
+  #open.shown {
+    opacity: 1;
+    width: 700px;
+  }
+  #open.allowExpand.expanded {
+    width: 1400px !important;
+  }
+  #open.allowExpand.expanded .expandBtn {
+    left: 805px;
+  }
+  #open.allowExpand.expanded .expandBtn i {
+    transform: rotate(180deg);
   }
 
-  #open.bottom.mobileExpanded {
-    height: calc(var(--vh, 100vh) - 100px) !important;
+  #open.shown.editing {
+    width: 130px !important;
+  }
+  #open.shown.editing div {
+    display: flex;
+    flex-direction: column-reverse;
+    align-content: space-between;
+    justify-content: space-between;
   }
 
-  #open.bottom #heading {
-    display: none !important;
-  }
-
-  #open.bottom .kr-spacer {
-    display: none !important;
-  }
-
-  #open.bottom #expander {
-    display: block !important;
-  }
-
-  #main.bottom {
-    height: calc(var(--vh, 100vh) - 0rem);
-    margin-bottom: -40vh;
-    padding-bottom: 40vh;
-  }
-
-  #main.bottom.minimized {
-    margin-bottom: 0;
-    padding-bottom: 0;
-  }
-
-  /* Painel fullscreen (quando não é bottom) */
-  #open.shown:not(.bottom) {
-    position: fixed !important;
-    left: 0 !important;
-    top: calc(var(--header-height) + var(--sat)) !important;
-
-    width: 100vw !important;
-    height: calc(var(--vh, 100vh) - (var(--header-height) + var(--sat))) !important;
-    max-height: calc(var(--vh, 100vh) - (var(--header-height) + var(--sat))) !important;
-
-    z-index: var(--z-panel) !important;
-    background: var(--el-bg-color) !important;
-    overflow: hidden;
-  }
-
-  #open.shown #rv {
-    width: 100%;
-    height: calc(var(--vh, 100vh) - (var(--header-height) + var(--sat)) - 60px) !important;
-    max-height: calc(var(--vh, 100vh) - (var(--header-height) + var(--sat)) - 60px) !important;
+  #open #rv {
     overflow-y: auto;
+    height: calc(var(--vh, 100vh) - 130px);
+    padding: 7px;
+  }
+
+  #open.minimized {
+    height: 35px !important;
+  }
+
+  /* ===== Scrollbar ===== */
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 3px;
+    background: #f5f5f5;
+  }
+  ::-webkit-scrollbar-thumb {
+    width: 10px;
+    height: 5px;
+    background: #ccc;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--el-color-info);
+  }
+  /* Firefox */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #ccc #f5f5f5;
+  }
+
+  /* ===== Menu (lista) — layout NOVO (ícone em cima, texto embaixo) ===== */
+
+  #menu .indicator {
+    display: none !important;
+  } /* oculta indicador antigo */
+
+  #menu ul {
+    list-style: none;
+    margin-top: 0.8rem;
+  }
+  #menu ul li {
+    position: relative;
+    width: var(--sb-width);
+    height: auto;
+    padding: 8px 0 10px;
+    z-index: 5;
+  }
+
+  #menu ul li a {
+    color: #fff;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column; /* ícone em cima, texto embaixo */
+    gap: 6px;
+    width: 100%;
+    height: auto;
+    text-decoration: none !important;
+  }
+
+  /* Ícone em “pílula” */
+  #menu ul li a .el-icon {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff !important;
+    font-size: 1.2rem;
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.18);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+    will-change: transform, box-shadow;
+  }
+
+  /* Texto abaixo do ícone */
+  #menu ul li a .text {
+    position: static;
+    display: block;
+    width: 100%;
+    transform: none !important;
+    opacity: 1;
+    color: #fff;
+    font-weight: 700;
+    font-size: 10px;
+    line-height: 1.15;
+    letter-spacing: 0.25px;
+    text-align: center;
+    text-transform: uppercase;
+    padding: 0 4px 2px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  /* Hover/Active feedback */
+  #menu ul li:hover a .el-icon {
+    transform: translateY(-2px) scale(1.03);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.22);
+  }
+  #menu ul li.active a .el-icon {
+    transform: translateY(-1px) scale(1.03);
+    box-shadow: 0 12px 22px rgba(0, 0, 0, 0.28);
+  }
+
+  /* Paletas por item (ordem dos router-links) */
+  #menu ul li:nth-child(1) a .el-icon {
+    background: linear-gradient(180deg, #60a5fa 0%, #2563eb 100%);
+  } /* Dispositivos */
+  #menu ul li:nth-child(2) a .el-icon {
+    background: linear-gradient(180deg, #a855f7 0%, #7c3aed 100%);
+  } /* Relatórios */
+  #menu ul li:nth-child(3) a .el-icon {
+    background: linear-gradient(180deg, #fb923c 0%, #f97316 100%);
+  } /* Geocerca */
+  #menu ul li:nth-child(4) a .el-icon {
+    background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 100%);
+  } /* Comandos */
+  #menu ul li:nth-child(5) a .el-icon {
+    background: linear-gradient(180deg, #f472b6 0%, #db2777 100%);
+  } /* Grupos */
+  #menu ul li:nth-child(6) a .el-icon {
+    background: linear-gradient(180deg, #34d399 0%, #10b981 100%);
+  } /* Notificações */
+
+  /* ===== Main (mapa) ===== */
+
+  #main {
+    width: calc(var(--vw, 100vw) - var(--sb-width));
+    height: calc(var(--vh, 100vh) - 2rem);
+    transition: all 0.3s;
+  }
+
+  /* quando sidebar fechado no desktop */
+  #main.sidebar-closed {
+    width: var(--vw, 100vw) !important;
+  }
+
+  /* minimizar */
+  #main.minimized {
+    height: calc(var(--vh, 100vh) - 50px) !important;
+  }
+
+  /* ===== Heading do painel ===== */
+
+  #heading {
+    text-align: center;
+    font-weight: bold;
+    background: var(--el-color-primary);
+    border-radius: 20px;
     padding: 10px;
+    color: var(--el-color-white);
+    position: relative;
+    z-index: 0;
+    margin: 10px;
+  }
+  #heading span:first-child,
+  #heading span:last-child {
+    position: absolute;
+    top: 0;
+    padding: 6px;
+    font-size: 25px;
+    cursor: pointer;
+  }
+  #heading span:first-child {
+    left: 0;
+  }
+  #heading span:last-child {
+    right: 0;
   }
 
-  /* Dialog */
+  /* ===== RTL ===== */
+
+  body.rtl #app div #content {
+    flex-direction: row-reverse !important;
+  }
+
+  /* ===== Notificações (temas) ===== */
+
+  .notification-soft-red {
+    --el-color-white:#ffdddd!important;
+    --el-notification-icon-color:#181818!important;
+    --el-notification-content-color:#181818!important;
+  }
+  .notification-soft-red .el-icon {
+    color: #181818 !important;
+  }
+
+  .notification-red {
+    --el-color-white:#f44336!important;
+    --el-notification-icon-color:#fff!important;
+    --el-notification-title-color:#fff!important;
+  }
+  .notification-red .el-icon {
+    color: #fff !important;
+  }
+
+  .notification-soft-yellow {
+    --el-color-white:#ffffcc!important;
+    --el-notification-icon-color:#181818!important;
+    --el-notification-title-color:#181818!important;
+  }
+  .notification-soft-yellow .el-icon {
+    color: #181818 !important;
+  }
+
+  .notification-yellow {
+    --el-color-white:#ffeb3b!important;
+    --el-notification-icon-color:#181818!important;
+    --el-notification-title-color:#181818!important;
+  }
+  .notification-yellow .el-icon {
+    color: #181818 !important;
+  }
+
+  .notification-soft-green {
+    --el-color-white:#ddffdd!important;
+    --el-notification-icon-color:#181818!important;
+    --el-notification-title-color:#181818!important;
+  }
+  .notification-soft-green .el-icon {
+    color: #181818 !important;
+  }
+
+  .notification-green {
+    --el-color-white:#4CAF50!important;
+    --el-notification-icon-color:#fff!important;
+    --el-notification-title-color:#fff!important;
+  }
+  .notification-green .el-icon {
+    color: #fff !important;
+  }
+
+  .notification-soft-info {
+    --el-color-white:#ddffff!important;
+    --el-notification-icon-color:#181818!important;
+    --el-notification-title-color:#181818!important;
+  }
+  .notification-soft-info .el-icon {
+    color: #181818 !important;
+  }
+
+  .notification-info {
+    --el-color-white:#2196F3!important;
+    --el-notification-icon-color:#fff!important;
+    --el-notification-title-color:#fff!important;
+  }
+  .notification-info .el-icon {
+    color: #fff !important;
+  }
+
+  .el-notification__content {
+    background: #fff !important;
+    color: #000 !important;
+    padding: 5px;
+    border-radius: 5px;
+    min-width: 255px;
+  }
+
+  /* ===== Filtros rápidos ===== */
+
+  .customFilter {
+    margin-left: 1px;
+    padding: 10px;
+    background: #fff;
+    text-align: center;
+    margin-bottom: 4px;
+    border-radius: 4px;
+    color: #fff;
+    box-shadow: 0 0 3px rgba(45, 45, 45, 0.5);
+    cursor: pointer;
+  }
+  .all {
+    background: var(--el-color-info);
+  }
+  .online {
+    background: var(--el-color-success);
+  }
+  .offline {
+    background: var(--el-color-danger);
+  }
+  .unknown {
+    background: var(--el-color-warning);
+  }
+  .motion {
+    background: var(--el-color-primary);
+  }
+  .customFilter.active {
+    border: #fff 1px solid;
+  }
+
+  /* ===== Botões topo / expansor ===== */
+
+  #btnmenu {
+    display: none;
+    padding: 0.5rem;
+    font-size: 1rem;
+    cursor: pointer;
+  }
+  #expander {
+    display: none;
+    text-align: center;
+    padding: 5px;
+    background: #f3f3f3;
+  }
+
+  /* ===== Form em Element-Plus (compacto) ===== */
+
+  .el-form-item {
+    margin-bottom: 5px !important;
+    padding: 0 !important;
+  }
+  .el-form-item__label {
+    height: 20px !important;
+    padding: 2px 0 0 0 !important;
+    line-height: 20px !important;
+  }
+
+  /* ===== Dialog/Modal Improvements ===== */
   .el-dialog {
-    --el-dialog-width: 95vw !important;
+    border-radius: 12px !important;
+    overflow: hidden;
   }
 
-  .el-dialog__footer {
-    overflow: auto;
-    margin-right: 10px;
+  .el-dialog__header {
+    padding: 20px 20px 15px !important;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    position: relative;
   }
 
-  .modal-content {
-    width: 96vw;
-    max-width: 96vw;
-  }
-}
-
-/* Mobile dialog (largura pequena) */
-@media (max-width: 768px) {
-  .el-dialog {
-    width: 95% !important;
-    margin: 10px auto !important;
+  .el-dialog__title {
+    color: white !important;
+    font-size: 18px !important;
+    font-weight: 600 !important;
   }
 
+  /* Botão X mais visível e funcional */
+  .el-dialog__headerbtn {
+    top: 20px !important;
+    right: 20px !important;
+    width: 32px !important;
+    height: 32px !important;
+    background: rgba(255, 255, 255, 0.2) !important;
+    border-radius: 50% !important;
+    transition: all 0.3s ease !important;
+    z-index: 10 !important;
+  }
+
+  .el-dialog__headerbtn:hover {
+    background: rgba(255, 255, 255, 0.3) !important;
+    transform: rotate(90deg) !important;
+  }
+
+  .el-dialog__headerbtn .el-dialog__close {
+    color: white !important;
+    font-size: 18px !important;
+    font-weight: 600 !important;
+  }
+
+  /* Corpo do dialog com mais espaçamento */
   .el-dialog__body {
-    padding: 18px 14px !important;
-    max-height: calc(100vh - 180px) !important;
+    padding: 25px 25px 20px !important;
+    max-height: calc(100vh - 200px);
+    overflow-y: auto;
   }
-}
+
+  /* Tabs com espaçamento adequado */
+  .el-tabs {
+    margin-top: 0 !important;
+  }
+
+  .el-tabs__header {
+    margin-bottom: 20px !important;
+    padding: 0 !important;
+  }
+
+  .el-tabs__nav-wrap {
+    padding: 0 !important;
+    margin-bottom: 15px !important;
+  }
+
+  .el-tabs__item {
+    padding: 10px 20px !important;
+    height: 42px !important;
+    line-height: 42px !important;
+    font-weight: 500 !important;
+    transition: all 0.3s ease !important;
+  }
+
+  .el-tabs__item:hover {
+    color: var(--el-color-primary) !important;
+    background: rgba(64, 158, 255, 0.05);
+    border-radius: 8px 8px 0 0;
+  }
+
+  .el-tabs__item.is-active {
+    font-weight: 600 !important;
+    background: rgba(64, 158, 255, 0.1);
+    border-radius: 8px 8px 0 0;
+  }
+
+  .el-tabs__active-bar {
+    height: 3px !important;
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%) !important;
+  }
+
+  .el-tabs__content {
+    padding: 0 !important;
+  }
+
+  /* Form items com melhor espaçamento */
+  .el-form-item {
+    margin-bottom: 18px !important;
+  }
+
+  .el-form-item__label {
+    padding-bottom: 6px !important;
+    font-weight: 500 !important;
+    color: #606266 !important;
+  }
+
+  /* Inputs e selects mais espaçosos */
+  .el-input__inner,
+  .el-select .el-input__inner,
+  .el-textarea__inner {
+    padding: 8px 12px !important;
+    height: 40px !important;
+    border-radius: 8px !important;
+  }
+
+  .el-select {
+    width: 100% !important;
+  }
+
+  /* Switch melhorado */
+  .el-switch {
+    height: 24px !important;
+  }
+
+  .el-switch__core {
+    height: 24px !important;
+    border-radius: 12px !important;
+  }
+
+  /* Footer do dialog */
+  .el-dialog__footer {
+    padding: 15px 25px 20px !important;
+    background: #f8f9fa;
+    border-top: 1px solid #e9ecef;
+  }
+
+  /* Botões no footer */
+  .el-dialog__footer .el-button {
+    min-width: 100px !important;
+    height: 40px !important;
+    border-radius: 8px !important;
+    font-weight: 500 !important;
+  }
+
+  .el-dialog__footer .el-button--primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    border: none !important;
+  }
+
+  .el-dialog__footer .el-button--default {
+    background: white !important;
+    border: 1px solid #dcdfe6 !important;
+  }
+
+  /* Grid de 2 colunas para formulários */
+  .el-form .el-row {
+    margin: 0 -10px !important;
+  }
+
+  .el-form .el-col {
+    padding: 0 10px !important;
+  }
+
+  /* Scrollbar customizada para dialogs */
+  .el-dialog__body::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .el-dialog__body::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+  }
+
+  .el-dialog__body::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 10px;
+  }
+
+  .el-dialog__body::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+  }
+
+  /* Mobile adjustments */
+  @media (max-width: 768px) {
+    .el-dialog {
+      width: 95% !important;
+      margin: 10px auto !important;
+    }
+    
+    .el-dialog__body {
+      padding: 20px 15px !important;
+      max-height: calc(100vh - 180px) !important;
+    }
+    
+    .el-tabs__item {
+      padding: 8px 12px !important;
+      font-size: 14px !important;
+    }
+    
+    .el-form .el-col-24 {
+      padding: 0 5px !important;
+    }
+  }
+
+  /* Estado del dispositivo - melhor visual */
+  .el-form-item__content .el-switch__label {
+    font-weight: 500 !important;
+    margin-left: 10px !important;
+  }
+
+  .el-switch.is-checked .el-switch__core {
+    background: linear-gradient(135deg, #34d399 0%, #10b981 100%) !important;
+    border-color: #10b981 !important;
+  }
 </style>
